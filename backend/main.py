@@ -175,6 +175,68 @@ async def heatmap_page(request: Request):
     return templates.TemplateResponse("heatmap.html", {"request": request})
 
 
+@app.get("/track/{booking_id}", response_class=HTMLResponse)
+async def track_page(request: Request, booking_id: str):
+    return templates.TemplateResponse("track.html", {"request": request, "booking_id": booking_id})
+
+
+# ============================================================
+# LIVE TRACKING API
+# ============================================================
+
+@app.get("/api/track/{booking_id}")
+async def get_tracking_data(booking_id: str):
+    """Returns live driver location + booking status for the tracking page."""
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data:
+            booking = r.data[0]
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+                break
+
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+
+    driver = None
+    if booking.get("assigned_driver_id"):
+        if db:
+            r = db.table("drivers").select("*").eq("id", booking["assigned_driver_id"]).execute()
+            if r.data:
+                driver = r.data[0]
+        else:
+            for d in demo_drivers:
+                if d["id"] == booking["assigned_driver_id"]:
+                    driver = d
+                    break
+
+    result = {
+        "booking_id":    booking["id"],
+        "status":        booking["status"],
+        "customer_name": booking["customer_name"],
+        "pickup":        booking["pickup_address"],
+        "dropoff":       booking["dropoff_address"],
+        "fare":          booking.get("estimated_fare", 0),
+        "driver":        None,
+    }
+
+    if driver:
+        result["driver"] = {
+            "name":    driver["name"],
+            "vehicle": driver.get("vehicle", "Taxi"),
+            "plate":   driver.get("plate", ""),
+            "lat":     driver.get("latitude"),
+            "lng":     driver.get("longitude"),
+            "rating":  driver.get("rating", 5.0),
+        }
+
+    return result
+
+
 # ============================================================
 # FARE ESTIMATE
 # ============================================================
@@ -355,7 +417,8 @@ async def dispatch_booking(booking: dict):
                     booking["customer_phone"],
                     nearest["name"],
                     vehicle,
-                    eta_mins
+                    eta_mins,
+                    booking_id=bid
                 )
             except Exception:
                 pass

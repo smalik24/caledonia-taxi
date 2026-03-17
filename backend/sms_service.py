@@ -59,14 +59,16 @@ def sms_booking_confirmed(
     customer_phone: str,
     customer_name: str,
     booking_id: str,
-    fare: float
+    fare: float,
+    base_url: str = "https://caledonia-taxi-production.up.railway.app"
 ) -> dict:
     """Step 1 — Sent immediately when booking is created."""
     short_id = booking_id[:8].upper()
+    track_url = f"{base_url}/track/{booking_id}"
     msg = (
         f"Hi {customer_name}! Your Caledonia Taxi is booked "
         f"(Ref #{short_id}). Est. fare: ${fare:.2f} CAD. "
-        f"We'll text when your driver is on the way. -Caledonia Taxi"
+        f"Track your driver live: {track_url} -Caledonia Taxi"
     )
     return _send_mock(customer_phone, msg)
 
@@ -75,13 +77,15 @@ def sms_driver_assigned(
     customer_phone: str,
     driver_name: str,
     vehicle: str,
-    eta_mins: int
+    eta_mins: int,
+    booking_id: str = "",
+    base_url: str = "https://caledonia-taxi-production.up.railway.app"
 ) -> dict:
     """Step 2 — Sent when a driver accepts the ride."""
+    track_url = f"{base_url}/track/{booking_id}" if booking_id else f"{base_url}"
     msg = (
         f"Your driver {driver_name} is on the way in a {vehicle}. "
-        f"ETA: ~{eta_mins} min. Track your ride at caledonia.taxi. "
-        f"-Caledonia Taxi"
+        f"ETA: ~{eta_mins} min. Track live: {track_url} -Caledonia Taxi"
     )
     return _send_mock(customer_phone, msg)
 

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Track Your Ride — Caledonia Taxi</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #080811;
+      --card:    #0f0f1e;
+      --border:  #1e1e3a;
+      --accent:  #FFD700;
+      --text:    #e8e8f0;
+      --muted:   #6b6b8a;
+      --green:   #00e676;
+      --danger:  #ff4444;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    .header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+    .header-logo {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    .header-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    /* ── Status pill ─────────────────────────── */
+    .status-bar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.4s;
+    }
+    .status-dot.active  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.4s infinite; }
+    .status-dot.done    { background: var(--accent); }
+    .status-dot.waiting { background: var(--muted); }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.4; }
+    }
+    .status-text { font-size: 0.88rem; font-weight: 600; }
+    .status-sub  { font-size: 0.75rem; color: var(--muted); margin-left: auto; }
+
+    /* ── Map ─────────────────────────────────── */
+    #map {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+    }
+
+    /* ── Bottom card ─────────────────────────── */
+    .bottom-card {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      padding: 14px 16px;
+      flex-shrink: 0;
+    }
+    .driver-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .driver-avatar {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      border: 2px solid var(--accent);
+    }
+    .driver-name  { font-weight: 700; font-size: 0.95rem; }
+    .driver-vehicle { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .driver-rating {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 4px;
+      font-size: 0.85rem; font-weight: 700; color: var(--accent);
+    }
+
+    .trip-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .trip-cell {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .trip-cell label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
+    .trip-cell span  { font-size: 0.8rem; font-weight: 600; line-height: 1.3; }
+
+    /* ── Waiting state ───────────────────────── */
+    .waiting-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 500;
+    }
+    .waiting-overlay.hidden { display: none; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .waiting-title { font-size: 1.1rem; font-weight: 700; }
+    .waiting-sub   { font-size: 0.82rem; color: var(--muted); }
+
+    /* ── Completed state ─────────────────────── */
+    .completed-banner {
+      display: none;
+      background: linear-gradient(135deg, #1a2a0a, #0d1a06);
+      border: 1px solid #2d5a1a;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .completed-banner.show { display: block; }
+    .completed-banner strong { color: var(--green); font-size: 0.9rem; }
+    .completed-banner p { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+    /* Leaflet dark overrides */
+    .leaflet-tile-pane { filter: brightness(0.85); }
+    .leaflet-popup-content-wrapper {
+      background: var(--card) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      border-radius: 10px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+    }
+    .leaflet-popup-tip { background: var(--card) !important; }
+    .leaflet-popup-content { margin: 10px 14px !important; font-size: 0.82rem; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-logo">🚕 Caledonia Taxi</div>
+    <div class="header-sub" id="fareDisplay"></div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot waiting" id="statusDot"></div>
+    <div class="status-text" id="statusText">Finding your driver…</div>
+    <div class="status-sub" id="etaDisplay"></div>
+  </div>
+
+  <div style="position: relative; flex: 1; min-height: 0;">
+    <div id="map"></div>
+    <div class="waiting-overlay" id="waitingOverlay">
+      <div class="spinner"></div>
+      <div class="waiting-title">Finding your driver</div>
+      <div class="waiting-sub">We're dispatching the nearest driver to you</div>
+    </div>
+  </div>
+
+  <div class="bottom-card">
+    <div class="completed-banner" id="completedBanner">
+      <strong>✅ Ride Complete — Thanks for riding!</strong>
+      <p id="completedFare"></p>
+    </div>
+
+    <div class="driver-row" id="driverRow" style="display:none;">
+      <div class="driver-avatar">🚗</div>
+      <div>
+        <div class="driver-name" id="driverName">—</div>
+        <div class="driver-vehicle" id="driverVehicle">—</div>
+      </div>
+      <div class="driver-rating">⭐ <span id="driverRating">—</span></div>
+    </div>
+
+    <div class="trip-row">
+      <div class="trip-cell">
+        <label>Pickup</label>
+        <span id="pickupAddr">—</span>
+      </div>
+      <div class="trip-cell">
+        <label>Drop-off</label>
+        <span id="dropoffAddr">—</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const BOOKING_ID = "{{ booking_id }}";
+    const API = window.location.origin;
+    const POLL_MS = 5000;
+
+    // ── Map init ───────────────────────────────
+    const map = L.map("map", { zoomControl: false, attributionControl: false });
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      maxZoom: 19
+    }).addTo(map);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    map.setView([43.2557, -79.8711], 13);
+
+    // ── Custom icons ───────────────────────────
+    const driverIcon = L.divIcon({
+      html: `<div style="
+        width:40px; height:40px; border-radius:50%;
+        background:#FFD700; border:3px solid #fff;
+        display:flex; align-items:center; justify-content:center;
+        font-size:20px; box-shadow:0 2px 12px rgba(0,0,0,0.5);
+      ">🚕</div>`,
+      className: "",
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+    });
+
+    const pickupIcon = L.divIcon({
+      html: `<div style="
+        width:14px; height:14px; border-radius:50%;
+        background:#00e676; border:3px solid #fff;
+        box-shadow:0 0 10px #00e676;
+      "></div>`,
+      className: "",
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+
+    const dropoffIcon = L.divIcon({
+      html: `<div style="
+        width:14px; height:14px; border-radius:50%;
+        background:#ff4444; border:3px solid #fff;
+        box-shadow:0 0 10px #ff4444;
+      "></div>`,
+      className: "",
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+
+    // ── State ──────────────────────────────────
+    let driverMarker  = null;
+    let pickupMarker  = null;
+    let dropoffMarker = null;
+    let lastStatus    = null;
+    let mapFitted     = false;
+
+    // Hamilton centre coords for rough geocode fallback
+    const HAMILTON_COORDS = [43.2557, -79.8711];
+
+    function setStatus(status, driverName) {
+      const dot  = document.getElementById("statusDot");
+      const text = document.getElementById("statusText");
+
+      dot.className = "status-dot";
+
+      const map = {
+        pending:     ["waiting", "Finding your driver…"],
+        dispatched:  ["active",  "Driver notified — awaiting response"],
+        accepted:    ["active",  `${driverName || "Driver"} is on the way`],
+        in_progress: ["active",  "Ride in progress"],
+        completed:   ["done",    "Ride complete — thanks for riding!"],
+        cancelled:   ["waiting", "Booking cancelled"],
+      };
+      const [cls, label] = map[status] || ["waiting", status];
+      dot.classList.add(cls);
+      text.textContent = label;
+    }
+
+    function updateUI(data) {
+      // Addresses
+      document.getElementById("pickupAddr").textContent  = data.pickup  || "—";
+      document.getElementById("dropoffAddr").textContent = data.dropoff || "—";
+
+      // Fare
+      if (data.fare) {
+        document.getElementById("fareDisplay").textContent = `Est. $${parseFloat(data.fare).toFixed(2)} CAD`;
+      }
+
+      const status = data.status;
+      setStatus(status, data.driver?.name);
+
+      // Completed state
+      if (status === "completed") {
+        document.getElementById("completedBanner").classList.add("show");
+        document.getElementById("completedFare").textContent =
+          `Final fare: $${parseFloat(data.fare || 0).toFixed(2)} CAD`;
+        document.getElementById("waitingOverlay").classList.add("hidden");
+      }
+
+      // Driver card
+      if (data.driver) {
+        document.getElementById("waitingOverlay").classList.add("hidden");
+        document.getElementById("driverRow").style.display = "flex";
+        document.getElementById("driverName").textContent    = data.driver.name;
+        document.getElementById("driverVehicle").textContent = data.driver.vehicle + (data.driver.plate ? ` · ${data.driver.plate}` : "");
+        document.getElementById("driverRating").textContent  = data.driver.rating;
+
+        // Driver map marker
+        const lat = data.driver.lat;
+        const lng = data.driver.lng;
+        if (lat && lng) {
+          if (!driverMarker) {
+            driverMarker = L.marker([lat, lng], { icon: driverIcon, zIndexOffset: 1000 }).addTo(map);
+            driverMarker.bindPopup(`<b>${data.driver.name}</b><br>${data.driver.vehicle}`);
+          } else {
+            driverMarker.setLatLng([lat, lng]);
+          }
+        }
+      } else if (["pending", "dispatched"].includes(status)) {
+        document.getElementById("waitingOverlay").classList.remove("hidden");
+      }
+
+      // Fit map bounds on first successful driver position
+      if (!mapFitted && driverMarker) {
+        const bounds = [driverMarker.getLatLng()];
+        if (pickupMarker)  bounds.push(pickupMarker.getLatLng());
+        if (dropoffMarker) bounds.push(dropoffMarker.getLatLng());
+        if (bounds.length > 1) {
+          map.fitBounds(L.latLngBounds(bounds), { padding: [50, 50] });
+        } else {
+          map.setView(driverMarker.getLatLng(), 14);
+        }
+        mapFitted = true;
+      }
+
+      lastStatus = status;
+    }
+
+    // ── Rough address → coords (Hamilton landmarks) ────
+    const LANDMARKS = {
+      "hamilton go":          [43.2557, -79.8711],
+      "mcmaster":             [43.2609, -79.9192],
+      "jackson square":       [43.2567, -79.8683],
+      "hamilton airport":     [43.1736, -79.9350],
+      "mohawk college":       [43.2323, -79.8879],
+      "lime ridge":           [43.2080, -79.8670],
+      "dundurn":              [43.2660, -79.8940],
+      "copps coliseum":       [43.2554, -79.8680],
+      "firstontario":         [43.2554, -79.8680],
+      "hamilton general":     [43.2600, -79.8600],
+      "juravinski":           [43.2489, -79.8408],
+      "st. joseph":           [43.2630, -79.8930],
+    };
+
+    function roughGeocode(address) {
+      if (!address) return null;
+      const lower = address.toLowerCase();
+      for (const [key, coords] of Object.entries(LANDMARKS)) {
+        if (lower.includes(key)) return coords;
+      }
+      return null;
+    }
+
+    async function fetchAndUpdate() {
+      try {
+        const r = await fetch(`${API}/api/track/${BOOKING_ID}`);
+        if (!r.ok) return;
+        const data = await r.json();
+
+        // Place pickup/dropoff markers once
+        if (!pickupMarker) {
+          const coords = roughGeocode(data.pickup) || HAMILTON_COORDS;
+          pickupMarker = L.marker(coords, { icon: pickupIcon }).addTo(map);
+          pickupMarker.bindPopup(`<b>Pickup</b><br>${data.pickup}`);
+        }
+        if (!dropoffMarker) {
+          const coords = roughGeocode(data.dropoff) || HAMILTON_COORDS;
+          dropoffMarker = L.marker(coords, { icon: dropoffIcon }).addTo(map);
+          dropoffMarker.bindPopup(`<b>Drop-off</b><br>${data.dropoff}`);
+        }
+
+        updateUI(data);
+
+        // Stop polling when done
+        if (["completed", "cancelled"].includes(data.status)) {
+          clearInterval(pollTimer);
+        }
+      } catch(e) {
+        console.warn("Track poll error:", e);
+      }
+    }
+
+    fetchAndUpdate();
+    const pollTimer = setInterval(fetchAndUpdate, POLL_MS);
+  </script>
+</body>
+</html>
