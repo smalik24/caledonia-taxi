@@ -296,12 +296,7 @@ function loginSuccess(d) {
   localStorage.setItem('ctDriver', JSON.stringify(d));
 
   // Header badge
-  document.getElementById('headerRight').innerHTML = `
-    <div class="driver-header-badge">
-      <div class="status-dot"></div>
-      <span>${d.name}</span>
-    </div>
-    <button class="btn btn-ghost btn-sm" onclick="signOut()" style="margin-left:0.5rem;">Out</button>`;
+  buildHeaderBadge(d);
 
   // Vehicle info
   const vehicles = {
@@ -319,6 +314,16 @@ function loginSuccess(d) {
   toast(`Welcome back, ${d.name}!`, 'success');
 }
 
+function buildHeaderBadge(d) {
+  document.getElementById('headerRight').innerHTML = `
+    <div class="driver-header-badge">
+      <div class="status-dot"></div>
+      <span>${d.name}</span>
+      <span id="gpsBadge" style="display:inline-flex; align-items:center; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:2px 8px; font-size:0.72rem; color:rgba(255,255,255,0.4); margin-left:8px; opacity:0.6;">📍 GPS Off</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="signOut()" style="margin-left:0.5rem;">Out</button>`;
+}
+
 // Auto-login
 (function() {
   const s = localStorage.getItem('ctDriver');
@@ -326,6 +331,7 @@ function loginSuccess(d) {
 })();
 
 function signOut() {
+  stopGPS();
   driver = null; currentRide = null;
   localStorage.removeItem('ctDriver');
   if (ws) ws.close();
@@ -350,19 +356,69 @@ function connectWS() {
 }
 
 // ===================== GPS =====================
+let gpsWatchId = null;
+
 function startGPS() {
-  if (!navigator.geolocation) return;
-  const send = () => navigator.geolocation.getCurrentPosition(async pos => {
-    if (!driver) return;
-    try {
-      await fetch(`${API}/api/drivers/${driver.id}/location`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
-      });
-    } catch(e) {}
-  }, ()=>{}, { enableHighAccuracy: true });
-  send();
-  setInterval(send, 30000);
+  if (!navigator.geolocation) {
+    updateGPSBadge(false);
+    return;
+  }
+  if (gpsWatchId !== null) return; // already watching
+  gpsWatchId = navigator.geolocation.watchPosition(
+    function(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const accuracy = pos.coords.accuracy;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'location_update',
+          lat: lat,
+          lng: lng,
+          accuracy: accuracy
+        }));
+      }
+      // Also persist to REST endpoint
+      if (driver) {
+        fetch(`${API}/api/drivers/${driver.id}/location`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ latitude: lat, longitude: lng })
+        }).catch(() => {});
+      }
+      updateGPSBadge(true);
+    },
+    function(err) {
+      console.warn('GPS error:', err.message);
+      updateGPSBadge(false);
+      if (err.code === 1) { // PERMISSION_DENIED
+        toast('Location access denied — tracking disabled.', 'error');
+      }
+    },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+  );
+}
+
+function stopGPS() {
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+  updateGPSBadge(false);
+}
+
+function updateGPSBadge(active) {
+  const badge = document.getElementById('gpsBadge');
+  if (!badge) return;
+  if (active) {
+    badge.textContent = '📍 GPS Active';
+    badge.style.color = '#22c55e';
+    badge.style.borderColor = '#22c55e';
+    badge.style.opacity = '1';
+  } else {
+    badge.textContent = '📍 GPS Off';
+    badge.style.color = '';
+    badge.style.borderColor = '';
+    badge.style.opacity = '0.6';
+  }
 }
 
 // ===================== STATUS =====================
@@ -383,6 +439,11 @@ async function setStatus(s) {
       offline:   '⛔ You\'re offline'
     };
     document.getElementById('statusText').innerHTML = msgs[s];
+    if (s === 'available' || s === 'busy') {
+      startGPS();
+    } else {
+      stopGPS();
+    }
   } catch(e) { toast('Could not update status', 'error'); }
 }
 
