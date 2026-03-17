@@ -178,7 +178,12 @@ async def driver_page(request: Request):
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
+    admin_session = request.cookies.get("admin_session", "")
+    authed = verify_session_token(admin_session, APP_SECRET_KEY) if admin_session else False
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "authed": authed
+    })
 
 
 @app.get("/heatmap", response_class=HTMLResponse)
