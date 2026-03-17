@@ -13,16 +13,19 @@ from datetime import datetime, timezone
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
+import secrets
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Cookie, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import (
     SUPABASE_URL, SUPABASE_KEY,
-    DISPATCH_TIMEOUT_SECONDS, MAX_DISPATCH_ATTEMPTS
+    DISPATCH_TIMEOUT_SECONDS, MAX_DISPATCH_ATTEMPTS,
+    ADMIN_PASSWORD, APP_SECRET_KEY
 )
+from auth_service import create_session_token, verify_session_token, safe_compare
 from models import (
     BookingRequest, FareEstimateRequest, DriverLoginRequest,
     DriverLocationUpdate, DriverStatusUpdate, RideActionRequest,
@@ -152,6 +155,18 @@ manager = ConnectionManager()
 
 
 # ============================================================
+# ADMIN AUTH
+# ============================================================
+
+SESSION_DURATION_SECONDS = 8 * 3600
+
+
+def require_admin(admin_session: str = Cookie(default=None)):
+    if not admin_session or not verify_session_token(admin_session, APP_SECRET_KEY):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+# ============================================================
 # PAGE ROUTES
 # ============================================================
 
@@ -178,6 +193,29 @@ async def heatmap_page(request: Request):
 @app.get("/track/{booking_id}", response_class=HTMLResponse)
 async def track_page(request: Request, booking_id: str):
     return templates.TemplateResponse("track.html", {"request": request, "booking_id": booking_id})
+
+
+@app.post("/admin/login")
+async def admin_login(request: Request):
+    data = await request.json()
+    password = data.get("password", "")
+    if not safe_compare(password, ADMIN_PASSWORD):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    token = create_session_token(APP_SECRET_KEY)
+    response = JSONResponse({"ok": True})
+    response.set_cookie(
+        "admin_session", token,
+        httponly=True, samesite="lax",
+        max_age=SESSION_DURATION_SECONDS
+    )
+    return response
+
+
+@app.get("/admin/logout")
+async def admin_logout():
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("admin_session")
+    return response
 
 
 # ============================================================
@@ -725,7 +763,7 @@ async def complete_ride(booking_id: str, driver_id: str):
 # ADMIN
 # ============================================================
 
-@app.post("/api/admin/assign")
+@app.post("/api/admin/assign", dependencies=[Depends(require_admin)])
 async def admin_assign(req: AdminAssignRequest):
     db = get_db()
     if db:
@@ -757,7 +795,7 @@ async def admin_assign(req: AdminAssignRequest):
     return {"success": True}
 
 
-@app.get("/api/admin/stats")
+@app.get("/api/admin/stats", dependencies=[Depends(require_admin)])
 async def admin_stats():
     db       = get_db()
     bookings = db.table("bookings").select("status").execute().data if db else demo_bookings
@@ -774,17 +812,17 @@ async def admin_stats():
     }
 
 
-@app.get("/api/admin/sms-log")
+@app.get("/api/admin/sms-log", dependencies=[Depends(require_admin)])
 async def sms_log():
     return {"sms_log": get_sms_log()}
 
 
-@app.get("/api/admin/email-log")
+@app.get("/api/admin/email-log", dependencies=[Depends(require_admin)])
 async def email_log():
     return {"email_log": get_email_log()}
 
 
-@app.get("/api/admin/heatmap-data")
+@app.get("/api/admin/heatmap-data", dependencies=[Depends(require_admin)])
 async def heatmap_data():
     """
     Returns booking pickup coordinates for the heatmap.

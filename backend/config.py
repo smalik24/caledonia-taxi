@@ -24,6 +24,9 @@ APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("APP_PORT", "8000"))
 APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "dev-secret-key")
 
+# Admin
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin1234")
+
 # Fare Configuration (CAD)
 BASE_FARE = float(os.getenv("BASE_FARE", "4.50"))
 PER_KM_RATE = float(os.getenv("PER_KM_RATE", "2.10"))
