@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Caledonia Taxi — Book a Ride</title>
   <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://js.stripe.com/v3/" async></script>
   <style>
     /* Page-specific tweaks */
     .promo-bar {
@@ -55,6 +56,17 @@
       border: 1px solid var(--border-accent);
       border-radius: var(--radius-xs);
       padding: 0.2rem 0.5rem;
+    }
+    .payment-option {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      background: var(--surface-2); border: 2px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.875rem 0.5rem;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      text-align: center;
+    }
+    .payment-option.selected {
+      border-color: var(--accent);
+      background: rgba(245,197,24,0.06);
     }
   </style>
 </head>
@@ -177,6 +189,28 @@
       </div>
     </div>
 
+    <!-- Payment Method -->
+    <div id="paymentSection" style="margin-bottom:1.25rem;">
+      <div class="divider" style="margin-bottom:0.875rem;">Payment</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+        <div id="payCard" class="payment-option selected" onclick="selectPayment('card')">
+          <div style="font-size:1.2rem;">💳</div>
+          <div style="font-weight:600; font-size:0.85rem;">Pay by Card</div>
+          <div style="font-size:0.72rem; color:var(--text-muted);">Visa, MC, Amex</div>
+        </div>
+        <div id="payCash" class="payment-option" onclick="selectPayment('cash')">
+          <div style="font-size:1.2rem;">💵</div>
+          <div style="font-weight:600; font-size:0.85rem;">Pay Cash</div>
+          <div style="font-size:0.72rem; color:var(--text-muted);">Pay driver directly</div>
+        </div>
+      </div>
+      <!-- Stripe card element -->
+      <div id="stripeCardWrapper" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.875rem;">
+        <div id="stripe-card-element"></div>
+        <div id="stripe-error" style="color:var(--danger); font-size:0.82rem; margin-top:0.5rem; display:none;"></div>
+      </div>
+    </div>
+
     <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-bottom:1.25rem;">
       Final fare may vary slightly based on actual route. SMS confirmation sent after booking.
     </p>
@@ -269,7 +303,7 @@ document.getElementById('bookingForm').addEventListener('submit', async e => {
     document.getElementById('fareDist').textContent  = estimate.distance_km.toFixed(1);
     document.getElementById('s2Pickup').textContent  = document.getElementById('pickup').value;
     document.getElementById('s2Dropoff').textContent = document.getElementById('dropoff').value;
-    showStep(2);
+    prepareStep2(); return;
   } catch(err) {
     toast(err.message || 'Could not calculate fare', 'error');
   } finally {
@@ -278,36 +312,121 @@ document.getElementById('bookingForm').addEventListener('submit', async e => {
   }
 });
 
-async function confirmBooking() {
-  const btn = document.getElementById('confirmBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Booking…';
+let stripe = null;
+let stripeCardElement = null;
+let paymentMethod = 'card';
+let stripeClientSecret = null;
+
+function selectPayment(method) {
+  paymentMethod = method;
+  document.getElementById('payCard').classList.toggle('selected', method === 'card');
+  document.getElementById('payCash').classList.toggle('selected', method === 'cash');
+  document.getElementById('stripeCardWrapper').style.display = method === 'card' ? 'block' : 'none';
+}
+
+async function initStripe(publishableKey) {
+  if (!publishableKey || typeof Stripe === 'undefined') return;
+  stripe = Stripe(publishableKey);
+  const elements = stripe.elements();
+  stripeCardElement = elements.create('card', {
+    style: {
+      base: {
+        color: '#e2e8f0',
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '14px',
+        '::placeholder': { color: '#4a5568' }
+      }
+    }
+  });
+  stripeCardElement.mount('#stripe-card-element');
+}
+
+async function prepareStep2() {
   try {
-    const r = await fetch(`${API}/api/bookings`, {
+    const API_BASE = (typeof API !== 'undefined') ? API : '';
+    const r = await fetch(`${API_BASE}/api/payments/create-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        customer_name:   document.getElementById('name').value,
-        customer_phone:  document.getElementById('phone').value,
-        pickup_address:  document.getElementById('pickup').value,
-        dropoff_address: document.getElementById('dropoff').value,
-        source: 'web'
+        pickup_address: document.getElementById('pickup').value,
+        dropoff_address: document.getElementById('dropoff').value
+      })
+    });
+    if (r.ok) {
+      const data = await r.json();
+      stripeClientSecret = data.client_secret;
+      await initStripe(data.publishable_key);
+    }
+  } catch(e) {
+    // Stripe unavailable — fall back to cash only
+    selectPayment('cash');
+    const payCard = document.getElementById('payCard');
+    if (payCard) payCard.style.display = 'none';
+  }
+  showStep(2);
+}
+
+async function confirmBooking() {
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true;
+  // Keep original button text to restore later
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Processing…';
+
+  // Hide any previous stripe error
+  const stripeErr = document.getElementById('stripe-error');
+  if (stripeErr) stripeErr.style.display = 'none';
+
+  try {
+    let paymentIntentId = null;
+
+    if (paymentMethod === 'card' && stripe && stripeClientSecret) {
+      const { paymentIntent, error } = await stripe.confirmCardPayment(
+        stripeClientSecret,
+        { payment_method: { card: stripeCardElement } }
+      );
+      if (error) {
+        if (stripeErr) {
+          stripeErr.textContent = error.message;
+          stripeErr.style.display = 'block';
+        }
+        throw new Error(error.message);
+      }
+      paymentIntentId = paymentIntent.id;
+    }
+
+    const API_BASE = (typeof API !== 'undefined') ? API : '';
+    const r = await fetch(`${API_BASE}/api/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_name:    document.getElementById('name').value,
+        customer_phone:   document.getElementById('phone').value,
+        pickup_address:   document.getElementById('pickup').value,
+        dropoff_address:  document.getElementById('dropoff').value,
+        source: 'web',
+        payment_method: paymentMethod === 'card' ? 'stripe' : 'cash',
+        payment_intent_id: paymentIntentId
       })
     });
     if (!r.ok) throw new Error('Booking failed');
     const data = await r.json();
     const b = data.booking;
-    document.getElementById('cBookingId').textContent = b.id.slice(0,12).toUpperCase();
-    document.getElementById('cPickup').textContent    = b.pickup_address;
-    document.getElementById('cDropoff').textContent   = b.dropoff_address;
-    document.getElementById('cFare').textContent      = `$${parseFloat(b.estimated_fare).toFixed(2)}`;
+
+    // Populate step 3 confirmation
+    if (document.getElementById('cBookingId')) document.getElementById('cBookingId').textContent = b.id.slice(0,12).toUpperCase();
+    if (document.getElementById('cPickup')) document.getElementById('cPickup').textContent = b.pickup_address;
+    if (document.getElementById('cDropoff')) document.getElementById('cDropoff').textContent = b.dropoff_address;
+    if (document.getElementById('cFare')) document.getElementById('cFare').textContent = `$${parseFloat(b.estimated_fare || 0).toFixed(2)}`;
     showStep(3);
-    toast('Ride booked! Driver dispatching now.', 'success');
+    if (typeof toast === 'function') toast('Ride booked!', 'success');
   } catch(err) {
-    toast('Booking failed — please try again', 'error');
+    if (!err.message || !err.message.includes('card')) {
+      if (typeof toast === 'function') toast('Booking failed — please try again', 'error');
+    }
   } finally {
     btn.disabled = false;
-    btn.innerHTML = 'Confirm &amp; Book →';
+    btn.innerHTML = origText;
   }
 }
 
