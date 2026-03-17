@@ -81,9 +81,10 @@
 
     /* ── Map ─────────────────────────────────── */
     #map {
-      flex: 1;
+      position: absolute;
+      inset: 0;
       width: 100%;
-      min-height: 0;
+      height: 100%;
     }
 
     /* ── Bottom card ─────────────────────────── */
@@ -238,6 +239,7 @@
 
     // ── Map init ───────────────────────────────
     const map = L.map("map", { zoomControl: false, attributionControl: false });
+    setTimeout(() => map.invalidateSize(), 100);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 19
     }).addTo(map);
