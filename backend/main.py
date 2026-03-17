@@ -358,8 +358,27 @@ async def create_booking(req: BookingRequest):
     fare = calculate_fare(distance)
     db   = get_db()
 
+    # ── Advance booking validation ──────────────────────────────
+    scheduled_for_iso: Optional[str] = None
+    is_scheduled = False
+    if req.scheduled_for is not None:
+        now_utc = datetime.now(timezone.utc)
+        sf = req.scheduled_for
+        if sf.tzinfo is None:
+            sf = sf.replace(tzinfo=timezone.utc)
+        lead_minutes = (sf - now_utc).total_seconds() / 60
+        if lead_minutes < 30:
+            raise HTTPException(
+                status_code=400,
+                detail="Scheduled pickup must be at least 30 minutes from now"
+            )
+        is_scheduled = True
+        scheduled_for_iso = sf.isoformat()
+
+    initial_status = "scheduled" if is_scheduled else "pending"
+
     if db:
-        result = db.table("bookings").insert({
+        insert_payload = {
             "customer_name":           req.customer_name,
             "customer_phone":          req.customer_phone,
             "pickup_address":          req.pickup_address,
@@ -370,9 +389,12 @@ async def create_booking(req: BookingRequest):
             "dropoff_lng":             dropoff["lng"],
             "estimated_distance_km":   distance,
             "estimated_fare":          fare,
-            "status":                  "pending",
+            "status":                  initial_status,
             "source":                  req.source.value
-        }).execute()
+        }
+        if scheduled_for_iso is not None:
+            insert_payload["scheduled_for"] = scheduled_for_iso
+        result = db.table("bookings").insert(insert_payload).execute()
         booking = result.data[0]
     else:
         _booking_counter += 1
@@ -388,10 +410,11 @@ async def create_booking(req: BookingRequest):
             "dropoff_lng":             dropoff["lng"],
             "estimated_distance_km":   distance,
             "estimated_fare":          fare,
-            "status":                  "pending",
+            "status":                  initial_status,
             "assigned_driver_id":      None,
             "source":                  req.source.value,
             "dispatch_attempts":       0,
+            "scheduled_for":           scheduled_for_iso,
             "created_at":              datetime.now(timezone.utc).isoformat(),
             "updated_at":              datetime.now(timezone.utc).isoformat()
         }
@@ -411,7 +434,12 @@ async def create_booking(req: BookingRequest):
     except Exception as e:
         print(f"[SMS] booking_confirmed error: {e}")
 
-    asyncio.create_task(dispatch_booking(booking))
+    if is_scheduled:
+        # Do NOT dispatch now — APScheduler will handle this in Task 10
+        pass
+    else:
+        asyncio.create_task(dispatch_booking(booking))
+
     return {"success": True, "booking": booking}
 
 

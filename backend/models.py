@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from enum import Enum
+from datetime import datetime
 
 
 class DriverStatus(str, Enum):
@@ -10,12 +11,14 @@ class DriverStatus(str, Enum):
 
 
 class BookingStatus(str, Enum):
-    pending    = "pending"
-    dispatched = "dispatched"
-    accepted   = "accepted"
-    in_progress = "in_progress"
-    completed  = "completed"
-    cancelled  = "cancelled"
+    pending         = "pending"
+    dispatched      = "dispatched"
+    accepted        = "accepted"
+    in_progress     = "in_progress"
+    completed       = "completed"
+    cancelled       = "cancelled"
+    scheduled       = "scheduled"        # awaiting future dispatch
+    dispatch_failed = "dispatch_failed"  # scheduler failed after retries
 
 
 class BookingSource(str, Enum):
@@ -28,12 +31,13 @@ class BookingSource(str, Enum):
 # ── Request Models ─────────────────────────────────────────
 
 class BookingRequest(BaseModel):
-    customer_name:   str = Field(..., min_length=1, max_length=100)
-    customer_phone:  str = Field(..., min_length=7,  max_length=20)
-    pickup_address:  str = Field(..., min_length=3)
-    dropoff_address: str = Field(..., min_length=3)
-    source: BookingSource = BookingSource.web
-    payment_method: str = "cash"  # "cash" or "stripe"
+    customer_name:      str = Field(..., min_length=1, max_length=100)
+    customer_phone:     str = Field(..., min_length=7,  max_length=20)
+    pickup_address:     str = Field(..., min_length=3)
+    dropoff_address:    str = Field(..., min_length=3)
+    source:             BookingSource = BookingSource.web
+    payment_method:     str = "cash"  # "cash" or "stripe"
+    scheduled_for:      Optional[datetime] = None  # UTC ISO datetime; None = dispatch now
 
 
 class FareEstimateRequest(BaseModel):
