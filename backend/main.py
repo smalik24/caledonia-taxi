@@ -118,6 +118,9 @@ demo_drivers = [
 demo_bookings: list[dict] = []
 _booking_counter = 0
 
+# Dict view of demo_drivers keyed by driver ID (for WebSocket handler and tests)
+drivers_db: dict[str, dict] = {d["id"]: d for d in demo_drivers}
+
 
 # ============================================================
 # WEBSOCKET MANAGER
@@ -1070,6 +1073,21 @@ async def ws_driver(ws: WebSocket, driver_id: str):
             msg = json.loads(await ws.receive_text())
             if msg.get("type") == "ping":
                 await ws.send_json({"type": "pong"})
+            elif msg.get("type") == "location_update":
+                lat = msg.get("lat")
+                lng = msg.get("lng")
+                if lat is not None and lng is not None and driver_id in drivers_db:
+                    drivers_db[driver_id]["latitude"] = lat
+                    drivers_db[driver_id]["longitude"] = lng
+                    drivers_db[driver_id]["last_location_update"] = datetime.now(timezone.utc).isoformat()
+                    await manager.broadcast(f"track_{driver_id}", {
+                        "type": "location_update",
+                        "driver_id": driver_id,
+                        "lat": lat,
+                        "lng": lng,
+                        "accuracy": msg.get("accuracy"),
+                        "timestamp": drivers_db[driver_id]["last_location_update"],
+                    })
     except WebSocketDisconnect:
         manager.disconnect(ws, f"driver_{driver_id}")
 
