@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from typing import Optional
 from contextlib import asynccontextmanager
 
-import secrets
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Cookie, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -23,9 +22,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import (
     SUPABASE_URL, SUPABASE_KEY,
     DISPATCH_TIMEOUT_SECONDS, MAX_DISPATCH_ATTEMPTS,
-    ADMIN_PASSWORD, APP_SECRET_KEY
+    ADMIN_PASSWORD, APP_SECRET_KEY, COOKIE_SECURE
 )
-from auth_service import create_session_token, verify_session_token, safe_compare
+from auth_service import create_session_token, verify_session_token, safe_compare, SESSION_DURATION_SECONDS
 from models import (
     BookingRequest, FareEstimateRequest, DriverLoginRequest,
     DriverLocationUpdate, DriverStatusUpdate, RideActionRequest,
@@ -158,9 +157,6 @@ manager = ConnectionManager()
 # ADMIN AUTH
 # ============================================================
 
-SESSION_DURATION_SECONDS = 8 * 3600
-
-
 def require_admin(admin_session: str = Cookie(default=None)):
     if not admin_session or not verify_session_token(admin_session, APP_SECRET_KEY):
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -206,7 +202,8 @@ async def admin_login(request: Request):
     response.set_cookie(
         "admin_session", token,
         httponly=True, samesite="lax",
-        max_age=SESSION_DURATION_SECONDS
+        max_age=SESSION_DURATION_SECONDS,
+        secure=COOKIE_SECURE
     )
     return response
 

@@ -26,6 +26,7 @@ APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "dev-secret-key")
 
 # Admin
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin1234")
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
 
 # Fare Configuration (CAD)
 BASE_FARE = float(os.getenv("BASE_FARE", "4.50"))
