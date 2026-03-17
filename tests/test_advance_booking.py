@@ -57,3 +57,55 @@ async def test_scheduled_booking_rejects_past_time(client):
         "scheduled_for": past_time
     })
     assert r.status_code == 400
+
+
+async def test_scheduler_dispatches_when_within_10_minutes():
+    """Scheduler should pick up bookings whose scheduled_for is within 10 min."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+    from main import bookings_db
+    from scheduler import dispatch_scheduled_now
+    from datetime import datetime, timezone, timedelta
+
+    # Plant a scheduled booking due in 5 minutes
+    booking_id = "test-sched-scheduler-001"
+    bookings_db[booking_id] = {
+        "id": booking_id,
+        "status": "scheduled",
+        "scheduled_for": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(),
+        "customer_phone": "+12895550099",
+        "pickup_address": "Test Pickup",
+        "dropoff_address": "Test Dropoff",
+        "estimated_fare": 15.0,
+        "estimated_distance_km": 5.0,
+        "assigned_driver_id": None,
+        "source": "web",
+    }
+    dispatched_ids = []
+
+    async def fake_dispatch(booking):
+        dispatched_ids.append(booking["id"])
+
+    await dispatch_scheduled_now(bookings_db, fake_dispatch)
+    assert booking_id in dispatched_ids
+    assert bookings_db[booking_id]["status"] == "dispatching"
+
+
+async def test_scheduler_skips_non_scheduled_bookings():
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+    from main import bookings_db
+    from scheduler import dispatch_scheduled_now
+    from datetime import datetime, timezone, timedelta
+
+    booking_id = "test-active-scheduler-001"
+    bookings_db[booking_id] = {
+        "id": booking_id,
+        "status": "in_progress",  # not scheduled — should be skipped
+        "scheduled_for": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(),
+    }
+    dispatched_ids = []
+    async def fake_dispatch(b): dispatched_ids.append(b["id"])
+
+    await dispatch_scheduled_now(bookings_db, fake_dispatch)
+    assert booking_id not in dispatched_ids

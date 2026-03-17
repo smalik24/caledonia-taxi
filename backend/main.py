@@ -43,6 +43,7 @@ from sms_service import (
     sms_booking_cancelled, sms_voice_ai_booking, get_sms_log
 )
 from invoice_service import send_receipt_email, generate_invoice_pdf, get_email_log
+from scheduler import setup_scheduler
 
 
 # ============================================================
@@ -52,7 +53,10 @@ from invoice_service import send_receipt_email, generate_invoice_pdf, get_email_
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚕  Caledonia Taxi API starting — Hamilton, ON")
+    sched = setup_scheduler(bookings_db, dispatch_booking, sms_fn=None)
+    sched.start()
     yield
+    sched.shutdown(wait=False)
     print("🚕  Caledonia Taxi API stopped.")
 
 
@@ -123,6 +127,9 @@ _booking_counter = 0
 
 # Dict view of demo_drivers keyed by driver ID (for WebSocket handler and tests)
 drivers_db: dict[str, dict] = {d["id"]: d for d in demo_drivers}
+
+# Dict view of bookings keyed by booking ID (used by scheduler for advance dispatch)
+bookings_db: dict[str, dict] = {}
 
 
 # ============================================================
