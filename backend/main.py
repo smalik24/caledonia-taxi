@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import (
     SUPABASE_URL, SUPABASE_KEY,
     DISPATCH_TIMEOUT_SECONDS, MAX_DISPATCH_ATTEMPTS,
-    ADMIN_PASSWORD, APP_SECRET_KEY, COOKIE_SECURE
+    ADMIN_PASSWORD, APP_SECRET_KEY, COOKIE_SECURE, ALLOWED_ORIGINS
 )
 from auth_service import create_session_token, verify_session_token, safe_compare, SESSION_DURATION_SECONDS
 from models import (
@@ -62,7 +62,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -36,3 +36,12 @@ MINIMUM_FARE = float(os.getenv("MINIMUM_FARE", "8.00"))
 # Dispatch
 DISPATCH_TIMEOUT_SECONDS = 30
 MAX_DISPATCH_ATTEMPTS = 4
+
+# CORS — comma-separated list of allowed origins
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000"
+).split(",")]
+
+# Stripe
+STRIPE_SECRET_KEY      = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
