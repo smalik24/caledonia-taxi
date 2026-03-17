@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Caledonia Taxi API",
+      "runtimeExecutable": "/Users/saqib/Downloads/caledonia-taxi/venv/bin/python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+      "cwd": "backend",
+      "port": 8000
+    },
+    {
+      "name": "Cloudflare Tunnel",
+      "runtimeExecutable": "/opt/homebrew/bin/cloudflared",
+      "runtimeArgs": ["tunnel", "--url", "http://localhost:8000", "--no-autoupdate"],
+      "port": 8000
+    }
+  ]
+}

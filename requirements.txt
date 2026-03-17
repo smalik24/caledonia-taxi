@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+supabase
+python-dotenv
+httpx
+twilio
+websockets
+pydantic
+jinja2
+python-multipart
+reportlab

@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /Users/saqib/Downloads/caledonia-taxi/frontend/templates/*.html)",
+      "Bash(python3 -m venv venv)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(ngrok version:*)",
+      "Bash(ipconfig getifaddr:*)",
+      "Bash(brew install:*)",
+      "Bash(chmod +x /Users/saqib/Downloads/caledonia-taxi/dev.sh)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s http://localhost:4040/api/tunnels)",
+      "Bash(python3 -c \":*)",
+      "Bash(ls /Users/saqib/Downloads/caledonia-taxi/venv/bin/python*)",
+      "Bash(lsof -ti:8000)",
+      "Bash(xargs kill:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(/Users/saqib/Downloads/caledonia-taxi/venv/bin/python -c \"import reportlab; print\\(''reportlab OK'', reportlab.Version\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/api/bookings/NONEXISTENT/receipt)",
+      "Bash(curl -s http://localhost:8000/api/bookings)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(b[''''id''''], b[''''status'''']\\) for b in data[:5]]\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(type\\(data\\)\\); blist=data if isinstance\\(data,list\\) else data.get\\(''''bookings'''',[]\\); [print\\(b[''''id''''], b[''''status'''']\\) for b in blist[:5]]\")",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\" http://localhost:8000/api/bookings/b1/receipt)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:8000/api/bookings/b1/receipt)",
+      "Bash(/Users/saqib/Downloads/caledonia-taxi/venv/bin/python -c \":*)",
+      "Bash(gh auth:*)",
+      "Bash(npm install:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

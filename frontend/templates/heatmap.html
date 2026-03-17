@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caledonia Taxi — Demand Heatmap</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <style>
+    #map { height: 520px; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+    .map-card { padding: 0; overflow: hidden; }
+    .map-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
+    .map-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
+    .filter-buttons { display: flex; gap: 0.5rem; }
+    .stats-mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .stats-mini .stat-card { padding: 1rem; }
+    .stats-mini .stat-value { font-size: 1.6rem; }
+    .zone-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .zone-row {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.75rem 1rem;
+    }
+    .zone-rank { font-weight: 800; color: var(--accent); min-width: 24px; font-size: 1rem; }
+    .zone-bar-wrap { flex: 1; background: var(--surface-3); border-radius: 3px; height: 6px; overflow: hidden; }
+    .zone-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.5s; }
+    .zone-count { font-size: 0.8rem; color: var(--text-secondary); min-width: 50px; text-align: right; }
+    .legend-item .legend-dot { flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo"><div class="logo-icon">🚕</div><span>Demand Heatmap</span></div>
+  <div class="nav-links">
+    <a href="/">Book</a>
+    <a href="/driver">Driver</a>
+    <a href="/admin">Admin</a>
+    <a href="/heatmap" class="active">Heatmap</a>
+  </div>
+</header>
+
+<div class="container-wide">
+
+  <!-- Mini Stats -->
+  <div class="stats-mini" style="margin-top:1.5rem;">
+    <div class="stat-card">
+      <div class="stat-value" id="hmTotal">0</div>
+      <div class="stat-label">Total Bookings</div>
+    </div>
+    <div class="stat-card" style="--sv-color:var(--success)">
+      <div class="stat-value" id="hmDrivers" style="color:var(--success);">0</div>
+      <div class="stat-label">Active Drivers</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="hmTopZone" style="font-size:1rem; padding-top:0.4rem;">—</div>
+      <div class="stat-label">Hottest Zone</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="hmLastUpdate" style="font-size:1rem; padding-top:0.4rem;">—</div>
+      <div class="stat-label">Last Refresh</div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 320px; gap:1.25rem; align-items:start;">
+
+    <!-- MAP -->
+    <div class="card map-card">
+      <div class="map-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-weight:700;">Hamilton, ON — Live Demand Map</span>
+          <span class="live-badge" style="background:var(--success-bg); border:1px solid var(--success-border); color:var(--success); border-radius:20px; padding:0.2rem 0.6rem; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; display:inline-flex; align-items:center; gap:4px;">
+            <span style="width:6px;height:6px;background:var(--success);border-radius:50%;animation:livePulse 2s infinite;"></span> Live
+          </span>
+        </div>
+        <div class="filter-buttons">
+          <button class="btn btn-secondary btn-sm" onclick="toggleLayer('heat')">🌡 Heat</button>
+          <button class="btn btn-secondary btn-sm" onclick="toggleLayer('drivers')">🚗 Drivers</button>
+          <button class="btn btn-secondary btn-sm" onclick="toggleLayer('bookings')">📍 Pickups</button>
+          <button class="btn btn-primary btn-sm" onclick="refreshData()">↻</button>
+        </div>
+      </div>
+
+      <div id="map"></div>
+
+      <div class="map-footer">
+        <div class="map-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#00E676;"></div> Available Driver</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#FFB300;"></div> Busy Driver</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#FF5252;"></div> Booking Origin</div>
+          <div class="legend-item"><div class="legend-dot" style="background:linear-gradient(to right, blue, yellow, red); width:24px; height:8px; border-radius:4px;"></div> Heat Intensity</div>
+        </div>
+        <div style="font-size:0.72rem; color:var(--text-muted);" id="pointCount">0 data points</div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div>
+      <!-- Top Zones -->
+      <div class="card" style="margin-bottom:1.25rem;">
+        <div class="card-header" style="margin-bottom:1rem;"><span class="icon">🔥</span> Top Pickup Zones</div>
+        <div class="zone-list" id="zoneList">
+          <p style="color:var(--text-muted); font-size:0.85rem;">Loading zones…</p>
+        </div>
+      </div>
+
+      <!-- Driver Status -->
+      <div class="card">
+        <div class="card-header" style="margin-bottom:1rem;"><span class="icon">🚗</span> Driver Positions</div>
+        <div id="driverPositionList"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin=""></script>
+
+<!-- Leaflet.heat -->
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+<script>
+const API = '';
+
+// ===================== MAP INIT =====================
+const map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([43.2557, -79.8711], 12);
+
+// Dark tile layer (CartoDB Dark Matter)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+// Layer groups
+let heatLayer = null;
+let driverMarkers = [];
+let bookingMarkers = [];
+let layerStates = { heat: true, drivers: true, bookings: false };
+
+// Custom icons
+function makeDriverIcon(status) {
+  const color = status === 'available' ? '#00E676' : status === 'busy' ? '#FFB300' : '#555';
+  return L.divIcon({
+    html: `<div style="
+      background:${color}; color:#080811; border-radius:50%;
+      width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+      font-size:1.1rem; border:2px solid rgba(255,255,255,0.3);
+      box-shadow:0 2px 8px rgba(0,0,0,0.5);">🚗</div>`,
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+}
+
+function makeBookingIcon() {
+  return L.divIcon({
+    html: `<div style="
+      background:var(--danger,#FF5252); border-radius:50%;
+      width:10px; height:10px; border:2px solid rgba(255,255,255,0.6);
+      box-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>`,
+    className: '',
+    iconSize: [10, 10],
+    iconAnchor: [5, 5]
+  });
+}
+
+// ===================== TOGGLE LAYERS =====================
+function toggleLayer(name) {
+  layerStates[name] = !layerStates[name];
+  if (name === 'heat' && heatLayer) {
+    layerStates.heat ? map.addLayer(heatLayer) : map.removeLayer(heatLayer);
+  }
+  if (name === 'drivers') {
+    driverMarkers.forEach(m => layerStates.drivers ? map.addLayer(m) : map.removeLayer(m));
+  }
+  if (name === 'bookings') {
+    bookingMarkers.forEach(m => layerStates.bookings ? map.addLayer(m) : map.removeLayer(m));
+  }
+}
+
+// ===================== REFRESH DATA =====================
+async function refreshData() {
+  try {
+    const [heatData, driverData] = await Promise.all([
+      fetch(`${API}/api/admin/heatmap-data`).then(r=>r.json()),
+      fetch(`${API}/api/drivers`).then(r=>r.json())
+    ]);
+
+    updateHeatmap(heatData);
+    updateDrivers(driverData.drivers);
+    updateZoneList(heatData);
+    updateStats(heatData, driverData.drivers);
+    document.getElementById('hmLastUpdate').textContent = new Date().toLocaleTimeString();
+
+  } catch(e) {
+    console.error('[Heatmap] Refresh error:', e);
+  }
+}
+
+function updateHeatmap(data) {
+  const points = (data.points || []).map(p => [p.lat, p.lng, p.weight || 1.0]);
+
+  if (heatLayer) map.removeLayer(heatLayer);
+  if (points.length) {
+    heatLayer = L.heatLayer(points, {
+      radius: 35,
+      blur: 20,
+      maxZoom: 14,
+      max: 1.0,
+      gradient: { 0.2: '#0066ff', 0.4: '#00ccff', 0.6: '#ffff00', 0.8: '#ff6600', 1.0: '#ff0000' }
+    });
+    if (layerStates.heat) heatLayer.addTo(map);
+  }
+
+  // Booking origin markers (hidden by default)
+  bookingMarkers.forEach(m => map.removeLayer(m));
+  bookingMarkers = [];
+  (data.points || []).forEach(p => {
+    const m = L.marker([p.lat, p.lng], { icon: makeBookingIcon() })
+      .bindPopup(`<strong>${p.address || 'Pickup'}</strong><br>${new Date(p.timestamp||Date.now()).toLocaleString()}`);
+    bookingMarkers.push(m);
+    if (layerStates.bookings) m.addTo(map);
+  });
+
+  document.getElementById('pointCount').textContent = `${points.length} data points`;
+}
+
+function updateDrivers(drivers) {
+  driverMarkers.forEach(m => map.removeLayer(m));
+  driverMarkers = [];
+
+  drivers.forEach(d => {
+    if (!d.latitude || !d.longitude || d.status === 'offline') return;
+    const marker = L.marker([d.latitude, d.longitude], { icon: makeDriverIcon(d.status) })
+      .bindPopup(`
+        <strong>${d.name}</strong><br>
+        Status: <b style="color:${d.status==='available'?'#00E676':'#FFB300'}">${d.status}</b><br>
+        ${d.phone}
+      `);
+    driverMarkers.push(marker);
+    if (layerStates.drivers) marker.addTo(map);
+  });
+
+  // Driver positions panel
+  const el = document.getElementById('driverPositionList');
+  const active = drivers.filter(d => d.status !== 'offline');
+  if (!active.length) { el.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">No active drivers.</p>'; return; }
+  el.innerHTML = active.map(d => `
+    <div style="display:flex; align-items:center; gap:10px; padding:0.6rem 0; border-bottom:1px solid var(--border);">
+      <div style="width:10px;height:10px;border-radius:50%;background:${d.status==='available'?'var(--success)':'var(--warning)'};flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div style="font-weight:600; font-size:0.88rem;">${d.name}</div>
+        <div style="font-size:0.72rem; color:var(--text-muted);">${d.latitude?.toFixed(4) ?? '?'}, ${d.longitude?.toFixed(4) ?? '?'}</div>
+      </div>
+      <span class="badge badge-${d.status}">${d.status}</span>
+    </div>`).join('');
+}
+
+function updateZoneList(data) {
+  const zones = data.zones || [];
+  const el = document.getElementById('zoneList');
+  const maxCount = zones[0]?.count || 1;
+
+  document.getElementById('hmTopZone').textContent = zones[0]?.name || 'N/A';
+
+  if (!zones.length) { el.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">No booking data yet.</p>'; return; }
+  el.innerHTML = zones.slice(0,8).map((z, i) => `
+    <div class="zone-row">
+      <div class="zone-rank">#${i+1}</div>
+      <div style="flex:1;">
+        <div style="font-size:0.87rem; font-weight:600; margin-bottom:4px;">${z.name}</div>
+        <div class="zone-bar-wrap"><div class="zone-bar" style="width:${(z.count/maxCount*100).toFixed(0)}%;"></div></div>
+      </div>
+      <div class="zone-count">${z.count} rides</div>
+    </div>`).join('');
+}
+
+function updateStats(data, drivers) {
+  document.getElementById('hmTotal').textContent   = data.total_bookings || 0;
+  document.getElementById('hmDrivers').textContent = drivers.filter(d=>d.status!=='offline').length;
+}
+
+// ===================== AUTO REFRESH =====================
+refreshData();
+setInterval(refreshData, 15000);
+</script>
+</body>
+</html>

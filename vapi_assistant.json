@@ -1,0 +1,137 @@
+{
+  "_instructions": "This config documents the working Vapi assistant setup. Tools must be created separately via Vapi API/dashboard first, then referenced via model.toolIds. See _working_ids below for the confirmed live IDs.",
+
+  "_working_ids": {
+    "assistant_id": "b3e476d4-ba92-4cc5-a36e-a578f4389823",
+    "phone_number": "+12545050723",
+    "phone_number_id": "f735ca62-613b-4c92-8adb-a0b42598d697",
+    "tool_ids": {
+      "get_fare_estimate": "cf59589d-707b-438e-8088-a5496e1c2904",
+      "create_booking": "73c8c1c2-5671-49b5-ba6d-9d12c258011e",
+      "check_booking_status": "a7a579bd-b096-4c4a-831c-d7924e53bed4"
+    },
+    "webhook_url": "https://interface-sticker-debian-vacation.trycloudflare.com/api/vapi/webhook",
+    "note": "webhook_url changes every dev session (re-run dev.sh). Update tools in Vapi dashboard with new URL each session."
+  },
+
+  "_tool_definitions": {
+    "note": "Create these tools once in Vapi dashboard (Tools tab) or via POST /tool. Each tool's serverUrl must match the current tunnel webhook URL.",
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_fare_estimate",
+          "description": "Get an estimated fare for a trip before confirming the booking. Call this after collecting both pickup and drop-off addresses.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pickup_address": {
+                "type": "string",
+                "description": "The full pickup address in Hamilton, ON"
+              },
+              "dropoff_address": {
+                "type": "string",
+                "description": "The full drop-off address"
+              }
+            },
+            "required": ["pickup_address", "dropoff_address"]
+          }
+        },
+        "server": {
+          "url": "https://interface-sticker-debian-vacation.trycloudflare.com/api/vapi/webhook"
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "create_booking",
+          "description": "Create a confirmed taxi booking after the customer agrees to the fare. Call this only after the customer confirms they want to proceed.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "customer_name": {
+                "type": "string",
+                "description": "The customer's full name"
+              },
+              "customer_phone": {
+                "type": "string",
+                "description": "The customer's phone number (the number they're calling from)"
+              },
+              "pickup_address": {
+                "type": "string",
+                "description": "The confirmed pickup address"
+              },
+              "dropoff_address": {
+                "type": "string",
+                "description": "The confirmed drop-off address"
+              }
+            },
+            "required": ["customer_name", "customer_phone", "pickup_address", "dropoff_address"]
+          }
+        },
+        "server": {
+          "url": "https://interface-sticker-debian-vacation.trycloudflare.com/api/vapi/webhook"
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "check_booking_status",
+          "description": "Check the status of an existing booking by its reference ID.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "booking_id": {
+                "type": "string",
+                "description": "The booking reference ID (e.g. B1, B2)"
+              }
+            },
+            "required": ["booking_id"]
+          }
+        },
+        "server": {
+          "url": "https://interface-sticker-debian-vacation.trycloudflare.com/api/vapi/webhook"
+        }
+      }
+    ]
+  },
+
+  "assistant": {
+    "name": "Caledonia Taxi Booking Agent",
+
+    "firstMessage": "Thank you for calling Caledonia Taxi! I'm your automated booking assistant. I can get you a fare estimate or book a ride right now. Where are you picking up from?",
+
+    "transcriber": {
+      "provider": "deepgram",
+      "model": "nova-2",
+      "language": "en"
+    },
+
+    "model": {
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a professional taxi booking agent for Caledonia Taxi in Hamilton, Ontario, Canada.\n\nYour job:\n1. Greet the caller warmly\n2. Collect their pickup address\n3. Collect their drop-off address\n4. Call get_fare_estimate and read back the fare\n5. Collect their name and phone number\n6. Confirm the booking by calling create_booking\n7. Read back the confirmation and booking reference\n\nRules:\n- Always confirm addresses clearly (e.g. 'So picking up from Hamilton GO Station, dropping off at McMaster University — is that right?')\n- Keep responses short and natural — this is a phone call\n- If you don't understand an address, ask them to repeat it slowly\n- Fares are in Canadian dollars\n- Service area is Hamilton, Ontario and surrounding areas\n- Operating hours: 24/7\n- Base fare is $4.50 plus $2.10 per kilometre, minimum $8.00\n- After booking, remind them they'll get a text confirmation\n- Be warm, professional, and efficient"
+        }
+      ],
+      "toolIds": [
+        "cf59589d-707b-438e-8088-a5496e1c2904",
+        "73c8c1c2-5671-49b5-ba6d-9d12c258011e",
+        "a7a579bd-b096-4c4a-831c-d7924e53bed4"
+      ]
+    },
+
+    "voice": {
+      "provider": "vapi",
+      "voiceId": "Clara"
+    },
+
+    "endCallMessage": "Thank you for choosing Caledonia Taxi. Have a great ride!",
+
+    "endCallPhrases": ["goodbye", "bye", "hang up", "that's all", "thank you bye"],
+
+    "serverMessages": ["tool-calls"]
+  }
+}

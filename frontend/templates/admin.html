@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caledonia Taxi — Admin</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--success-bg); border: 1px solid var(--success-border);
+      color: var(--success); border-radius: 20px;
+      padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .section-title {
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;
+    }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(4px); z-index: 999; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { max-width: 400px; width: 90%; }
+    .email-entry {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-sm); padding: 0.875rem 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;
+    }
+    .email-entry .email-meta { display: flex; justify-content: space-between; margin-bottom: 0.3rem; }
+    .email-entry .email-to { font-weight: 600; color: var(--accent); font-size: 0.78rem; }
+    .email-entry .email-time { color: var(--text-muted); font-size: 0.72rem; }
+    .email-entry .email-sub { color: var(--text); }
+    .stat-card.accent-success .stat-value { color: var(--success); }
+    .stat-card.accent-warning .stat-value { color: var(--warning); }
+    .stat-card.accent-info    .stat-value { color: var(--info); }
+    .stat-card.accent-danger  .stat-value { color: var(--danger); }
+    .stat-card.accent-accent  .stat-value { color: var(--accent); }
+    .action-bar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+    .dispatch-event {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;
+    }
+    .dispatch-event .de-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .dispatch-event .de-time { font-size: 0.72rem; color: var(--text-muted); }
+    #activityFeed { max-height: 320px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo"><div class="logo-icon">🚕</div><span>Admin Panel</span></div>
+  <div class="nav-links">
+    <a href="/">Book</a>
+    <a href="/driver">Driver</a>
+    <a href="/admin" class="active">Admin</a>
+    <a href="/heatmap">Heatmap</a>
+  </div>
+</header>
+
+<div class="container-wide">
+
+  <!-- ===== STATS ===== -->
+  <div class="stats-grid" style="margin-top:1.5rem;">
+    <div class="stat-card accent-accent">
+      <div class="stat-value" id="sTotal">0</div>
+      <div class="stat-label">Total Bookings</div>
+    </div>
+    <div class="stat-card accent-warning">
+      <div class="stat-value" id="sPending">0</div>
+      <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-card accent-info">
+      <div class="stat-value" id="sActive">0</div>
+      <div class="stat-label">Active Rides</div>
+    </div>
+    <div class="stat-card accent-success">
+      <div class="stat-value" id="sCompleted">0</div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card accent-success">
+      <div class="stat-value" id="sDAvail">0</div>
+      <div class="stat-label">Drivers Available</div>
+    </div>
+    <div class="stat-card accent-warning">
+      <div class="stat-value" id="sDBusy">0</div>
+      <div class="stat-label">Drivers Busy</div>
+    </div>
+  </div>
+
+  <!-- ===== TABS ===== -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('bookings', this)">📋 Bookings</button>
+    <button class="tab-btn" onclick="switchTab('drivers', this)">👥 Drivers</button>
+    <button class="tab-btn" onclick="switchTab('sms', this)">💬 SMS Log</button>
+    <button class="tab-btn" onclick="switchTab('email', this)">📧 Email Log</button>
+    <button class="tab-btn" onclick="switchTab('activity', this)">⚡ Activity</button>
+  </div>
+
+  <!-- ===== TAB: BOOKINGS ===== -->
+  <div class="tab-panel active" id="tab-bookings">
+    <div class="card">
+      <div class="top-bar">
+        <div class="section-title">
+          <span>All Bookings</span>
+          <span class="live-badge"><span class="live-dot" style="margin-right:0;width:6px;height:6px;"></span> Live</span>
+        </div>
+        <div class="action-bar">
+          <button class="btn btn-secondary btn-sm" onclick="loadAll()">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-tab" onclick="setFilter('pending',this)">Pending</button>
+        <button class="filter-tab" onclick="setFilter('dispatched',this)">Dispatched</button>
+        <button class="filter-tab" onclick="setFilter('accepted',this)">Accepted</button>
+        <button class="filter-tab" onclick="setFilter('in_progress',this)">In Progress</button>
+        <button class="filter-tab" onclick="setFilter('completed',this)">Completed</button>
+        <button class="filter-tab" onclick="setFilter('cancelled',this)">Cancelled</button>
+      </div>
+
+      <div class="table-responsive">
+        <table>
+          <thead><tr>
+            <th>Time</th>
+            <th>Customer</th>
+            <th>Pickup</th>
+            <th>Drop-off</th>
+            <th>Fare</th>
+            <th>Status</th>
+            <th>Driver</th>
+            <th>Source</th>
+            <th>Actions</th>
+          </tr></thead>
+          <tbody id="bookingsTbody"></tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="icon">📋</div><p>No bookings match this filter</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: DRIVERS ===== -->
+  <div class="tab-panel" id="tab-drivers">
+    <div class="card">
+      <div class="section-title"><span>Driver Fleet</span></div>
+      <div class="driver-grid" id="driverGrid">
+        <p style="color:var(--text-muted);">Loading…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: SMS LOG ===== -->
+  <div class="tab-panel" id="tab-sms">
+    <div class="card">
+      <div class="top-bar">
+        <div class="section-title"><span>SMS Log</span> <span class="badge badge-phone">MOCK</span></div>
+        <button class="btn btn-secondary btn-sm" onclick="loadSmsLog()">↻ Refresh</button>
+      </div>
+      <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
+        All SMS messages are mocked. No real messages are sent. See <code>MORNING_SETUP.md</code> to enable Twilio SMS.
+      </p>
+      <div id="smsLog"><p style="color:var(--text-muted); font-size:0.88rem;">No SMS messages yet. Complete a booking to see logs.</p></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: EMAIL LOG ===== -->
+  <div class="tab-panel" id="tab-email">
+    <div class="card">
+      <div class="top-bar">
+        <div class="section-title"><span>Email / Receipt Log</span> <span class="badge badge-phone">MOCK</span></div>
+        <button class="btn btn-secondary btn-sm" onclick="loadEmailLog()">↻ Refresh</button>
+      </div>
+      <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
+        PDF receipts are generated and logged here. See <code>MORNING_SETUP.md</code> to enable Resend email sending.
+      </p>
+      <div id="emailLog"><p style="color:var(--text-muted); font-size:0.88rem;">No emails sent yet. Complete a ride to trigger a receipt.</p></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: ACTIVITY FEED ===== -->
+  <div class="tab-panel" id="tab-activity">
+    <div class="card">
+      <div class="section-title"><span>Live Activity Feed</span></div>
+      <div id="activityFeed"></div>
+      <div id="emptyActivity" class="empty-state">
+        <div class="icon">⚡</div><p>Waiting for activity…</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== ASSIGN MODAL ===== -->
+<div id="assignModal" class="modal-overlay">
+  <div class="card modal">
+    <div class="card-header"><span class="icon">📌</span> Manually Assign Driver</div>
+    <input type="hidden" id="assignBid">
+    <div class="form-group">
+      <label>Select Available Driver</label>
+      <select id="assignSelect"><option value="">Choose driver…</option></select>
+    </div>
+    <div style="display:flex; gap:0.875rem;">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary"   style="flex:1" onclick="submitAssign()">Assign →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const API = '';
+let allBookings = [], allDrivers = [], filter = 'all', ws = null;
+let activityLog = [];
+
+// ===================== TABS =====================
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  // Lazy-load tab content
+  if (name === 'sms')   loadSmsLog();
+  if (name === 'email') loadEmailLog();
+  if (name === 'drivers') loadDrivers();
+}
+
+// ===================== LOAD ALL =====================
+async function loadAll() {
+  await Promise.all([loadStats(), loadDrivers(), loadBookings()]);
+}
+
+async function loadStats() {
+  try {
+    const d = await (await fetch(`${API}/api/admin/stats`)).json();
+    document.getElementById('sTotal').textContent     = d.total_bookings;
+    document.getElementById('sPending').textContent   = d.pending;
+    document.getElementById('sActive').textContent    = d.active;
+    document.getElementById('sCompleted').textContent = d.completed;
+    document.getElementById('sDAvail').textContent    = d.drivers_available;
+    document.getElementById('sDBusy').textContent     = d.drivers_busy;
+  } catch(e) {}
+}
+
+async function loadDrivers() {
+  try {
+    const d = await (await fetch(`${API}/api/drivers`)).json();
+    allDrivers = d.drivers;
+    const vehicles = { d1:'White Honda CR-V', d2:'Black Toyota Camry', d3:'Silver Ford Escape', d4:'Blue Hyundai Sonata' };
+    document.getElementById('driverGrid').innerHTML = allDrivers.map(d => `
+      <div class="driver-card">
+        <div class="driver-avatar">${d.name.charAt(0)}</div>
+        <div class="driver-meta" style="flex:1;">
+          <div class="name">${d.name}</div>
+          <div class="phone">${d.phone}</div>
+          <div class="vehicle">${vehicles[d.id] || 'Vehicle N/A'}</div>
+        </div>
+        <span class="badge badge-${d.status}">${d.status}</span>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function loadBookings() {
+  try {
+    const d = await (await fetch(`${API}/api/bookings`)).json();
+    allBookings = d.bookings;
+    renderBookings();
+  } catch(e) {}
+}
+
+function renderBookings() {
+  const list = filter === 'all' ? allBookings : allBookings.filter(b => b.status === filter);
+  const tbody = document.getElementById('bookingsTbody');
+  const empty = document.getElementById('emptyState');
+  if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = list.map(b => {
+    const time  = new Date(b.created_at).toLocaleString('en-CA', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const dName = b.assigned_driver_id ? (allDrivers.find(d=>d.id===b.assigned_driver_id)?.name||'Unknown') : '—';
+    const fare  = b.estimated_fare ? `$${parseFloat(b.estimated_fare).toFixed(2)}` : '—';
+    const trunc = (s,n) => s && s.length>n ? s.slice(0,n)+'…' : (s||'—');
+    const srcBadge = `<span class="badge badge-${b.source}">${b.source}</span>`;
+    let actions = '';
+    if (b.status==='pending')
+      actions = `<button class="btn btn-primary btn-sm" onclick="openModal('${b.id}')">Assign</button> <button class="btn btn-danger btn-sm" onclick="cancelB('${b.id}')">Cancel</button>`;
+    else if (['dispatched','accepted'].includes(b.status))
+      actions = `<button class="btn btn-danger btn-sm" onclick="cancelB('${b.id}')">Cancel</button>`;
+    else if (b.status==='completed')
+      actions = `<button class="btn btn-secondary btn-sm" onclick="downloadReceipt('${b.id}')">🧾 Receipt</button>`;
+    return `<tr>
+      <td style="white-space:nowrap;">${time}</td>
+      <td><strong>${b.customer_name}</strong><br><small style="color:var(--text-secondary);">${b.customer_phone}</small></td>
+      <td style="max-width:160px;">${trunc(b.pickup_address,22)}</td>
+      <td style="max-width:160px;">${trunc(b.dropoff_address,22)}</td>
+      <td style="font-weight:700; color:var(--accent);">${fare}</td>
+      <td><span class="badge badge-${b.status}">${b.status.replace('_',' ')}</span></td>
+      <td>${dName}</td>
+      <td>${srcBadge}</td>
+      <td style="white-space:nowrap;">${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+function setFilter(f, el) {
+  filter = f;
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderBookings();
+}
+
+async function cancelB(id) {
+  if (!confirm('Cancel this booking?')) return;
+  await fetch(`${API}/api/bookings/${id}/cancel`, { method: 'PATCH' });
+  toast('Booking cancelled', 'warning');
+  loadAll();
+}
+
+async function downloadReceipt(id) {
+  try {
+    const r = await fetch(`${API}/api/bookings/${id}/receipt`);
+    if (!r.ok) { toast('Receipt not ready yet', 'warning'); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `receipt_${id.slice(0,8)}.pdf`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch(e) { toast('Could not download receipt', 'error'); }
+}
+
+// ===== ASSIGN MODAL =====
+function openModal(id) {
+  document.getElementById('assignBid').value = id;
+  const sel = document.getElementById('assignSelect');
+  sel.innerHTML = '<option value="">Choose driver…</option>' +
+    allDrivers.filter(d=>d.status==='available').map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  document.getElementById('assignModal').classList.add('open');
+}
+function closeModal() { document.getElementById('assignModal').classList.remove('open'); }
+
+async function submitAssign() {
+  const bid = document.getElementById('assignBid').value;
+  const did = document.getElementById('assignSelect').value;
+  if (!did) { toast('Please select a driver', 'warning'); return; }
+  await fetch(`${API}/api/admin/assign`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ booking_id: bid, driver_id: did })
+  });
+  closeModal(); toast('Driver assigned!', 'success'); loadAll();
+}
+
+// ===== SMS LOG =====
+async function loadSmsLog() {
+  try {
+    const d = await (await fetch(`${API}/api/admin/sms-log`)).json();
+    const el = document.getElementById('smsLog');
+    if (!d.sms_log || !d.sms_log.length) {
+      el.innerHTML = '<p style="color:var(--text-muted); font-size:0.88rem;">No SMS messages yet.</p>';
+      return;
+    }
+    el.innerHTML = [...d.sms_log].reverse().map(s => `
+      <div class="sms-entry">
+        <div class="sms-meta">
+          <span class="sms-to">${s.to}</span>
+          <span class="sms-time">${new Date(s.sent_at).toLocaleTimeString()}</span>
+        </div>
+        <div class="sms-msg">${s.message}</div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+// ===== EMAIL LOG =====
+async function loadEmailLog() {
+  try {
+    const d = await (await fetch(`${API}/api/admin/email-log`)).json();
+    const el = document.getElementById('emailLog');
+    if (!d.email_log || !d.email_log.length) {
+      el.innerHTML = '<p style="color:var(--text-muted); font-size:0.88rem;">No emails sent yet.</p>';
+      return;
+    }
+    el.innerHTML = [...d.email_log].reverse().map(e => `
+      <div class="email-entry">
+        <div class="email-meta">
+          <span class="email-to">${e.to}</span>
+          <span class="email-time">${new Date(e.sent_at).toLocaleTimeString()}</span>
+        </div>
+        <div class="email-sub">${e.subject}</div>
+        <div style="color:var(--text-muted); font-size:0.78rem; margin-top:3px;">
+          ${e.has_attachment ? '📎 PDF receipt attached' : ''} · ${e.status}
+        </div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+// ===== ACTIVITY FEED =====
+function addActivity(msg, type='info') {
+  activityLog.unshift({ msg, type, time: new Date().toLocaleTimeString() });
+  if (activityLog.length > 50) activityLog.pop();
+  renderActivity();
+}
+
+function renderActivity() {
+  const feed = document.getElementById('activityFeed');
+  const empty = document.getElementById('emptyActivity');
+  if (!activityLog.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const icons = { info:'ℹ️', success:'✅', warning:'⚠️', error:'❌' };
+  feed.innerHTML = activityLog.map(a => `
+    <div class="dispatch-event">
+      <span class="de-icon">${icons[a.type]||'•'}</span>
+      <div>
+        <div>${a.msg}</div>
+        <div class="de-time">${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ===== WEBSOCKET =====
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws/admin`);
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    loadAll();
+    const toastMap = {
+      new_booking:     { text: '🆕 New booking received!',         type: 'info' },
+      dispatched:      { text: '📡 Driver dispatched',              type: 'info' },
+      ride_accepted:   { text: '✅ Ride accepted by driver',        type: 'success' },
+      ride_started:    { text: '🚗 Ride in progress',               type: 'info' },
+      ride_completed:  { text: '🏁 Ride completed — receipt sent',  type: 'success' },
+      dispatch_failed: { text: '⚠️ Dispatch failed!',              type: 'warning' },
+      booking_cancelled: { text: '❌ Booking cancelled',            type: 'warning' },
+    };
+    const t = toastMap[msg.type];
+    if (t) { toast(t.text, t.type); addActivity(t.text, t.type); }
+  };
+  ws.onclose = () => setTimeout(connectWS, 3000);
+  setInterval(() => { if (ws && ws.readyState===1) ws.send(JSON.stringify({type:'ping'})); }, 25000);
+}
+
+function toast(msg, type='info') {
+  const d = document.createElement('div');
+  d.className = `toast toast-${type}`; d.textContent = msg;
+  document.getElementById('toasts').appendChild(d);
+  setTimeout(() => d.remove(), 4500);
+}
+
+loadAll();
+connectWS();
+setInterval(loadAll, 10000);
+</script>
+</body>
+</html>

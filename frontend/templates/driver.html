@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Caledonia Taxi — Driver</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    /* Driver-specific */
+    .driver-header-badge {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .driver-header-badge .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: livePulse 2s infinite;
+    }
+    .earnings-bar {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.875rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .earnings-item { text-align: center; }
+    .earnings-item .val { font-size: 1.25rem; font-weight: 800; color: var(--accent); }
+    .earnings-item .lbl { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .earnings-divider { width: 1px; background: var(--border); height: 36px; }
+
+    .vehicle-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      padding: 0.3rem 0.65rem;
+      font-size: 0.8rem; color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+    .call-link {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--success-bg); border: 1px solid var(--success-border);
+      color: var(--success); border-radius: var(--radius-xs);
+      padding: 0.3rem 0.65rem; font-size: 0.82rem; font-weight: 600;
+    }
+    .ride-distance-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--accent-soft); border: 1px solid var(--border-accent);
+      color: var(--accent); border-radius: var(--radius-xs);
+      padding: 0.2rem 0.55rem; font-size: 0.75rem; font-weight: 600;
+    }
+    .step-actions { display: flex; flex-direction: column; gap: 0.75rem; }
+    .nav-links-driver { display: flex; gap: 0.5rem; align-items: center; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">🚕</div>
+    <span>Driver</span>
+  </div>
+  <div id="headerRight" class="nav-links-driver"></div>
+</header>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="loginScreen" class="login-container">
+  <div class="card login-card">
+    <div class="login-logo">🚕</div>
+    <h2 style="margin-bottom:0.25rem; font-size:1.5rem;">Welcome Back</h2>
+    <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:1.75rem;">Sign in with your phone &amp; PIN</p>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Phone Number</label>
+        <div class="input-icon-wrapper">
+          <span class="icon-prefix">📱</span>
+          <input type="tel" id="lPhone" placeholder="+12895551001" required autocomplete="tel">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>PIN</label>
+        <div class="input-icon-wrapper">
+          <span class="icon-prefix">🔒</span>
+          <input type="password" id="lPin" placeholder="••••" maxlength="6" required inputmode="numeric">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">Sign In</button>
+    </form>
+
+    <div style="margin-top:1.5rem; background:var(--surface-2); border-radius:var(--radius-sm); padding:0.875rem; font-size:0.8rem; color:var(--text-secondary); text-align:left;">
+      <div style="font-weight:700; color:var(--accent); margin-bottom:0.35rem;">Demo Credentials</div>
+      <div>Saqib · <code style="color:var(--text);">+12895551001</code> / PIN <code style="color:var(--text);">1234</code></div>
+      <div style="margin-top:0.2rem;">Driver 2 · <code style="color:var(--text);">+12895551002</code> / PIN <code style="color:var(--text);">2345</code></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== DASHBOARD ===================== -->
+<div id="dashboard" style="display:none;">
+  <div class="container">
+
+    <!-- Earnings Bar -->
+    <div class="earnings-bar" id="earningsBar">
+      <div class="earnings-item"><div class="val" id="eTrips">0</div><div class="lbl">Trips Today</div></div>
+      <div class="earnings-divider"></div>
+      <div class="earnings-item"><div class="val" id="eEarnings">$0</div><div class="lbl">Earnings</div></div>
+      <div class="earnings-divider"></div>
+      <div class="earnings-item"><div class="val" id="eRating">⭐ 4.9</div><div class="lbl">Rating</div></div>
+    </div>
+
+    <!-- Status Card -->
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-header" style="margin-bottom:1rem;"><span class="icon">📡</span> Your Status</div>
+      <div class="status-toggle">
+        <button class="btn btn-success active" id="btnAvailable" onclick="setStatus('available')">✅ Available</button>
+        <button class="btn btn-secondary"      id="btnBusy"      onclick="setStatus('busy')">⏸ Busy</button>
+        <button class="btn btn-danger"         id="btnOffline"   onclick="setStatus('offline')">⛔ Offline</button>
+      </div>
+      <p id="statusText" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:0.75rem;">
+        <span class="live-dot"></span> You're available for rides
+      </p>
+      <div id="vehicleBadge" class="vehicle-badge" style="justify-content:center; width:fit-content; margin:0.5rem auto 0;">
+        🚗 <span id="vehicleText">Loading vehicle info…</span>
+      </div>
+    </div>
+
+    <!-- ===== INCOMING RIDE REQUEST ===== -->
+    <div id="rideRequestSection" style="display:none;">
+      <div class="ride-request-card">
+        <div class="request-label">🔔 New Ride Request</div>
+
+        <!-- SVG Countdown Ring -->
+        <div class="countdown-wrapper">
+          <div class="countdown-ring">
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <circle class="track"    cx="40" cy="40" r="34"/>
+              <circle class="progress" cx="40" cy="40" r="34"
+                stroke-dasharray="213.6"
+                stroke-dashoffset="0"
+                id="countdownCircle"/>
+            </svg>
+            <div class="label" id="countdownLabel">30</div>
+          </div>
+          <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">seconds to respond</div>
+        </div>
+
+        <div class="ride-info">
+          <div class="ride-info-row">
+            <span class="icon">🟢</span>
+            <div>
+              <div class="ri-label">Pickup</div>
+              <div class="ri-value" id="rPickup">—</div>
+            </div>
+          </div>
+          <div class="ride-info-row">
+            <span class="icon">🔴</span>
+            <div>
+              <div class="ri-label">Drop-off</div>
+              <div class="ri-value" id="rDropoff">—</div>
+            </div>
+            <span class="ride-distance-badge" id="rDistance" style="margin-left:auto; flex-shrink:0;"></span>
+          </div>
+          <div class="ride-info-row">
+            <span class="icon">👤</span>
+            <div>
+              <div class="ri-label">Customer</div>
+              <div class="ri-value" id="rCustomer">—</div>
+            </div>
+          </div>
+          <div class="ride-info-row">
+            <span class="icon">💰</span>
+            <div>
+              <div class="ri-label">Estimated Fare</div>
+              <div class="ri-fare" id="rFare">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ride-actions">
+          <button class="btn btn-danger"  onclick="respond('decline')">✕ Decline</button>
+          <button class="btn btn-success" onclick="respond('accept')">✓ Accept</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ACTIVE RIDE ===== -->
+    <div id="activeRideSection" style="display:none;">
+      <div class="active-ride">
+        <div class="active-ride-header">
+          <span style="font-size:1.25rem;">🚗</span>
+          <div>
+            <div class="label">Active Ride</div>
+            <div id="activeRideStatus" style="font-size:0.85rem; color:var(--text-secondary); margin-top:1px;">En route to pickup</div>
+          </div>
+        </div>
+
+        <div class="ride-info">
+          <div class="ride-info-row">
+            <span class="icon">🟢</span>
+            <div>
+              <div class="ri-label">Pickup</div>
+              <div class="ri-value" id="aPickup">—</div>
+            </div>
+          </div>
+          <div class="ride-info-row">
+            <span class="icon">🔴</span>
+            <div>
+              <div class="ri-label">Drop-off</div>
+              <div class="ri-value" id="aDropoff">—</div>
+            </div>
+          </div>
+          <div class="ride-info-row">
+            <span class="icon">👤</span>
+            <div>
+              <div class="ri-label">Customer</div>
+              <div class="ri-value" id="aCustomer">—</div>
+            </div>
+            <a id="aPhone" href="#" class="call-link" style="margin-left:auto; flex-shrink:0;">📞 Call</a>
+          </div>
+          <div class="ride-info-row">
+            <span class="icon">💰</span>
+            <div>
+              <div class="ri-label">Fare</div>
+              <div class="ri-fare" id="aFare">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-actions">
+          <button id="btnPickedUp" class="btn btn-primary btn-block" onclick="startRide()">
+            ✓ Customer Picked Up — Start Ride
+          </button>
+          <button id="btnComplete" class="btn btn-success btn-block" style="display:none;" onclick="completeRide()">
+            🏁 Complete Ride &amp; Send Receipt
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== IDLE ===== -->
+    <div id="idleSection">
+      <div class="idle-state">
+        <div class="idle-icon">🚕</div>
+        <p style="font-weight:600; font-size:1rem; color:var(--text); margin-bottom:0.4rem;">Waiting for rides…</p>
+        <p style="font-size:0.85rem;">Stay available — new requests appear here automatically.</p>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin:2rem 0;">
+      <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign Out</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const API = '';
+let driver = null, currentRide = null, countdownTimer = null, ws = null;
+let sessionTrips = 0, sessionEarnings = 0;
+const TOTAL_SECS = 30;
+const CIRCUMFERENCE = 213.6; // 2 * π * 34
+
+// ===================== LOGIN =====================
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  try {
+    const r = await fetch(`${API}/api/drivers/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: document.getElementById('lPhone').value, pin: document.getElementById('lPin').value })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Invalid credentials');
+    loginSuccess((await r.json()).driver);
+  } catch(err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In';
+  }
+});
+
+function loginSuccess(d) {
+  driver = d;
+  localStorage.setItem('ctDriver', JSON.stringify(d));
+
+  // Header badge
+  document.getElementById('headerRight').innerHTML = `
+    <div class="driver-header-badge">
+      <div class="status-dot"></div>
+      <span>${d.name}</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="signOut()" style="margin-left:0.5rem;">Out</button>`;
+
+  // Vehicle info
+  const vehicles = {
+    d1: 'White Honda CR-V · CTXI-001',
+    d2: 'Black Toyota Camry · CTXI-002',
+    d3: 'Silver Ford Escape · CTXI-003',
+    d4: 'Blue Hyundai Sonata · CTXI-004',
+  };
+  document.getElementById('vehicleText').textContent = vehicles[d.id] || 'Assigned Vehicle';
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  connectWS();
+  startGPS();
+  toast(`Welcome back, ${d.name}!`, 'success');
+}
+
+// Auto-login
+(function() {
+  const s = localStorage.getItem('ctDriver');
+  if (s) { try { loginSuccess(JSON.parse(s)); } catch(e) { localStorage.removeItem('ctDriver'); } }
+})();
+
+function signOut() {
+  driver = null; currentRide = null;
+  localStorage.removeItem('ctDriver');
+  if (ws) ws.close();
+  if (countdownTimer) clearInterval(countdownTimer);
+  document.getElementById('loginScreen').style.display = 'block';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('headerRight').innerHTML = '';
+}
+
+// ===================== WEBSOCKET =====================
+function connectWS() {
+  if (!driver) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws/driver/${driver.id}`);
+  ws.onopen = () => console.log('[WS] Connected');
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'new_ride') showRideRequest(msg.booking);
+  };
+  ws.onclose = () => setTimeout(connectWS, 3000);
+  setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'ping' })); }, 25000);
+}
+
+// ===================== GPS =====================
+function startGPS() {
+  if (!navigator.geolocation) return;
+  const send = () => navigator.geolocation.getCurrentPosition(async pos => {
+    if (!driver) return;
+    try {
+      await fetch(`${API}/api/drivers/${driver.id}/location`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
+      });
+    } catch(e) {}
+  }, ()=>{}, { enableHighAccuracy: true });
+  send();
+  setInterval(send, 30000);
+}
+
+// ===================== STATUS =====================
+async function setStatus(s) {
+  if (!driver) return;
+  try {
+    await fetch(`${API}/api/drivers/${driver.id}/status`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: s })
+    });
+    driver.status = s;
+    localStorage.setItem('ctDriver', JSON.stringify(driver));
+    ['Available','Busy','Offline'].forEach(n => document.getElementById('btn'+n).classList.remove('active'));
+    document.getElementById('btn'+s[0].toUpperCase()+s.slice(1)).classList.add('active');
+    const msgs = {
+      available: '<span class="live-dot"></span> You\'re available for rides',
+      busy:      '⏸ Marked as busy — no new rides',
+      offline:   '⛔ You\'re offline'
+    };
+    document.getElementById('statusText').innerHTML = msgs[s];
+  } catch(e) { toast('Could not update status', 'error'); }
+}
+
+// ===================== RIDE REQUEST =====================
+function showRideRequest(booking) {
+  currentRide = booking;
+
+  document.getElementById('rPickup').textContent   = booking.pickup_address;
+  document.getElementById('rDropoff').textContent  = booking.dropoff_address;
+  document.getElementById('rCustomer').textContent = booking.customer_name;
+  document.getElementById('rFare').textContent     = `$${parseFloat(booking.estimated_fare || 0).toFixed(2)}`;
+
+  const dist = booking.estimated_distance_km;
+  const distBadge = document.getElementById('rDistance');
+  if (dist) { distBadge.textContent = `${parseFloat(dist).toFixed(1)} km`; distBadge.style.display = 'inline-flex'; }
+  else distBadge.style.display = 'none';
+
+  document.getElementById('rideRequestSection').style.display = 'block';
+  document.getElementById('idleSection').style.display = 'none';
+
+  // SVG countdown ring
+  let secs = TOTAL_SECS;
+  const circle = document.getElementById('countdownCircle');
+  const label  = document.getElementById('countdownLabel');
+  label.textContent = secs;
+  circle.style.strokeDashoffset = '0';
+  circle.style.stroke = 'var(--accent)';
+
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    secs--;
+    label.textContent = secs;
+    const offset = CIRCUMFERENCE * (1 - secs / TOTAL_SECS);
+    circle.style.strokeDashoffset = offset;
+    if (secs <= 10) circle.style.stroke = 'var(--danger)';
+    if (secs <= 0) { clearInterval(countdownTimer); hideRequest(); }
+  }, 1000);
+}
+
+function hideRequest() {
+  document.getElementById('rideRequestSection').style.display = 'none';
+  document.getElementById('idleSection').style.display = 'block';
+  currentRide = null;
+  if (countdownTimer) clearInterval(countdownTimer);
+}
+
+async function respond(action) {
+  if (!currentRide || !driver) return;
+  try {
+    await fetch(`${API}/api/rides/${currentRide.id}/action/${driver.id}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (action === 'accept') {
+      showActiveRide(currentRide);
+      toast('Ride accepted! Head to pickup.', 'success');
+    } else {
+      hideRequest();
+      toast('Ride declined.', 'info');
+    }
+  } catch(e) { toast('Action failed', 'error'); }
+}
+
+// ===================== ACTIVE RIDE =====================
+function showActiveRide(b) {
+  if (countdownTimer) clearInterval(countdownTimer);
+  document.getElementById('rideRequestSection').style.display = 'none';
+  document.getElementById('idleSection').style.display = 'none';
+  document.getElementById('activeRideSection').style.display = 'block';
+
+  document.getElementById('aPickup').textContent   = b.pickup_address;
+  document.getElementById('aDropoff').textContent  = b.dropoff_address;
+  document.getElementById('aCustomer').textContent = b.customer_name;
+  document.getElementById('aFare').textContent     = `$${parseFloat(b.estimated_fare || 0).toFixed(2)}`;
+
+  const phoneLink = document.getElementById('aPhone');
+  phoneLink.href           = `tel:${b.customer_phone}`;
+  phoneLink.textContent    = '📞 Call';
+
+  document.getElementById('activeRideStatus').textContent = 'En route to pickup location';
+  document.getElementById('btnPickedUp').style.display = 'block';
+  document.getElementById('btnComplete').style.display = 'none';
+}
+
+async function startRide() {
+  if (!currentRide || !driver) return;
+  try {
+    await fetch(`${API}/api/rides/${currentRide.id}/start/${driver.id}`, { method: 'POST' });
+    document.getElementById('btnPickedUp').style.display = 'none';
+    document.getElementById('btnComplete').style.display = 'block';
+    document.getElementById('activeRideStatus').textContent = 'Ride in progress — heading to drop-off';
+    toast('Ride started!', 'info');
+  } catch(e) { toast('Error starting ride', 'error'); }
+}
+
+async function completeRide() {
+  if (!currentRide || !driver) return;
+  try {
+    await fetch(`${API}/api/rides/${currentRide.id}/complete/${driver.id}`, { method: 'POST' });
+
+    // Update session stats
+    sessionTrips++;
+    sessionEarnings += parseFloat(currentRide.estimated_fare || 0);
+    document.getElementById('eTrips').textContent    = sessionTrips;
+    document.getElementById('eEarnings').textContent = `$${sessionEarnings.toFixed(0)}`;
+
+    document.getElementById('activeRideSection').style.display = 'none';
+    document.getElementById('idleSection').style.display = 'block';
+    currentRide = null;
+    setStatus('available');
+    toast('Ride completed! Receipt sent to customer.', 'success');
+  } catch(e) { toast('Error completing ride', 'error'); }
+}
+
+// ===================== TOAST =====================
+function toast(msg, type='info') {
+  const d = document.createElement('div');
+  d.className = `toast toast-${type}`;
+  d.textContent = msg;
+  document.getElementById('toasts').appendChild(d);
+  setTimeout(() => d.remove(), 4200);
+}
+</script>
+</body>
+</html>

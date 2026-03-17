@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Caledonia Taxi — Book a Ride</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    /* Page-specific tweaks */
+    .promo-bar {
+      background: var(--accent);
+      color: #080811;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .divider { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; color: var(--text-muted); font-size: 0.8rem; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .input-icon-wrapper { position: relative; }
+    .input-icon-wrapper .icon-prefix {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 1rem; pointer-events: none;
+    }
+    .input-icon-wrapper input { padding-left: 2.5rem; }
+    .feature-pills {
+      display: flex; gap: 0.6rem; justify-content: center;
+      flex-wrap: wrap; margin-top: 1.25rem;
+    }
+    .pill {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      display: flex; align-items: center; gap: 5px;
+    }
+    .route-connector {
+      display: flex; align-items: center; gap: 0;
+      margin: -0.2rem 0 -0.2rem 0.5rem;
+    }
+    .route-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .route-dot.pickup  { background: var(--success); }
+    .route-dot.dropoff { background: var(--danger); }
+    .route-line { width: 2px; height: 20px; background: var(--border); margin: 2px auto; }
+    .route-fields { display: grid; grid-template-columns: 20px 1fr; gap: 0.5rem 0.75rem; align-items: start; }
+    .route-icon-col { display: flex; flex-direction: column; align-items: center; padding-top: 0.95rem; }
+    .booking-id-display {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.9rem;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-xs);
+      padding: 0.2rem 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="promo-bar">
+  🚕 Hamilton's #1 Taxi Service &nbsp;·&nbsp; Available 24/7 &nbsp;·&nbsp; No surge pricing
+</div>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">🚕</div>
+    <span>Caledonia Taxi</span>
+  </div>
+  <div class="nav-links">
+    <a href="tel:+12895551001">📞 (289) 555-1001</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Book Your Ride <span class="accent">Instantly</span></h1>
+  <p>Hamilton, Ontario's professional taxi service</p>
+
+  <!-- Step Progress -->
+  <div class="steps" id="steps">
+    <div class="step active" data-step="1">
+      <div class="step-num">1</div><span>Details</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="2">
+      <div class="step-num">2</div><span>Estimate</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="3">
+      <div class="step-num">3</div><span>Confirmed</span>
+    </div>
+  </div>
+
+  <div class="feature-pills">
+    <div class="pill">⚡ Instant dispatch</div>
+    <div class="pill">📍 GPS tracked</div>
+    <div class="pill">💬 SMS updates</div>
+    <div class="pill">🧾 PDF receipt</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- STEP 1: Form -->
+  <div id="step1" class="card">
+    <div class="card-header">
+      <span class="icon">📋</span> Ride Details
+    </div>
+    <form id="bookingForm">
+      <div class="form-group">
+        <label>Full Name</label>
+        <div class="input-icon-wrapper">
+          <span class="icon-prefix">👤</span>
+          <input type="text" id="name" placeholder="e.g. John Smith" required autocomplete="name">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Phone Number</label>
+        <div class="input-icon-wrapper">
+          <span class="icon-prefix">📱</span>
+          <input type="tel" id="phone" placeholder="e.g. (289) 555-1234" required autocomplete="tel">
+        </div>
+      </div>
+
+      <div class="divider">Addresses</div>
+
+      <!-- Route visual -->
+      <div class="route-fields">
+        <div class="route-icon-col">
+          <div class="route-dot pickup"></div>
+          <div class="route-line"></div>
+          <div class="route-dot dropoff"></div>
+        </div>
+        <div>
+          <div class="form-group" style="margin-bottom:0.75rem;">
+            <label>Pickup Address</label>
+            <input type="text" id="pickup" placeholder="e.g. Hamilton GO Station" required>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Drop-off Address</label>
+            <input type="text" id="dropoff" placeholder="e.g. McMaster University" required>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="estimateBtn" style="margin-top:1.5rem;">
+        Get Fare Estimate
+      </button>
+    </form>
+  </div>
+
+  <!-- STEP 2: Fare -->
+  <div id="step2" class="card" style="display:none;">
+    <div class="card-header"><span class="icon">💰</span> Fare Estimate</div>
+
+    <div class="fare-box">
+      <div class="fare-detail">Estimated fare for your trip</div>
+      <div class="fare-amount" id="fareAmt">$0.00</div>
+      <div class="fare-breakdown">
+        <span>📍 <span id="fareDist">0</span> km</span>
+        <span>🚗 Base $4.50 + $2.10/km</span>
+      </div>
+    </div>
+
+    <!-- Route summary -->
+    <div class="detail-box" style="margin-bottom:1.25rem;">
+      <div class="detail-row">
+        <span class="dlabel">🟢 Pickup</span>
+        <span class="dvalue" id="s2Pickup"></span>
+      </div>
+      <div class="detail-row">
+        <span class="dlabel">🔴 Drop-off</span>
+        <span class="dvalue" id="s2Dropoff"></span>
+      </div>
+    </div>
+
+    <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-bottom:1.25rem;">
+      Final fare may vary slightly based on actual route. SMS confirmation sent after booking.
+    </p>
+    <div style="display:flex; gap:0.875rem;">
+      <button class="btn btn-secondary" style="flex:1" onclick="showStep(1)">← Back</button>
+      <button class="btn btn-primary" style="flex:2" id="confirmBtn" onclick="confirmBooking()">
+        Confirm &amp; Book →
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Confirmed -->
+  <div id="step3" class="card" style="display:none;">
+    <div class="confirmation">
+      <div class="check-icon">✅</div>
+      <h2>Ride Booked!</h2>
+      <p style="color:var(--text-secondary); margin-bottom:1.25rem; font-size:0.9rem;">
+        A driver is being dispatched. You'll receive an SMS update shortly.
+      </p>
+
+      <div class="detail-box">
+        <div class="detail-row">
+          <span class="dlabel">Booking ID</span>
+          <span class="dvalue"><span class="booking-id-display" id="cBookingId"></span></span>
+        </div>
+        <div class="detail-row">
+          <span class="dlabel">🟢 Pickup</span>
+          <span class="dvalue" id="cPickup"></span>
+        </div>
+        <div class="detail-row">
+          <span class="dlabel">🔴 Drop-off</span>
+          <span class="dvalue" id="cDropoff"></span>
+        </div>
+        <div class="detail-row">
+          <span class="dlabel">💰 Est. Fare</span>
+          <span class="dvalue" id="cFare" style="color:var(--accent); font-size:1.1rem; font-weight:700;"></span>
+        </div>
+      </div>
+
+      <div style="background:var(--info-bg); border:1px solid var(--info-border); border-radius:var(--radius-sm); padding:0.875rem 1rem; margin:1rem 0; text-align:left; font-size:0.85rem; color:var(--info);">
+        📱 <strong>SMS updates enabled</strong> — You'll get notified when your driver is assigned, arriving, and when your trip is complete.
+      </div>
+
+      <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1.5rem;">
+        A PDF receipt will be emailed upon trip completion.
+      </p>
+      <button class="btn btn-primary btn-block" onclick="resetForm()">Book Another Ride</button>
+    </div>
+  </div>
+
+  <div style="text-align:center; padding:1.5rem 0; color:var(--text-muted); font-size:0.78rem;">
+    Caledonia Taxi &bull; Hamilton, Ontario &bull; Est. 2025
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const API = '';
+let estimate = null;
+
+function showStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('step'+i).style.display = i===n ? 'block' : 'none';
+  });
+  document.querySelectorAll('.step').forEach(el => {
+    const s = +el.dataset.step;
+    el.className = 'step' + (s===n ? ' active' : s<n ? ' done' : '');
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.getElementById('bookingForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('estimateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Calculating…';
+  try {
+    const r = await fetch(`${API}/api/estimate-fare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pickup_address:  document.getElementById('pickup').value,
+        dropoff_address: document.getElementById('dropoff').value
+      })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Error');
+    estimate = await r.json();
+    document.getElementById('fareAmt').textContent   = `$${estimate.estimated_fare.toFixed(2)}`;
+    document.getElementById('fareDist').textContent  = estimate.distance_km.toFixed(1);
+    document.getElementById('s2Pickup').textContent  = document.getElementById('pickup').value;
+    document.getElementById('s2Dropoff').textContent = document.getElementById('dropoff').value;
+    showStep(2);
+  } catch(err) {
+    toast(err.message || 'Could not calculate fare', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Get Fare Estimate';
+  }
+});
+
+async function confirmBooking() {
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Booking…';
+  try {
+    const r = await fetch(`${API}/api/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_name:   document.getElementById('name').value,
+        customer_phone:  document.getElementById('phone').value,
+        pickup_address:  document.getElementById('pickup').value,
+        dropoff_address: document.getElementById('dropoff').value,
+        source: 'web'
+      })
+    });
+    if (!r.ok) throw new Error('Booking failed');
+    const data = await r.json();
+    const b = data.booking;
+    document.getElementById('cBookingId').textContent = b.id.slice(0,12).toUpperCase();
+    document.getElementById('cPickup').textContent    = b.pickup_address;
+    document.getElementById('cDropoff').textContent   = b.dropoff_address;
+    document.getElementById('cFare').textContent      = `$${parseFloat(b.estimated_fare).toFixed(2)}`;
+    showStep(3);
+    toast('Ride booked! Driver dispatching now.', 'success');
+  } catch(err) {
+    toast('Booking failed — please try again', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Confirm &amp; Book →';
+  }
+}
+
+function resetForm() {
+  document.getElementById('bookingForm').reset();
+  estimate = null;
+  showStep(1);
+}
+
+function toast(msg, type='info') {
+  const d = document.createElement('div');
+  d.className = `toast toast-${type}`;
+  d.textContent = msg;
+  document.getElementById('toasts').appendChild(d);
+  setTimeout(() => d.remove(), 4500);
+}
+</script>
+</body>
+</html>
