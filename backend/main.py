@@ -19,10 +19,13 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+import stripe as stripe_lib
+
 from config import (
     SUPABASE_URL, SUPABASE_KEY,
     DISPATCH_TIMEOUT_SECONDS, MAX_DISPATCH_ATTEMPTS,
-    ADMIN_PASSWORD, APP_SECRET_KEY, COOKIE_SECURE, ALLOWED_ORIGINS
+    ADMIN_PASSWORD, APP_SECRET_KEY, COOKIE_SECURE, ALLOWED_ORIGINS,
+    STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
 )
 from auth_service import create_session_token, verify_session_token, safe_compare, SESSION_DURATION_SECONDS
 from models import (
@@ -302,6 +305,42 @@ async def estimate_fare(req: FareEstimateRequest):
 
 
 # ============================================================
+# STRIPE PAYMENTS
+# ============================================================
+
+@app.post("/api/payments/create-intent")
+async def create_payment_intent(req: FareEstimateRequest):
+    """Create a Stripe PaymentIntent for the given trip. Amount is always calculated server-side."""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Stripe not configured")
+    stripe_lib.api_key = STRIPE_SECRET_KEY
+
+    # Geocode and calculate fare server-side (never trust client amounts)
+    pc = await geocode_address(req.pickup_address)
+    dc = await geocode_address(req.dropoff_address)
+    if not pc or not dc:
+        raise HTTPException(status_code=400, detail="Could not geocode addresses")
+    dist = await get_route_distance(pc["lat"], pc["lng"], dc["lat"], dc["lng"])
+    fare = calculate_fare(dist)
+    amount_cents = max(int(fare * 100), 50)  # Stripe minimum 50 cents
+
+    intent = stripe_lib.PaymentIntent.create(
+        amount=amount_cents,
+        currency="cad",
+        automatic_payment_methods={"enabled": True},
+        metadata={
+            "pickup": req.pickup_address,
+            "dropoff": req.dropoff_address
+        }
+    )
+    return {
+        "client_secret": intent.client_secret,
+        "amount": fare,
+        "publishable_key": STRIPE_PUBLISHABLE_KEY
+    }
+
+
+# ============================================================
 # BOOKINGS
 # ============================================================
 
@@ -357,6 +396,9 @@ async def create_booking(req: BookingRequest):
             "updated_at":              datetime.now(timezone.utc).isoformat()
         }
         demo_bookings.append(booking)
+
+    booking["payment_method"] = req.payment_method if hasattr(req, 'payment_method') else "cash"
+    booking["payment_status"] = "paid" if booking.get("payment_method") == "stripe" else "pending"
 
     await manager.broadcast("admin", {"type": "new_booking", "booking": booking})
 

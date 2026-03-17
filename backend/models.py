@@ -33,6 +33,7 @@ class BookingRequest(BaseModel):
     pickup_address:  str = Field(..., min_length=3)
     dropoff_address: str = Field(..., min_length=3)
     source: BookingSource = BookingSource.web
+    payment_method: str = "cash"  # "cash" or "stripe"
 
 
 class FareEstimateRequest(BaseModel):
