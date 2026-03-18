@@ -2,477 +2,713 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Caledonia Taxi — Book a Ride</title>
-  <link rel="stylesheet" href="/static/css/style.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://js.stripe.com/v3/" async></script>
-  <style>
-    /* Page-specific tweaks */
-    .promo-bar {
-      background: var(--accent);
-      color: #080811;
-      text-align: center;
-      padding: 0.5rem 1rem;
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-    }
-    .divider { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; color: var(--text-muted); font-size: 0.8rem; }
-    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-    .input-icon-wrapper { position: relative; }
-    .input-icon-wrapper .icon-prefix {
-      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-      font-size: 1rem; pointer-events: none;
-    }
-    .input-icon-wrapper input { padding-left: 2.5rem; }
-    .feature-pills {
-      display: flex; gap: 0.6rem; justify-content: center;
-      flex-wrap: wrap; margin-top: 1.25rem;
-    }
-    .pill {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 0.3rem 0.8rem;
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      display: flex; align-items: center; gap: 5px;
-    }
-    .route-connector {
-      display: flex; align-items: center; gap: 0;
-      margin: -0.2rem 0 -0.2rem 0.5rem;
-    }
-    .route-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .route-dot.pickup  { background: var(--success); }
-    .route-dot.dropoff { background: var(--danger); }
-    .route-line { width: 2px; height: 20px; background: var(--border); margin: 2px auto; }
-    .route-fields { display: grid; grid-template-columns: 20px 1fr; gap: 0.5rem 0.75rem; align-items: start; }
-    .route-icon-col { display: flex; flex-direction: column; align-items: center; padding-top: 0.95rem; }
-    .booking-id-display {
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 0.9rem;
-      color: var(--accent);
-      background: var(--accent-soft);
-      border: 1px solid var(--border-accent);
-      border-radius: var(--radius-xs);
-      padding: 0.2rem 0.5rem;
-    }
-    .payment-option {
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-      background: var(--surface-2); border: 2px solid var(--border);
-      border-radius: var(--radius-sm); padding: 0.875rem 0.5rem;
-      cursor: pointer; transition: border-color 0.15s, background 0.15s;
-      text-align: center;
-    }
-    .payment-option.selected {
-      border-color: var(--accent);
-      background: rgba(245,197,24,0.06);
-    }
-  </style>
+  <link rel="stylesheet" href="/static/css/design-system.css">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
 
-<div class="promo-bar">
-  🚕 Hamilton's #1 Taxi Service &nbsp;·&nbsp; Available 24/7 &nbsp;·&nbsp; No surge pricing
-</div>
-
-<header class="header">
-  <div class="logo">
-    <div class="logo-icon">🚕</div>
-    <span>Caledonia Taxi</span>
-  </div>
-  <div class="nav-links">
-    <a href="tel:+12895551001">📞 (289) 555-1001</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <div class="site-header__logo">Caledonia Taxi</div>
+    <div class="site-header__actions">
+      <a href="tel:+19055551234" class="btn btn-secondary btn--sm">📞 Call Us</a>
+    </div>
   </div>
 </header>
 
-<!-- HERO -->
-<div class="hero">
-  <h1>Book Your Ride <span class="accent">Instantly</span></h1>
-  <p>Hamilton, Ontario's professional taxi service</p>
+<div class="page-wrap page-content">
 
-  <!-- Step Progress -->
-  <div class="steps" id="steps">
-    <div class="step active" data-step="1">
-      <div class="step-num">1</div><span>Details</span>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step" data-step="2">
-      <div class="step-num">2</div><span>Estimate</span>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step" data-step="3">
-      <div class="step-num">3</div><span>Confirmed</span>
-    </div>
+  <!-- SERVICE SELECTOR -->
+  <div class="pill-row mb-4" id="serviceSelector">
+    <button class="pill-btn active" onclick="selectService('standard')">🚗 Standard</button>
+    <button class="pill-btn" onclick="selectService('medical')">🏥 Medical</button>
+    <button class="pill-btn" onclick="selectService('long_distance')">🛣️ Long Distance</button>
   </div>
 
-  <div class="feature-pills">
-    <div class="pill">⚡ Instant dispatch</div>
-    <div class="pill">📍 GPS tracked</div>
-    <div class="pill">💬 SMS updates</div>
-    <div class="pill">🧾 PDF receipt</div>
-  </div>
-</div>
-
-<div class="container">
-
-  <!-- Route Map Strip -->
-  <div id="routeMapStrip" style="position:relative; margin:0 0 1rem; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); display:none;">
-    <div id="routeMap" style="height:130px; width:100%;"></div>
-    <div id="fareOverlay" style="
-      position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
-      background:rgba(8,8,17,.82); border:1px solid rgba(245,197,24,0.3);
-      border-radius:20px; padding:4px 14px;
-      color:#f5c518; font-size:0.82rem; font-weight:700;
-      white-space:nowrap; pointer-events:none;
-    "></div>
+  <!-- STEP INDICATOR -->
+  <div class="step-indicator mb-4" id="stepIndicator">
+    <div class="step-dot active" id="sdot1">1</div>
+    <div class="step-line" id="sline1"></div>
+    <div class="step-dot" id="sdot2">2</div>
+    <div class="step-line" id="sline2"></div>
+    <div class="step-dot" id="sdot3">3</div>
+    <div class="step-line" id="sline3"></div>
+    <div class="step-dot" id="sdot4">⭐</div>
   </div>
 
-  <!-- STEP 1: Form -->
-  <div id="step1" class="card">
-    <div class="card-header">
-      <span class="icon">📋</span> Ride Details
+  <!-- STEP 1: Route + Customer -->
+  <div id="step1" class="tab-panel active">
+
+    <!-- Surge banner -->
+    <div id="surgeBanner" class="surge-banner mb-4" style="display:none">
+      <div class="surge-banner__icon">⚡</div>
+      <div class="surge-banner__text">
+        <div class="surge-banner__title">High demand — surge pricing active</div>
+        <div class="surge-banner__sub">Fares are temporarily higher than usual</div>
+      </div>
+      <span class="surge-badge" id="surgeLabel">1.5x</span>
     </div>
-    <form id="bookingForm">
+
+    <!-- Pickup -->
+    <div class="form-group">
+      <label class="form-label">Pickup</label>
+      <input type="text" id="pickupInput" class="form-input" placeholder="Enter pickup address" autocomplete="off">
+    </div>
+
+    <!-- Intermediate stops -->
+    <div id="stopsContainer"></div>
+
+    <!-- Drop-off -->
+    <div class="form-group" id="dropoffGroup">
+      <label class="form-label">Drop-off</label>
+      <input type="text" id="dropoffInput" class="form-input" placeholder="Enter destination" autocomplete="off">
+    </div>
+
+    <!-- Long distance city selector -->
+    <div class="form-group" id="cityGroup" style="display:none">
+      <label class="form-label">Destination City</label>
+      <select id="citySelect" class="form-input">
+        <option value="">Select destination...</option>
+      </select>
+    </div>
+
+    <!-- Add stop button -->
+    <button class="btn btn-secondary btn--sm mb-4" onclick="addStop()" id="addStopBtn">+ Add Stop</button>
+
+    <!-- When -->
+    <div class="form-group">
+      <label class="form-label">When</label>
+      <div class="pill-row">
+        <button class="pill-btn active" id="nowPill" onclick="setSchedule('now')">Now</button>
+        <button class="pill-btn" id="laterPill" onclick="setSchedule('later')">Schedule</button>
+      </div>
+    </div>
+    <div id="scheduleFields" style="display:none" class="mt-3">
       <div class="form-group">
-        <label>Full Name</label>
-        <div class="input-icon-wrapper">
-          <span class="icon-prefix">👤</span>
-          <input type="text" id="name" placeholder="e.g. John Smith" required autocomplete="name">
-        </div>
+        <label class="form-label">Date</label>
+        <input type="date" id="schedDate" class="form-input">
       </div>
       <div class="form-group">
-        <label>Phone Number</label>
-        <div class="input-icon-wrapper">
-          <span class="icon-prefix">📱</span>
-          <input type="tel" id="phone" placeholder="e.g. (289) 555-1234" required autocomplete="tel">
-        </div>
+        <label class="form-label">Time</label>
+        <input type="time" id="schedTime" class="form-input">
       </div>
+    </div>
 
-      <div class="divider">Addresses</div>
+    <!-- Customer info -->
+    <div class="form-group mt-4">
+      <label class="form-label">Your Name</label>
+      <input type="text" id="custName" class="form-input" placeholder="Full name" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Phone Number</label>
+      <input type="tel" id="custPhone" class="form-input" placeholder="+1 (905) 555-0000" autocomplete="tel">
+    </div>
 
-      <!-- Route visual -->
-      <div class="route-fields">
-        <div class="route-icon-col">
-          <div class="route-dot pickup"></div>
-          <div class="route-line"></div>
-          <div class="route-dot dropoff"></div>
-        </div>
-        <div>
-          <div class="form-group" style="margin-bottom:0.75rem;">
-            <label>Pickup Address</label>
-            <input type="text" id="pickup" placeholder="e.g. Hamilton GO Station" required>
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label>Drop-off Address</label>
-            <input type="text" id="dropoff" placeholder="e.g. McMaster University" required>
-          </div>
-        </div>
-      </div>
+    <div id="step1Error" class="error-msg mt-3" style="display:none"></div>
 
-      <div class="divider" style="margin:1.25rem 0 0.75rem;">When?</div>
-      <div style="display:flex; gap:0.75rem; margin-bottom:1rem;">
-        <button type="button" id="btnNow" class="btn btn-primary" style="flex:1;" onclick="setScheduleMode(false)">⚡ Now</button>
-        <button type="button" id="btnSchedule" class="btn btn-secondary" style="flex:1;" onclick="setScheduleMode(true)">🕐 Schedule</button>
-      </div>
-      <div id="scheduleFields" style="display:none; margin-bottom:1rem;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-          <div class="form-group" style="margin:0;">
-            <label>Date</label>
-            <input type="date" id="schedDate">
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label>Time</label>
-            <input type="time" id="schedTime" step="900">
-          </div>
-        </div>
-      </div>
-
-      <button type="submit" class="btn btn-primary btn-block btn-lg" id="estimateBtn" style="margin-top:1rem;">
-        Get Fare Estimate
-      </button>
-    </form>
+    <button class="btn btn-primary btn--full mt-3" onclick="getEstimate()">
+      Get Price Estimate →
+    </button>
   </div>
 
-  <!-- STEP 2: Fare -->
-  <div id="step2" class="card" style="display:none;">
-    <div class="card-header"><span class="icon">💰</span> Fare Estimate</div>
+  <!-- STEP 2: Fare Preview -->
+  <div id="step2" class="tab-panel">
+    <h2 class="mb-4">Your Fare</h2>
 
-    <div class="fare-box">
-      <div class="fare-detail">Estimated fare for your trip</div>
-      <div class="fare-amount" id="fareAmt">$0.00</div>
-      <div class="fare-breakdown">
-        <span>📍 <span id="fareDist">0</span> km</span>
-        <span>🚗 Base $4.50 + $2.10/km</span>
+    <!-- Fare breakdown card -->
+    <div class="card fare-breakdown" id="fareBreakdown">
+      <!-- Rendered by renderFareBreakdown() -->
+    </div>
+
+    <!-- Promo code -->
+    <div class="flex gap-2 mt-4">
+      <input type="text" id="promoInput" class="form-input flex-1 uppercase" placeholder="Promo code">
+      <button class="btn btn-secondary" onclick="applyPromo()">Apply</button>
+    </div>
+    <div id="promoMsg" class="mt-2" style="font-size:var(--text-sm)"></div>
+
+    <!-- Payment method -->
+    <div class="form-group mt-4">
+      <label class="form-label">Payment</label>
+      <div class="pill-row">
+        <button class="pill-btn active" id="cashPill" onclick="setPayment('cash')">💵 Cash</button>
+        <button class="pill-btn" id="cardPill" onclick="setPayment('card')">💳 Card</button>
       </div>
     </div>
 
-    <!-- Route summary -->
-    <div class="detail-box" style="margin-bottom:1.25rem;">
-      <div class="detail-row">
-        <span class="dlabel">🟢 Pickup</span>
-        <span class="dvalue" id="s2Pickup"></span>
-      </div>
-      <div class="detail-row">
-        <span class="dlabel">🔴 Drop-off</span>
-        <span class="dvalue" id="s2Dropoff"></span>
-      </div>
+    <!-- Stripe card element -->
+    <div id="cardElementWrap" style="display:none" class="mt-3">
+      <div id="cardElement" class="form-input" style="padding:12px"></div>
+      <div id="cardErrors" class="error-msg mt-2" style="display:none"></div>
     </div>
 
-    <!-- Payment Method -->
-    <div id="paymentSection" style="margin-bottom:1.25rem;">
-      <div class="divider" style="margin-bottom:0.875rem;">Payment</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
-        <div id="payCard" class="payment-option selected" onclick="selectPayment('card')">
-          <div style="font-size:1.2rem;">💳</div>
-          <div style="font-weight:600; font-size:0.85rem;">Pay by Card</div>
-          <div style="font-size:0.72rem; color:var(--text-muted);">Visa, MC, Amex</div>
-        </div>
-        <div id="payCash" class="payment-option" onclick="selectPayment('cash')">
-          <div style="font-size:1.2rem;">💵</div>
-          <div style="font-weight:600; font-size:0.85rem;">Pay Cash</div>
-          <div style="font-size:0.72rem; color:var(--text-muted);">Pay driver directly</div>
-        </div>
-      </div>
-      <!-- Stripe card element -->
-      <div id="stripeCardWrapper" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.875rem;">
-        <div id="stripe-card-element"></div>
-        <div id="stripe-error" style="color:var(--danger); font-size:0.82rem; margin-top:0.5rem; display:none;"></div>
-      </div>
-    </div>
+    <div id="step2Error" class="error-msg mt-3" style="display:none"></div>
 
-    <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-bottom:1.25rem;">
-      Final fare may vary slightly based on actual route. SMS confirmation sent after booking.
-    </p>
-    <div style="display:flex; gap:0.875rem;">
-      <button class="btn btn-secondary" style="flex:1" onclick="showStep(1)">← Back</button>
-      <button class="btn btn-primary" style="flex:2" id="confirmBtn" onclick="confirmBooking()">
-        Confirm &amp; Book →
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-secondary" onclick="showStep(1)">← Back</button>
+      <button class="btn btn-primary flex-1" onclick="confirmBooking()" id="confirmBtn">
+        Confirm Booking
       </button>
     </div>
   </div>
 
   <!-- STEP 3: Confirmed -->
-  <div id="step3" class="card" style="display:none;">
-    <div class="confirmation">
-      <div class="check-icon">✅</div>
-      <h2>Ride Booked!</h2>
-      <p id="rideTimeInfo" style="color:var(--text-secondary); margin-bottom:1.25rem; font-size:0.9rem;">
-        A driver is being dispatched. You'll receive an SMS update shortly.
-      </p>
-
-      <div class="detail-box">
-        <div class="detail-row">
-          <span class="dlabel">Booking ID</span>
-          <span class="dvalue"><span class="booking-id-display" id="cBookingId"></span></span>
-        </div>
-        <div class="detail-row">
-          <span class="dlabel">🟢 Pickup</span>
-          <span class="dvalue" id="cPickup"></span>
-        </div>
-        <div class="detail-row">
-          <span class="dlabel">🔴 Drop-off</span>
-          <span class="dvalue" id="cDropoff"></span>
-        </div>
-        <div class="detail-row">
-          <span class="dlabel">💰 Est. Fare</span>
-          <span class="dvalue" id="cFare" style="color:var(--accent); font-size:1.1rem; font-weight:700;"></span>
-        </div>
-      </div>
-
-      <div style="background:var(--info-bg); border:1px solid var(--info-border); border-radius:var(--radius-sm); padding:0.875rem 1rem; margin:1rem 0; text-align:left; font-size:0.85rem; color:var(--info);">
-        📱 <strong>SMS updates enabled</strong> — You'll get notified when your driver is assigned, arriving, and when your trip is complete.
-      </div>
-
-      <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1.5rem;">
-        A PDF receipt will be emailed upon trip completion.
-      </p>
-      <button class="btn btn-primary btn-block" onclick="resetForm()">Book Another Ride</button>
+  <div id="step3" class="tab-panel">
+    <div class="text-center" style="padding:24px 0 16px">
+      <div style="font-size:2.5rem;margin-bottom:8px">🚕</div>
+      <h2>Booking Confirmed!</h2>
+      <p class="section-label mt-2">Booking ID</p>
+      <p class="font-bold mt-1" style="font-size:1.5rem;font-family:monospace" id="confirmedBookingId">—</p>
     </div>
+
+    <div class="card mb-3">
+      <div id="confirmedRoute"></div>
+    </div>
+
+    <div class="card mb-3" id="driverInfoCard" style="display:none">
+      <div class="section-label mb-2">Your Driver</div>
+      <div id="driverInfo"></div>
+    </div>
+
+    <div class="card mb-3">
+      <div id="bookingStatusMsg" class="text-secondary" style="font-size:var(--text-sm)">
+        Looking for a driver near you...
+      </div>
+    </div>
+
+    <a id="trackLink" href="#" class="btn btn-secondary btn--full mb-3">
+      📍 Track Your Ride
+    </a>
+
+    <button class="btn btn-primary btn--full mb-3" onclick="showStep(4)" id="rateBtn" style="display:none">
+      ⭐ Rate Your Driver
+    </button>
+
+    <button class="btn btn-secondary btn--full" onclick="resetForm()">
+      Book Another Ride
+    </button>
   </div>
 
-  <div style="text-align:center; padding:1.5rem 0; color:var(--text-muted); font-size:0.78rem;">
+  <!-- STEP 4: Rate Driver -->
+  <div id="step4" class="tab-panel">
+    <h2 class="mb-2">Rate Your Driver</h2>
+    <p class="text-secondary mb-4">How was your ride?</p>
+
+    <div class="flex justify-center gap-3 mb-4" id="starRow">
+      <button style="font-size:2rem;padding:8px;background:none;border:none;cursor:pointer;color:var(--text-muted)" onclick="selectStar(1)" data-star="1">☆</button>
+      <button style="font-size:2rem;padding:8px;background:none;border:none;cursor:pointer;color:var(--text-muted)" onclick="selectStar(2)" data-star="2">☆</button>
+      <button style="font-size:2rem;padding:8px;background:none;border:none;cursor:pointer;color:var(--text-muted)" onclick="selectStar(3)" data-star="3">☆</button>
+      <button style="font-size:2rem;padding:8px;background:none;border:none;cursor:pointer;color:var(--text-muted)" onclick="selectStar(4)" data-star="4">☆</button>
+      <button style="font-size:2rem;padding:8px;background:none;border:none;cursor:pointer;color:var(--text-muted)" onclick="selectStar(5)" data-star="5">☆</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Comment (optional)</label>
+      <textarea id="ratingComment" class="form-input" rows="3" maxlength="200" placeholder="Tell us about your experience..."></textarea>
+    </div>
+
+    <div id="ratingMsg" class="success-msg mt-3" style="display:none"></div>
+
+    <button class="btn btn-primary btn--full mt-3" onclick="submitRating()">
+      Submit Rating
+    </button>
+  </div>
+
+  <div class="text-center text-muted mt-6" style="font-size:var(--text-xs);padding-bottom:32px">
     Caledonia Taxi &bull; Hamilton, Ontario &bull; Est. 2025
   </div>
-</div>
 
-<div class="toast-container" id="toasts"></div>
+</div><!-- /.page-wrap -->
 
+<script src="https://js.stripe.com/v3/"></script>
+<script src="/static/js/fare-engine.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const API = '';
-let estimate = null;
+// ── Jinja2 variables ──────────────────────────────────────────────────────────
+const STRIPE_KEY = "{{ stripe_publishable_key or '' }}";
 
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentService    = 'standard';
+let currentStep       = 1;
+let stops             = [];      // array of intermediate stop address strings
+let scheduleMode      = 'now';
+let paymentMode       = 'cash';
+let currentBreakdown  = null;
+let lastBookingId     = null;
+let selectedStar      = 0;
+let promoCode         = '';
+let promoDiscount     = 0.0;     // fraction, e.g. 0.10 for 10%
+let stripeInstance    = null;
+let cardElement       = null;
+let surgeMultiplier   = 1.0;
+let flatRates         = {};
+let appSettings       = {};
+let pollTimer         = null;
+
+// ── Step navigation ────────────────────────────────────────────────────────────
 function showStep(n) {
-  [1,2,3].forEach(i => {
-    document.getElementById('step'+i).style.display = i===n ? 'block' : 'none';
+  currentStep = n;
+  [1, 2, 3, 4].forEach(i => {
+    const panel = document.getElementById('step' + i);
+    if (panel) {
+      panel.classList.toggle('active', i === n);
+    }
   });
-  document.querySelectorAll('.step').forEach(el => {
-    const s = +el.dataset.step;
-    el.className = 'step' + (s===n ? ' active' : s<n ? ' done' : '');
+  // Update step dots and lines
+  [1, 2, 3, 4].forEach(i => {
+    const dot = document.getElementById('sdot' + i);
+    if (!dot) return;
+    dot.classList.remove('active', 'complete');
+    if (i < n) dot.classList.add('complete');
+    else if (i === n) dot.classList.add('active');
+  });
+  [1, 2, 3].forEach(i => {
+    const line = document.getElementById('sline' + i);
+    if (!line) return;
+    line.classList.toggle('complete', i < n);
   });
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-document.getElementById('bookingForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('estimateBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Calculating…';
-  try {
-    const r = await fetch(`${API}/api/estimate-fare`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pickup_address:  document.getElementById('pickup').value,
-        dropoff_address: document.getElementById('dropoff').value
-      })
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Error');
-    estimate = await r.json();
-    document.getElementById('fareAmt').textContent   = `$${estimate.estimated_fare.toFixed(2)}`;
-    document.getElementById('fareDist').textContent  = estimate.distance_km.toFixed(1);
-    document.getElementById('s2Pickup').textContent  = document.getElementById('pickup').value;
-    document.getElementById('s2Dropoff').textContent = document.getElementById('dropoff').value;
-    if (estimate.pickup_coords && estimate.dropoff_coords) {
-      updateRouteMap(
-        estimate.pickup_coords,
-        estimate.dropoff_coords,
-        `~$${estimate.estimated_fare.toFixed(2)} · ${estimate.distance_km.toFixed(1)} km`
-      );
-    }
-    prepareStep2(); return;
-  } catch(err) {
-    toast(err.message || 'Could not calculate fare', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Get Fare Estimate';
-  }
-});
-
-let stripe = null;
-let stripeCardElement = null;
-let paymentMethod = 'card';
-let stripeClientSecret = null;
-
-function selectPayment(method) {
-  paymentMethod = method;
-  document.getElementById('payCard').classList.toggle('selected', method === 'card');
-  document.getElementById('payCash').classList.toggle('selected', method === 'cash');
-  document.getElementById('stripeCardWrapper').style.display = method === 'card' ? 'block' : 'none';
-}
-
-async function initStripe(publishableKey) {
-  if (!publishableKey || typeof Stripe === 'undefined') return;
-  stripe = Stripe(publishableKey);
-  const elements = stripe.elements();
-  stripeCardElement = elements.create('card', {
-    style: {
-      base: {
-        color: '#e2e8f0',
-        fontFamily: 'system-ui, sans-serif',
-        fontSize: '14px',
-        '::placeholder': { color: '#4a5568' }
-      }
-    }
+// ── Service selector ──────────────────────────────────────────────────────────
+function selectService(s) {
+  currentService = s;
+  document.querySelectorAll('#serviceSelector .pill-btn').forEach(btn => {
+    btn.classList.remove('active');
   });
-  stripeCardElement.mount('#stripe-card-element');
+  const idx = { standard: 0, medical: 1, long_distance: 2 }[s];
+  const btns = document.querySelectorAll('#serviceSelector .pill-btn');
+  if (btns[idx]) btns[idx].classList.add('active');
+
+  const isLong = s === 'long_distance';
+  document.getElementById('dropoffGroup').style.display = isLong ? 'none' : '';
+  document.getElementById('cityGroup').style.display    = isLong ? '' : 'none';
+  document.getElementById('addStopBtn').style.display   = isLong ? 'none' : '';
+  if (isLong) {
+    // Clear stops when switching to long distance
+    stops = [];
+    renderStops();
+  }
 }
 
-async function prepareStep2() {
+// ── Stop management ───────────────────────────────────────────────────────────
+function addStop() {
+  if (stops.length >= 3) return;
+  stops.push('');
+  renderStops();
+  if (stops.length >= 3) {
+    document.getElementById('addStopBtn').style.display = 'none';
+  }
+}
+
+function removeStop(i) {
+  stops.splice(i, 1);
+  renderStops();
+  if (stops.length < 3) {
+    document.getElementById('addStopBtn').style.display = '';
+  }
+}
+
+function renderStops() {
+  const container = document.getElementById('stopsContainer');
+  container.innerHTML = '';
+  stops.forEach((val, i) => {
+    const row = document.createElement('div');
+    row.className = 'stop-item';
+    row.innerHTML = `
+      <span class="stop-dot stop"></span>
+      <input class="form-input" type="text" placeholder="Stop ${i + 1} address"
+        value="${escapeHtml(val)}" autocomplete="off"
+        oninput="stops[${i}]=this.value">
+      <button class="stop-remove" type="button" onclick="removeStop(${i})">×</button>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Schedule toggle ───────────────────────────────────────────────────────────
+function setSchedule(mode) {
+  scheduleMode = mode;
+  document.getElementById('nowPill').classList.toggle('active', mode === 'now');
+  document.getElementById('laterPill').classList.toggle('active', mode === 'later');
+  const fields = document.getElementById('scheduleFields');
+  fields.style.display = mode === 'later' ? '' : 'none';
+  if (mode === 'later') {
+    const now = new Date();
+    document.getElementById('schedDate').min = now.toISOString().split('T')[0];
+    if (!document.getElementById('schedDate').value) {
+      document.getElementById('schedDate').value = now.toISOString().split('T')[0];
+    }
+    if (!document.getElementById('schedTime').value) {
+      const later = new Date(now.getTime() + 60 * 60000);
+      later.setMinutes(Math.ceil(later.getMinutes() / 15) * 15, 0, 0);
+      document.getElementById('schedTime').value = later.toTimeString().slice(0, 5);
+    }
+  }
+}
+
+function getScheduledForISO() {
+  if (scheduleMode !== 'later') return null;
+  const date = document.getElementById('schedDate').value;
+  const time = document.getElementById('schedTime').value;
+  if (!date || !time) return null;
+  return new Date(date + 'T' + time).toISOString();
+}
+
+// ── Payment method ────────────────────────────────────────────────────────────
+function setPayment(mode) {
+  paymentMode = mode;
+  document.getElementById('cashPill').classList.toggle('active', mode === 'cash');
+  document.getElementById('cardPill').classList.toggle('active', mode === 'card');
+  const wrap = document.getElementById('cardElementWrap');
+  wrap.style.display = mode === 'card' ? '' : 'none';
+  if (mode === 'card' && !stripeInstance) {
+    initStripe();
+  }
+}
+
+// ── Stripe ────────────────────────────────────────────────────────────────────
+function initStripe() {
+  const key = STRIPE_KEY;
+  if (!key || typeof Stripe === 'undefined') return;
   try {
-    const API_BASE = (typeof API !== 'undefined') ? API : '';
-    const r = await fetch(`${API_BASE}/api/payments/create-intent`, {
+    stripeInstance = Stripe(key);
+    const elements = stripeInstance.elements({ appearance: { theme: 'night' } });
+    cardElement = elements.create('card', {
+      style: { base: { color: '#fff', fontSize: '15px' } }
+    });
+    cardElement.mount('#cardElement');
+    cardElement.on('change', function(event) {
+      const errEl = document.getElementById('cardErrors');
+      if (event.error) {
+        errEl.textContent = event.error.message;
+        errEl.style.display = '';
+      } else {
+        errEl.style.display = 'none';
+      }
+    });
+  } catch (e) {
+    console.warn('Stripe init failed:', e);
+  }
+}
+
+// ── Fare estimate ─────────────────────────────────────────────────────────────
+async function getEstimate() {
+  const pickup  = document.getElementById('pickupInput').value.trim();
+  const dropoff = currentService === 'long_distance'
+    ? document.getElementById('citySelect').value
+    : document.getElementById('dropoffInput').value.trim();
+
+  const errEl = document.getElementById('step1Error');
+  errEl.style.display = 'none';
+
+  if (!pickup) {
+    showStep1Error('Please enter a pickup address.');
+    return;
+  }
+  if (!dropoff) {
+    showStep1Error(currentService === 'long_distance'
+      ? 'Please select a destination city.'
+      : 'Please enter a drop-off address.');
+    return;
+  }
+  if (!document.getElementById('custName').value.trim()) {
+    showStep1Error('Please enter your name.');
+    return;
+  }
+  if (!document.getElementById('custPhone').value.trim()) {
+    showStep1Error('Please enter your phone number.');
+    return;
+  }
+
+  const estimateBtn = document.querySelector('#step1 .btn-primary');
+  const origText = estimateBtn.innerHTML;
+  estimateBtn.disabled = true;
+  estimateBtn.innerHTML = '<span class="spinner spinner--sm"></span> Calculating...';
+
+  try {
+    const payload = {
+      pickup_address:  pickup,
+      dropoff_address: dropoff,
+      stops:           stops.filter(s => s.trim()),
+      service_type:    currentService,
+      promo_code:      promoCode || undefined
+    };
+    const res = await fetch('/api/estimate-fare', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pickup_address: document.getElementById('pickup').value,
-        dropoff_address: document.getElementById('dropoff').value
-      })
+      body: JSON.stringify(payload)
     });
-    if (r.ok) {
-      const data = await r.json();
-      stripeClientSecret = data.client_secret;
-      await initStripe(data.publishable_key);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Could not calculate fare');
     }
-  } catch(e) {
-    // Stripe unavailable — fall back to cash only
-    selectPayment('cash');
-    const payCard = document.getElementById('payCard');
-    if (payCard) payCard.style.display = 'none';
+    const data = await res.json();
+
+    // Build breakdown using fareEngine for display
+    const validStops = stops.filter(s => s.trim());
+    const legs = buildLegs(pickup, dropoff, validStops);
+    const breakdown = fareEngine.estimate(legs, currentService, {
+      flatRates,
+      surgeMultiplier,
+      promoDiscount,
+      baseFare:     data.base_fare     || 4.50,
+      perKmRate:    data.per_km_rate   || 2.10,
+      minimumFare:  data.minimum_fare  || 8.00,
+      stopSurcharge: data.stop_surcharge_per_stop || 3.00,
+    });
+    // Override total with server-authoritative value if present
+    if (data.total != null) breakdown.total = data.total;
+    if (data.estimated_fare != null && data.total == null) breakdown.total = data.estimated_fare;
+
+    currentBreakdown = breakdown;
+    renderFareBreakdown(breakdown);
+    showStep(2);
+  } catch (e) {
+    showStep1Error(e.message || 'Could not calculate fare. Please try again.');
+  } finally {
+    estimateBtn.disabled = false;
+    estimateBtn.innerHTML = origText;
   }
-  showStep(2);
 }
 
+function buildLegs(pickup, dropoff, midStops) {
+  const all = [pickup, ...midStops, dropoff];
+  const legs = [];
+  for (let i = 0; i < all.length - 1; i++) {
+    legs.push({ from: all[i], to: all[i + 1], km: 0 });
+  }
+  return legs;
+}
+
+function showStep1Error(msg) {
+  const el = document.getElementById('step1Error');
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+// ── Fare breakdown renderer ───────────────────────────────────────────────────
+function renderFareBreakdown(breakdown) {
+  const el = document.getElementById('fareBreakdown');
+  let html = '';
+
+  // One row per leg
+  (breakdown.legs || []).forEach(leg => {
+    html += `<div class="fare-row">
+      <span class="fare-label">${escapeHtml(leg.label)}</span>
+      <span class="fare-amount">$${leg.subtotal.toFixed(2)}</span>
+    </div>`;
+  });
+
+  // Stop surcharge
+  const stopCount = (breakdown.legs || []).length - 1;
+  if (breakdown.stop_surcharge > 0 && stopCount > 0) {
+    html += `<div class="fare-row">
+      <span class="fare-label">Stop surcharge &times; ${stopCount}</span>
+      <span class="fare-amount">$${breakdown.stop_surcharge.toFixed(2)}</span>
+    </div>`;
+  }
+
+  // Promo discount (negative value stored in breakdown.promo_discount)
+  if (breakdown.promo_discount < 0) {
+    const pct = promoCode ? ` (${promoCode})` : '';
+    html += `<div class="fare-row discount">
+      <span class="fare-label">Promo${escapeHtml(pct)}</span>
+      <span class="fare-amount">-$${Math.abs(breakdown.promo_discount).toFixed(2)}</span>
+    </div>`;
+  }
+
+  // Surge addition
+  if (breakdown.surge_addition > 0) {
+    html += `<div class="fare-row surge">
+      <span class="fare-label">Surge &times;${surgeMultiplier}</span>
+      <span class="fare-amount">+$${breakdown.surge_addition.toFixed(2)}</span>
+    </div>`;
+  }
+
+  // Total
+  html += `<div class="fare-row total">
+    <span class="fare-label">Total</span>
+    <span class="fare-amount">$${breakdown.total.toFixed(2)}</span>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+// ── Promo code ────────────────────────────────────────────────────────────────
+async function applyPromo() {
+  const code = document.getElementById('promoInput').value.trim().toUpperCase();
+  const msgEl = document.getElementById('promoMsg');
+  msgEl.innerHTML = '';
+
+  if (!code) {
+    msgEl.innerHTML = '<span class="text-muted">Enter a code first.</span>';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/promo/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      msgEl.innerHTML = `<span class="text-red">❌ ${err.detail || 'Invalid promo code'}</span>`;
+      promoCode = '';
+      promoDiscount = 0.0;
+      if (currentBreakdown) renderFareBreakdown(rebuildBreakdown());
+      return;
+    }
+    const data = await res.json();
+    promoCode    = code;
+    promoDiscount = (data.discount_percent || 0) / 100;
+    msgEl.innerHTML = `<span class="text-green">✅ ${data.discount_percent}% discount applied!</span>`;
+    if (currentBreakdown) renderFareBreakdown(rebuildBreakdown());
+  } catch (e) {
+    msgEl.innerHTML = '<span class="text-red">Could not validate code. Try again.</span>';
+  }
+}
+
+function rebuildBreakdown() {
+  const pickup   = document.getElementById('pickupInput').value.trim();
+  const dropoff  = currentService === 'long_distance'
+    ? document.getElementById('citySelect').value
+    : document.getElementById('dropoffInput').value.trim();
+  const validStops = stops.filter(s => s.trim());
+  const legs = buildLegs(pickup, dropoff, validStops);
+  const breakdown = fareEngine.estimate(legs, currentService, {
+    flatRates,
+    surgeMultiplier,
+    promoDiscount,
+  });
+  currentBreakdown = breakdown;
+  return breakdown;
+}
+
+// ── Confirm booking ───────────────────────────────────────────────────────────
 async function confirmBooking() {
   const btn = document.getElementById('confirmBtn');
-  btn.disabled = true;
-  // Keep original button text to restore later
-  const origText = btn.innerHTML;
-  btn.innerHTML = '<span class="spinner"></span> Processing…';
+  const errEl = document.getElementById('step2Error');
+  errEl.style.display = 'none';
 
-  // Hide any previous stripe error
-  const stripeErr = document.getElementById('stripe-error');
-  if (stripeErr) stripeErr.style.display = 'none';
+  btn.disabled = true;
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner spinner--sm"></span> Processing...';
 
   try {
-    let paymentIntentId = null;
-
-    if (paymentMethod === 'card' && stripe && stripeClientSecret) {
-      const { paymentIntent, error } = await stripe.confirmCardPayment(
-        stripeClientSecret,
-        { payment_method: { card: stripeCardElement } }
-      );
+    let stripePaymentMethodId = null;
+    if (paymentMode === 'card') {
+      if (!stripeInstance || !cardElement) {
+        throw new Error('Card payment not available. Please choose cash.');
+      }
+      const { paymentMethod, error } = await stripeInstance.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+      });
       if (error) {
-        if (stripeErr) {
-          stripeErr.textContent = error.message;
-          stripeErr.style.display = 'block';
-        }
+        const cardErrEl = document.getElementById('cardErrors');
+        cardErrEl.textContent = error.message;
+        cardErrEl.style.display = '';
         throw new Error(error.message);
       }
-      paymentIntentId = paymentIntent.id;
+      stripePaymentMethodId = paymentMethod.id;
     }
 
-    const API_BASE = (typeof API !== 'undefined') ? API : '';
-    const r = await fetch(`${API_BASE}/api/bookings`, {
+    const validStops = stops.filter(s => s.trim());
+    const payload = {
+      customer_name:    document.getElementById('custName').value.trim(),
+      customer_phone:   document.getElementById('custPhone').value.trim(),
+      pickup_address:   document.getElementById('pickupInput').value.trim(),
+      dropoff_address:  currentService === 'long_distance'
+        ? document.getElementById('citySelect').value
+        : document.getElementById('dropoffInput').value.trim(),
+      stops:            validStops,
+      service_type:     currentService,
+      payment_method:   paymentMode === 'card' ? 'stripe' : 'cash',
+      promo_code:       promoCode || undefined,
+      source:           'web',
+    };
+    if (stripePaymentMethodId) payload.payment_method_id = stripePaymentMethodId;
+    const sf = getScheduledForISO();
+    if (sf) payload.scheduled_for = sf;
+
+    const res = await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customer_name:    document.getElementById('name').value,
-        customer_phone:   document.getElementById('phone').value,
-        pickup_address:   document.getElementById('pickup').value,
-        dropoff_address:  document.getElementById('dropoff').value,
-        source: 'web',
-        payment_method: paymentMethod === 'card' ? 'stripe' : 'cash',
-        payment_intent_id: paymentIntentId,
-        scheduled_for: getScheduledForUTC()
-      })
+      body: JSON.stringify(payload)
     });
-    if (!r.ok) throw new Error('Booking failed');
-    const data = await r.json();
-    const b = data.booking;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Booking failed. Please try again.');
+    }
+    const data = await res.json();
+    const booking = data.booking || data;
+    lastBookingId = booking.id;
 
-    // Populate step 3 confirmation
-    if (document.getElementById('cBookingId')) document.getElementById('cBookingId').textContent = b.id.slice(0,12).toUpperCase();
-    if (document.getElementById('cPickup')) document.getElementById('cPickup').textContent = b.pickup_address;
-    if (document.getElementById('cDropoff')) document.getElementById('cDropoff').textContent = b.dropoff_address;
-    if (document.getElementById('cFare')) document.getElementById('cFare').textContent = `$${parseFloat(b.estimated_fare || 0).toFixed(2)}`;
-    const rideTimeEl = document.getElementById('rideTimeInfo');
-    if (rideTimeEl) {
-      const sf = getScheduledForUTC();
-      if (sf) {
-        const d = new Date(sf);
-        rideTimeEl.textContent = 'Scheduled for ' + d.toLocaleString('en-CA', {dateStyle:'medium', timeStyle:'short'});
+    // Populate step 3
+    const idEl = document.getElementById('confirmedBookingId');
+    if (idEl) idEl.textContent = String(booking.id).slice(0, 12).toUpperCase();
+
+    // Render route summary
+    const routeEl = document.getElementById('confirmedRoute');
+    if (routeEl) {
+      let routeHtml = `<div class="stop-list">
+        <div class="stop-item">
+          <span class="stop-dot pickup"></span>
+          <span class="stop-label">${escapeHtml(booking.pickup_address || payload.pickup_address)}</span>
+        </div>`;
+      validStops.forEach(s => {
+        routeHtml += `<div class="stop-item">
+          <span class="stop-dot stop"></span>
+          <span class="stop-label">${escapeHtml(s)}</span>
+        </div>`;
+      });
+      routeHtml += `<div class="stop-item">
+          <span class="stop-dot dropoff"></span>
+          <span class="stop-label">${escapeHtml(booking.dropoff_address || payload.dropoff_address)}</span>
+        </div>
+      </div>`;
+      if (currentBreakdown) {
+        routeHtml += `<div class="fare-row total" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          <span class="fare-label">Estimated Total</span>
+          <span class="fare-amount">$${currentBreakdown.total.toFixed(2)}</span>
+        </div>`;
+      }
+      routeEl.innerHTML = routeHtml;
+    }
+
+    // Track link
+    const trackLink = document.getElementById('trackLink');
+    if (trackLink) trackLink.href = `/track/${lastBookingId}`;
+
+    // Status message
+    const sf2 = getScheduledForISO();
+    const statusEl = document.getElementById('bookingStatusMsg');
+    if (statusEl) {
+      if (sf2) {
+        const d = new Date(sf2);
+        statusEl.textContent = 'Scheduled for ' + d.toLocaleString('en-CA', { dateStyle: 'medium', timeStyle: 'short' });
       } else {
-        rideTimeEl.textContent = 'A driver is being dispatched. You\'ll receive an SMS update shortly.';
+        statusEl.textContent = 'Looking for a driver near you...';
       }
     }
+
     showStep(3);
-    if (typeof toast === 'function') toast('Ride booked!', 'success');
-  } catch(err) {
-    if (!err.message || !err.message.includes('card')) {
-      if (typeof toast === 'function') toast('Booking failed — please try again', 'error');
+    startPolling(lastBookingId);
+  } catch (e) {
+    if (!e.message.includes('card') && !e.message.includes('Card')) {
+      errEl.textContent = e.message || 'Booking failed. Please try again.';
+      errEl.style.display = '';
     }
   } finally {
     btn.disabled = false;
@@ -480,84 +716,197 @@ async function confirmBooking() {
   }
 }
 
-function resetForm() {
-  document.getElementById('bookingForm').reset();
-  estimate = null;
-  setScheduleMode(false);
-  showStep(1);
+// ── Booking status polling ────────────────────────────────────────────────────
+function startPolling(id) {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => pollBookingStatus(id), 5000);
 }
 
-// ── Route Map Strip ──────────────────────────────────────
-let routeMap = null;
-let pickupMarker = null;
-let dropoffMarker = null;
-let routeLine = null;
+async function pollBookingStatus(id) {
+  try {
+    const res = await fetch(`/api/bookings/${id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const booking = data.booking || data;
+    const status = booking.status;
 
-function initRouteMap() {
-  if (routeMap) return;
-  routeMap = L.map('routeMap', {
-    zoomControl: false, attributionControl: false,
-    dragging: false, scrollWheelZoom: false, doubleClickZoom: false
-  }).setView([43.2557, -79.8711], 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 18
-  }).addTo(routeMap);
-}
+    const statusEl = document.getElementById('bookingStatusMsg');
 
-function updateRouteMap(pickupCoords, dropoffCoords, fareText) {
-  initRouteMap();
-  document.getElementById('routeMapStrip').style.display = 'block';
-  if (pickupMarker) routeMap.removeLayer(pickupMarker);
-  if (dropoffMarker) routeMap.removeLayer(dropoffMarker);
-  if (routeLine) routeMap.removeLayer(routeLine);
-  pickupMarker = L.circleMarker([pickupCoords.lat, pickupCoords.lng],
-    { radius:7, color:'#22c55e', fillColor:'#22c55e', fillOpacity:1, weight:2 }
-  ).addTo(routeMap);
-  dropoffMarker = L.circleMarker([dropoffCoords.lat, dropoffCoords.lng],
-    { radius:7, color:'#ef4444', fillColor:'#ef4444', fillOpacity:1, weight:2 }
-  ).addTo(routeMap);
-  routeLine = L.polyline(
-    [[pickupCoords.lat, pickupCoords.lng], [dropoffCoords.lat, dropoffCoords.lng]],
-    { color:'#f5c518', weight:2, dashArray:'6,5', opacity:0.7 }
-  ).addTo(routeMap);
-  routeMap.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
-  if (fareText) document.getElementById('fareOverlay').textContent = fareText;
-  setTimeout(function() { routeMap.invalidateSize(); }, 100);
-}
-
-// ── Schedule Mode ─────────────────────────────────────────
-let scheduleMode = false;
-
-function setScheduleMode(enable) {
-  scheduleMode = enable;
-  document.getElementById('btnNow').className = enable ? 'btn btn-secondary' : 'btn btn-primary';
-  document.getElementById('btnSchedule').className = enable ? 'btn btn-primary' : 'btn btn-secondary';
-  document.getElementById('scheduleFields').style.display = enable ? 'block' : 'none';
-  if (enable) {
-    const now = new Date();
-    document.getElementById('schedDate').min = now.toISOString().split('T')[0];
-    document.getElementById('schedDate').value = now.toISOString().split('T')[0];
-    const later = new Date(now.getTime() + 60 * 60000);
-    later.setMinutes(Math.ceil(later.getMinutes() / 15) * 15, 0, 0);
-    document.getElementById('schedTime').value = later.toTimeString().slice(0, 5);
+    if (status === 'accepted' || status === 'in_progress') {
+      if (statusEl) statusEl.textContent = status === 'in_progress' ? 'Your driver is on the way!' : 'Driver accepted your ride';
+      const driverCard = document.getElementById('driverInfoCard');
+      const driverEl   = document.getElementById('driverInfo');
+      if (booking.driver && driverEl) {
+        driverEl.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div style="font-size:2rem">🚗</div>
+            <div>
+              <div class="font-semi">${escapeHtml(booking.driver.name || 'Your Driver')}</div>
+              <div class="text-secondary text-sm">${escapeHtml(booking.driver.vehicle || '')}</div>
+              <div class="text-muted text-sm">${escapeHtml(booking.driver.plate || '')}</div>
+            </div>
+          </div>`;
+        if (driverCard) driverCard.style.display = '';
+      }
+    } else if (status === 'completed') {
+      if (statusEl) statusEl.textContent = 'Your ride is complete. Thank you!';
+      const rateBtn = document.getElementById('rateBtn');
+      if (rateBtn) rateBtn.style.display = '';
+      clearInterval(pollTimer);
+      pollTimer = null;
+    } else if (status === 'cancelled') {
+      if (statusEl) statusEl.textContent = 'This booking has been cancelled.';
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  } catch (e) {
+    // Silent — polling failure is non-critical
   }
 }
 
-function getScheduledForUTC() {
-  if (!scheduleMode) return null;
-  const date = document.getElementById('schedDate').value;
-  const time = document.getElementById('schedTime').value;
-  if (!date || !time) return null;
-  return new Date(date + 'T' + time).toISOString();
+// ── Star rating ───────────────────────────────────────────────────────────────
+function selectStar(n) {
+  selectedStar = n;
+  document.querySelectorAll('#starRow button').forEach(btn => {
+    const v = parseInt(btn.dataset.star, 10);
+    btn.textContent = v <= n ? '★' : '☆';
+    btn.style.color = v <= n ? '#facc15' : 'var(--text-muted)';
+  });
 }
 
-function toast(msg, type='info') {
-  const d = document.createElement('div');
-  d.className = `toast toast-${type}`;
-  d.textContent = msg;
-  document.getElementById('toasts').appendChild(d);
-  setTimeout(() => d.remove(), 4500);
+async function submitRating() {
+  if (!selectedStar) {
+    const msgEl = document.getElementById('ratingMsg');
+    msgEl.textContent = 'Please select a star rating.';
+    msgEl.style.display = '';
+    msgEl.className = 'error-msg mt-3';
+    return;
+  }
+  if (!lastBookingId) return;
+
+  const btn = document.querySelector('#step4 .btn-primary');
+  btn.disabled = true;
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner spinner--sm"></span> Submitting...';
+
+  try {
+    await fetch(`/api/bookings/${lastBookingId}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rating:  selectedStar,
+        comment: document.getElementById('ratingComment').value.trim()
+      })
+    });
+    const msgEl = document.getElementById('ratingMsg');
+    msgEl.textContent = '✅ Thank you for your rating!';
+    msgEl.style.display = '';
+    msgEl.className = 'success-msg mt-3';
+    btn.innerHTML = 'Rating Submitted ✓';
+  } catch (e) {
+    const msgEl = document.getElementById('ratingMsg');
+    msgEl.textContent = 'Could not submit rating. Please try again.';
+    msgEl.style.display = '';
+    msgEl.className = 'error-msg mt-3';
+    btn.disabled = false;
+    btn.innerHTML = origText;
+  }
 }
+
+// ── Reset form ────────────────────────────────────────────────────────────────
+function resetForm() {
+  currentService    = 'standard';
+  stops             = [];
+  scheduleMode      = 'now';
+  paymentMode       = 'cash';
+  currentBreakdown  = null;
+  lastBookingId     = null;
+  selectedStar      = 0;
+  promoCode         = '';
+  promoDiscount     = 0.0;
+
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+  // Clear inputs
+  ['pickupInput', 'dropoffInput', 'custName', 'custPhone',
+   'promoInput', 'ratingComment', 'schedDate', 'schedTime'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('stopsContainer').innerHTML = '';
+  document.getElementById('step1Error').style.display = 'none';
+  document.getElementById('step2Error').style.display = 'none';
+  document.getElementById('promoMsg').innerHTML = '';
+  document.getElementById('fareBreakdown').innerHTML = '';
+  document.getElementById('ratingMsg').style.display = 'none';
+  document.getElementById('driverInfoCard').style.display = 'none';
+  document.getElementById('rateBtn').style.display = 'none';
+
+  // Reset payment to cash
+  document.getElementById('cardElementWrap').style.display = 'none';
+  document.getElementById('cashPill').classList.add('active');
+  document.getElementById('cardPill').classList.remove('active');
+
+  // Reset schedule
+  document.getElementById('scheduleFields').style.display = 'none';
+  document.getElementById('nowPill').classList.add('active');
+  document.getElementById('laterPill').classList.remove('active');
+
+  // Reset service selector
+  selectService('standard');
+
+  // Reset stars
+  document.querySelectorAll('#starRow button').forEach(btn => {
+    btn.textContent = '☆';
+    btn.style.color = 'var(--text-muted)';
+  });
+
+  showStep(1);
+}
+
+// ── Surge check ───────────────────────────────────────────────────────────────
+async function checkSurge() {
+  try {
+    const data = await fetch('/api/surge').then(r => r.json());
+    surgeMultiplier = data.multiplier || 1.0;
+    const banner = document.getElementById('surgeBanner');
+    const label  = document.getElementById('surgeLabel');
+    if (surgeMultiplier > 1.0) {
+      banner.style.display = 'flex';
+      label.textContent = surgeMultiplier + 'x';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (e) {
+    // Silent
+  }
+}
+
+// ── Flat rates ────────────────────────────────────────────────────────────────
+async function loadFlatRates() {
+  try {
+    flatRates = await fetch('/api/flat-rates').then(r => r.json());
+    const sel = document.getElementById('citySelect');
+    Object.keys(flatRates).forEach(city => {
+      const opt = document.createElement('option');
+      opt.value = city;
+      opt.textContent = `${city} — $${flatRates[city].toFixed(2)}`;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    // Silent — long distance just won't have city options
+  }
+}
+
+// ── Service worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+checkSurge();
+setInterval(checkSurge, 120000);
+loadFlatRates();
 </script>
 </body>
 </html>
