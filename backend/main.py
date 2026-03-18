@@ -45,8 +45,8 @@ from models import (
     AdminAssignRequest, FareEstimate, VoiceAIBookingRequest
 )
 from services import (
-    geocode_address, get_route_distance, calculate_fare, find_nearest_driver,
-    haversine_distance, geocode_route, get_current_surge_multiplier
+    geocode_address, get_route_distance, calculate_fare, fare_from_distance,
+    find_nearest_driver, haversine_distance, geocode_route, get_current_surge_multiplier
 )
 from oasr_parser import parse_oasr_email
 from sms_service import (
@@ -114,6 +114,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Only set HSTS in production (when COOKIE_SECURE is true)
         if COOKIE_SECURE:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Never cache HTML pages — ensures browsers always fetch the latest template
+        content_type = response.headers.get("content-type", "")
+        if "text/html" in content_type:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -419,8 +424,9 @@ async def create_payment_intent(req: FareEstimateRequest):
     dc = await geocode_address(req.dropoff_address)
     if not pc or not dc:
         raise HTTPException(status_code=400, detail="Could not geocode addresses")
-    dist = await get_route_distance(pc["lat"], pc["lng"], dc["lat"], dc["lng"])
-    fare = calculate_fare(dist)
+    legs = await geocode_route([req.pickup_address] + list(req.stops or []) + [req.dropoff_address])
+    fare_breakdown = calculate_fare(legs, req.service_type or "standard")
+    fare = fare_breakdown["total"]
     amount_cents = max(int(fare * 100), 50)  # Stripe minimum 50 cents
 
     intent = stripe_lib.PaymentIntent.create(
@@ -451,10 +457,12 @@ async def create_booking(req: BookingRequest):
     if not pickup or not dropoff:
         raise HTTPException(400, "Could not geocode addresses")
 
-    distance = await get_route_distance(
-        pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"]
-    )
-    fare = calculate_fare(distance)
+    addresses = [req.pickup_address] + list(req.stops or []) + [req.dropoff_address]
+    legs = await geocode_route(addresses)
+    surge_mult = get_current_surge_multiplier(bookings_db, drivers_db)
+    fare_breakdown = calculate_fare(legs, req.service_type or "standard", surge_mult)
+    fare = fare_breakdown["total"]
+    distance = sum(l.get("km", 0.0) for l in legs)
     db   = get_db()
 
     # ── Advance booking validation ──────────────────────────────
@@ -542,10 +550,10 @@ async def create_booking(req: BookingRequest):
     return {"success": True, "booking": booking}
 
 
-async def dispatch_booking(booking: dict):
+async def dispatch_booking(booking: dict, excluded_drivers: list[str] = None):
     """Auto-dispatch to nearest driver. Escalate on timeout/decline."""
     db       = get_db()
-    excluded: list[str] = []
+    excluded: list[str] = list(excluded_drivers or [])
     bid      = booking["id"]
     plat     = booking.get("pickup_lat",  43.2557)
     plng     = booking.get("pickup_lng", -79.8711)
@@ -705,6 +713,20 @@ async def cancel_booking(booking_id: str):
 
     await manager.broadcast("admin", {"type": "booking_cancelled", "booking_id": booking_id})
 
+    # Notify assigned driver
+    if booking and booking.get("assigned_driver_id"):
+        await manager.send_to_driver(booking["assigned_driver_id"], {
+            "type": "ride_cancelled",
+            "booking_id": booking_id
+        })
+        # Reset driver status
+        if db:
+            db.table("drivers").update({"status": "available"}).eq("id", booking["assigned_driver_id"]).execute()
+        else:
+            for d in demo_drivers:
+                if d["id"] == booking["assigned_driver_id"]:
+                    d["status"] = "available"
+
     # SMS: cancellation
     if booking:
         try:
@@ -855,11 +877,46 @@ async def ride_action(booking_id: str, driver_id: str, req: RideActionRequest):
             "booking_id": booking_id,
             "driver_id": driver_id
         })
-    else:
+    elif req.action == "decline":
+        # Set driver back to available
         if db:
+            db.table("drivers").update({"status": "available"}).eq("id", driver_id).execute()
             db.table("dispatch_log").update({
                 "status": "declined", "responded_at": now
             }).eq("booking_id", booking_id).eq("driver_id", driver_id).execute()
+        else:
+            for d in demo_drivers:
+                if d["id"] == driver_id:
+                    d["status"] = "available"
+
+        dispatch_log.append({
+            "booking_id": booking_id, "driver_id": driver_id,
+            "action": "decline", "timestamp": now
+        })
+
+        await manager.broadcast("admin", {
+            "type": "driver_declined",
+            "booking_id": booking_id,
+            "driver_id": driver_id
+        })
+
+        # Re-dispatch excluding this driver
+        booking = None
+        if db:
+            r = db.table("bookings").select("*").eq("id", booking_id).execute()
+            if r.data: booking = r.data[0]
+        else:
+            for b in demo_bookings:
+                if b["id"] == booking_id:
+                    booking = b
+                    break
+
+        if booking and booking.get("status") not in ("accepted", "completed", "cancelled"):
+            asyncio.create_task(dispatch_booking(booking, excluded_drivers=[driver_id]))
+
+        return {"success": True, "message": "declined, re-dispatching"}
+    else:
+        # legacy fallback
         await manager.broadcast("admin", {
             "type": "ride_declined",
             "booking_id": booking_id,
@@ -978,6 +1035,27 @@ async def admin_assign(req: AdminAssignRequest):
     return {"success": True}
 
 
+@app.post("/api/admin/dispatch", dependencies=[Depends(require_admin)])
+async def admin_dispatch(body: dict = Body(...)):
+    """Re-trigger auto-dispatch for a pending/failed booking."""
+    booking_id = body.get("booking_id")
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data:
+            booking = r.data[0]
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+                break
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    asyncio.create_task(dispatch_booking(booking))
+    return {"success": True}
+
+
 @app.get("/api/admin/stats", dependencies=[Depends(require_admin)])
 async def admin_stats():
     db       = get_db()
@@ -1089,7 +1167,7 @@ async def voice_ai_booking(req: VoiceAIBookingRequest):
     distance = await get_route_distance(
         pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"]
     )
-    fare = calculate_fare(distance)
+    fare = fare_from_distance(distance)
     db   = get_db()
 
     if db:
@@ -1215,7 +1293,7 @@ async def voice_ai_fare_estimate(req: FareEstimateRequest):
     distance = await get_route_distance(
         pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"]
     )
-    fare = calculate_fare(distance)
+    fare = fare_from_distance(distance)
     return {
         "distance_km": distance,
         "estimated_fare": fare,
@@ -1322,7 +1400,7 @@ async def twilio_dropoff(request: Request):
     if pc and dc:
         d = await get_route_distance(pc["lat"], pc["lng"], dc["lat"], dc["lng"])
         if d: dist = d
-    fare = calculate_fare(dist)
+    fare = fare_from_distance(dist)
     resp   = VoiceResponse()
     gather = Gather(
         input="speech",
@@ -1422,7 +1500,7 @@ async def _dispatch_vapi_tool(name: str, args: dict) -> dict:
         if not pickup or not dropoff:
             return {"error": "Could not locate one of those addresses. Please try again."}
         dist = await get_route_distance(pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"])
-        fare = calculate_fare(dist)
+        fare = fare_from_distance(dist)
         return {
             "distance_km": dist,
             "estimated_fare": fare,
@@ -1440,7 +1518,7 @@ async def _dispatch_vapi_tool(name: str, args: dict) -> dict:
         if not pickup or not dropoff:
             return {"error": "Could not geocode addresses."}
         dist = await get_route_distance(pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"])
-        fare = calculate_fare(dist)
+        fare = fare_from_distance(dist)
         _booking_counter += 1
         booking = {
             "id": f"b{_booking_counter}",
@@ -1942,9 +2020,139 @@ async def oasr_inbound(request: Request):
     return {"booking_id": booking_id, "parsed": parsed, "needs_review": parsed.get("needs_review")}
 
 
+@app.post("/api/bookings/{booking_id}/send-receipt", dependencies=[Depends(require_admin)])
+async def send_receipt_endpoint(booking_id: str):
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data: booking = r.data[0]
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    try:
+        result = send_receipt_email(booking)
+        return {"success": True, "email_log": result}
+    except Exception as e:
+        raise HTTPException(500, f"Receipt email failed: {e}")
+
+
+@app.post("/api/admin/force-complete/{booking_id}", dependencies=[Depends(require_admin)])
+async def force_complete_booking(booking_id: str):
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data: booking = r.data[0]
+        db.table("bookings").update({"status": "completed"}).eq("id", booking_id).execute()
+        if booking and booking.get("assigned_driver_id"):
+            db.table("drivers").update({"status": "available"}).eq("id", booking["assigned_driver_id"]).execute()
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+                b["status"] = "completed"
+        if booking and booking.get("assigned_driver_id"):
+            for d in demo_drivers:
+                if d["id"] == booking["assigned_driver_id"]:
+                    d["status"] = "available"
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    await manager.broadcast("admin", {
+        "type": "ride_completed",
+        "booking_id": booking_id,
+        "fare": booking.get("estimated_fare", 0)
+    })
+    try:
+        send_receipt_email(booking)
+    except Exception:
+        pass
+    try:
+        sms_ride_completed(
+            booking.get("customer_phone", ""), booking.get("customer_name", ""),
+            float(booking.get("estimated_fare", 0)), booking_id
+        )
+    except Exception:
+        pass
+    return {"success": True}
+
+
+@app.post("/api/admin/redispatch/{booking_id}", dependencies=[Depends(require_admin)])
+async def redispatch_booking(booking_id: str):
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data: booking = r.data[0]
+        db.table("bookings").update({"status": "pending", "dispatch_attempts": 0}).eq("id", booking_id).execute()
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+                b["status"] = "pending"
+                b["dispatch_attempts"] = 0
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    asyncio.create_task(dispatch_booking(booking))
+    return {"success": True}
+
+
+@app.post("/api/oasr/parse")
+async def oasr_parse(request: Request):
+    """Parse raw OASR email text and create a booking."""
+    data = await request.json()
+    raw_text = data.get("raw_email_text", "")
+    if not raw_text:
+        raise HTTPException(400, "raw_email_text is required")
+
+    parsed = parse_oasr_email(raw_text)
+
+    scheduled_for = None
+    if parsed.get("ride_date") and parsed.get("ride_time"):
+        try:
+            scheduled_for = f"{parsed['ride_date']}T{parsed['ride_time']}:00+00:00"
+        except Exception:
+            pass
+
+    confidence = parsed.get("confidence", 0)
+    needs_review = parsed.get("needs_review", True) or confidence < 3
+
+    booking_id = str(uuid.uuid4())[:8].upper()
+    now = datetime.now(timezone.utc).isoformat()
+    booking = {
+        "id": booking_id,
+        "customer_name": parsed.get("patient_name") or "OASR Patient",
+        "customer_phone": parsed.get("phone") or "",
+        "pickup_address": parsed.get("pickup_address") or "",
+        "dropoff_address": parsed.get("dropoff_address") or "",
+        "estimated_fare": 0.0,
+        "status": "needs_review" if needs_review else "pending_assignment",
+        "source": "oasr",
+        "needs_review": needs_review,
+        "scheduled_for": scheduled_for,
+        "notes": parsed.get("notes"),
+        "dispatch_attempts": 0,
+        "assigned_driver_id": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    bookings_db[booking_id] = booking
+    demo_bookings.append(booking)
+    await manager.broadcast("admin", {"type": "new_oasr_booking", "booking": booking})
+    return {"booking_id": booking_id, "parsed": parsed, "needs_review": needs_review, "booking": booking}
+
+
 @app.get("/api/admin/oasr")
 async def admin_oasr(_=Depends(require_admin)):
     oasr_bookings = [b for b in bookings_db.values() if b.get("source") == "oasr"]
+    # Also include from demo_bookings that may not be in bookings_db
+    demo_oasr_ids = {b["id"] for b in oasr_bookings}
+    for b in demo_bookings:
+        if b.get("source") == "oasr" and b["id"] not in demo_oasr_ids:
+            oasr_bookings.append(b)
     oasr_bookings.sort(key=lambda b: b.get("created_at", ""), reverse=True)
     return oasr_bookings
 
@@ -2068,15 +2276,103 @@ async def admin_save_settings(body: dict = Body(...), _=Depends(require_admin)):
 
 
 # ============================================================
+# SOS
+# ============================================================
+
+# In-memory SOS log (also broadcast to admin WebSocket)
+sos_log: list[dict] = []
+
+@app.post("/api/sos")
+async def driver_sos(request: Request):
+    """Driver SOS alert — broadcasts to admin with GPS coords."""
+    data = await request.json()
+    driver_id = data.get("driver_id")
+    driver_name = data.get("driver_name", "Unknown")
+    lat = data.get("lat")
+    lng = data.get("lng")
+    booking_id = data.get("booking_id")
+    now = datetime.now(timezone.utc).isoformat()
+
+    entry = {
+        "id": str(uuid.uuid4()),
+        "driver_id": driver_id,
+        "driver_name": driver_name,
+        "booking_id": booking_id,
+        "lat": lat,
+        "lng": lng,
+        "resolved": False,
+        "created_at": now,
+    }
+    sos_log.append(entry)
+    logger.warning(f"[SOS] Driver {driver_name} ({driver_id}) at {lat},{lng} booking={booking_id}")
+
+    await manager.broadcast("admin", {
+        "type": "sos_alert",
+        "payload": entry,
+        "timestamp": now,
+        "message_id": entry["id"]
+    })
+    return {"ok": True, "sos_id": entry["id"]}
+
+
+@app.get("/api/admin/sos", dependencies=[Depends(require_admin)])
+async def get_sos_log():
+    return {"sos_events": sos_log}
+
+
+@app.patch("/api/admin/sos/{sos_id}/resolve", dependencies=[Depends(require_admin)])
+async def resolve_sos(sos_id: str):
+    for entry in sos_log:
+        if entry["id"] == sos_id:
+            entry["resolved"] = True
+            entry["resolved_at"] = datetime.now(timezone.utc).isoformat()
+            return {"ok": True}
+    raise HTTPException(404, "SOS event not found")
+
+
+# ============================================================
 # HEALTH CHECK
 # ============================================================
 
+_start_time = datetime.now(timezone.utc)
+
 @app.get("/health")
 async def health():
+    db = get_db()
+    db_status = "demo"
+    if db:
+        try:
+            db.table("bookings").select("id").limit(1).execute()
+            db_status = "ok"
+        except Exception:
+            db_status = "error"
+
+    stripe_status = "ok" if STRIPE_SECRET_KEY else "demo"
+    twilio_status = "ok" if (
+        __import__('config').TWILIO_ACCOUNT_SID and
+        __import__('config').TWILIO_AUTH_TOKEN
+    ) else "demo"
+
+    uptime_seconds = int((datetime.now(timezone.utc) - _start_time).total_seconds())
+    active_bookings = sum(
+        1 for b in demo_bookings
+        if b.get("status") in ("pending", "dispatched", "accepted", "in_progress")
+    )
+    active_drivers = sum(1 for d in demo_drivers if d.get("status") == "available")
+
     return {
         "status": "ok",
         "version": "2.0.0",
+        "demo_mode": not bool(SUPABASE_URL),
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "uptime_seconds": uptime_seconds,
+        "services": {
+            "database": db_status,
+            "stripe": stripe_status,
+            "twilio": twilio_status,
+        },
+        "active_drivers": active_drivers,
+        "active_bookings": active_bookings,
     }
 
 

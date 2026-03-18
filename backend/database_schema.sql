@@ -111,3 +111,89 @@ ALTER TABLE bookings ADD CONSTRAINT bookings_status_check
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_source_check;
 ALTER TABLE bookings ADD CONSTRAINT bookings_source_check
   CHECK (source IN ('web','phone','admin','voice_ai','oasr'));
+
+-- =============================================
+-- MIGRATION: 2026-03-18 production hardening
+-- =============================================
+
+-- Driver location history
+CREATE TABLE IF NOT EXISTS driver_locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id UUID REFERENCES drivers(id),
+  lat DOUBLE PRECISION NOT NULL,
+  lng DOUBLE PRECISION NOT NULL,
+  accuracy REAL,
+  recorded_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_driver_locations_driver_time ON driver_locations(driver_id, recorded_at DESC);
+
+-- Booking audit trail
+CREATE TABLE IF NOT EXISTS booking_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES bookings(id),
+  event_type VARCHAR(50) NOT NULL,
+  actor_type VARCHAR(20),
+  actor_id UUID,
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_booking_events_booking ON booking_events(booking_id);
+
+-- SOS events
+CREATE TABLE IF NOT EXISTS sos_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id UUID REFERENCES drivers(id),
+  booking_id UUID REFERENCES bookings(id),
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
+  resolved BOOLEAN DEFAULT FALSE,
+  resolved_by UUID,
+  resolved_at TIMESTAMPTZ,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- SMS log
+CREATE TABLE IF NOT EXISTS sms_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  to_phone VARCHAR(20),
+  body TEXT,
+  status VARCHAR(20),
+  twilio_sid VARCHAR(50),
+  booking_id UUID REFERENCES bookings(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Analytics cache (refresh every 15 min via APScheduler)
+CREATE TABLE IF NOT EXISTS analytics_cache (
+  key VARCHAR(100) PRIMARY KEY,
+  value JSONB,
+  computed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Fare configuration (singleton row)
+CREATE TABLE IF NOT EXISTS fare_config (
+  id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  base_fare_cad DECIMAL(6,2) DEFAULT 3.50,
+  per_km_rate_cad DECIMAL(6,2) DEFAULT 1.75,
+  per_minute_wait_cad DECIMAL(6,2) DEFAULT 0.35,
+  minimum_fare_cad DECIMAL(6,2) DEFAULT 8.00,
+  hst_percent DECIMAL(4,2) DEFAULT 13.00,
+  surge_multiplier DECIMAL(4,2) DEFAULT 1.0,
+  surge_active BOOLEAN DEFAULT FALSE,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+INSERT INTO fare_config DEFAULT VALUES ON CONFLICT DO NOTHING;
+
+-- Scheduled rides column
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS scheduled_for TIMESTAMPTZ;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) DEFAULT 'cash';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT 'pending';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS promo_code VARCHAR(30);
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+
+-- Driver fields
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS rating DECIMAL(3,2) DEFAULT 5.0;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS trips_completed INTEGER DEFAULT 0;

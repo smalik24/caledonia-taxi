@@ -12,6 +12,12 @@
   <link rel="stylesheet" href="/static/css/tokens.css">
   <link rel="stylesheet" href="/static/css/base.css">
 
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
@@ -569,6 +575,14 @@
           <i data-lucide="message-square" width="16" height="16"></i>
           SMS Log
         </button>
+        <button class="sidebar-link" onclick="showPanel('receipts')" id="navReceipts">
+          <i data-lucide="file-text" width="16" height="16"></i>
+          Receipts
+        </button>
+        <button class="sidebar-link" onclick="showPanel('hospital')" id="navHospital">
+          <i data-lucide="heart-pulse" width="16" height="16"></i>
+          Hospital Runs
+        </button>
       </div>
       <div class="sidebar-bottom">
         <button class="sidebar-link" onclick="adminLogout()">
@@ -700,6 +714,7 @@
               <div class="chip" onclick="filterByStatus('in_progress', this)">In Progress</div>
               <div class="chip" onclick="filterByStatus('completed', this)">Completed</div>
               <div class="chip" onclick="filterByStatus('cancelled', this)">Cancelled</div>
+              <div class="chip" onclick="filterByStatus('hospital', this)">Hospital</div>
             </div>
           </div>
           <div class="table-wrapper">
@@ -746,14 +761,14 @@
           <div class="panel-title">Manual Dispatch</div>
         </div>
         <div class="panel-body">
-          <div class="alert-banner">
-            <i data-lucide="info" width="16" height="16"></i>
-            Select a pending booking and assign it to a specific driver, or use Auto-Dispatch.
+          <!-- Live Driver Map -->
+          <div style="border-radius:var(--radius-xl);overflow:hidden;margin-bottom:var(--space-5);border:1px solid var(--color-border)">
+            <div id="dispatchMap" style="height:380px;width:100%;background:#e8e0d4"></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5)">
             <div>
               <div style="font-weight:700;font-size:var(--text-sm);margin-bottom:var(--space-3)">Unassigned Bookings</div>
-              <div id="unassignedBookings" style="display:flex;flex-direction:column;gap:var(--space-2);max-height:400px;overflow-y:auto">
+              <div id="unassignedBookings" style="display:flex;flex-direction:column;gap:var(--space-2);max-height:300px;overflow-y:auto">
                 <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">No unassigned bookings</div>
               </div>
             </div>
@@ -767,28 +782,53 @@
         </div>
       </div>
 
-      <!-- EARNINGS PANEL -->
+      <!-- ANALYTICS PANEL -->
       <div class="admin-panel" id="panelEarnings">
         <div class="panel-header">
-          <div class="panel-title">Earnings</div>
+          <div class="panel-title">Analytics</div>
+          <div style="display:flex;gap:var(--space-2)">
+            <button class="btn btn--outline btn--sm" onclick="loadAnalytics('day')" id="analDay">Today</button>
+            <button class="btn btn--outline btn--sm active" onclick="loadAnalytics('week')" id="analWeek">Week</button>
+            <button class="btn btn--outline btn--sm" onclick="loadAnalytics('month')" id="analMonth">Month</button>
+          </div>
         </div>
         <div class="panel-body">
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin-bottom:var(--space-6)">
+          <!-- KPI Cards -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-6)" id="analyticsKpis">
             <div class="kpi-card">
-              <div class="kpi-label">Today</div>
-              <div class="kpi-value" id="earningsToday">$0.00</div>
+              <div class="kpi-label">Revenue</div>
+              <div class="kpi-value" id="kpiRevenue">$0</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-muted)">period total</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-label">This Week</div>
-              <div class="kpi-value">$0.00</div>
+              <div class="kpi-label">Completed Rides</div>
+              <div class="kpi-value" id="kpiRides">0</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-label">This Month</div>
-              <div class="kpi-value">$0.00</div>
+              <div class="kpi-label">Avg Fare</div>
+              <div class="kpi-value" id="kpiAvgFare">$0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Success Rate</div>
+              <div class="kpi-value" id="kpiSuccess">0%</div>
             </div>
           </div>
-          <div style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;padding:var(--space-12)">
-            Connect to Supabase to see detailed revenue analytics
+          <!-- Charts -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5)">
+            <div class="card">
+              <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Revenue Over Time</div>
+              <canvas id="revenueChart" height="200"></canvas>
+            </div>
+            <div class="card">
+              <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Booking Volume</div>
+              <canvas id="bookingChart" height="200"></canvas>
+            </div>
+          </div>
+          <div style="margin-top:var(--space-5)">
+            <div class="card">
+              <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Driver Acceptance Rates</div>
+              <canvas id="acceptanceChart" height="120"></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -809,7 +849,89 @@
         </div>
       </div>
 
+      <!-- RECEIPTS PANEL -->
+      <div class="admin-panel" id="panelReceipts">
+        <div class="panel-header">
+          <div class="panel-title">PDF Receipts</div>
+          <button class="btn btn--outline btn--sm" onclick="loadReceipts()">
+            <i data-lucide="refresh-cw" width="14" height="14"></i> Refresh
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrapper">
+            <table class="data-table" id="receiptsTable">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Customer</th><th>Fare</th><th>Date</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="receiptsTbody">
+                <tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- HOSPITAL RUNS PANEL -->
+      <div class="admin-panel" id="panelHospital">
+        <div class="panel-header">
+          <div class="panel-title">Hospital Runs (OASR)</div>
+          <button class="btn btn--outline btn--sm" onclick="loadHospitalRuns()">
+            <i data-lucide="refresh-cw" width="14" height="14"></i> Refresh
+          </button>
+        </div>
+        <div class="panel-body">
+          <!-- Stats -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-5)">
+            <div class="kpi-card"><div class="kpi-label">Today's Hospital Runs</div><div class="kpi-value" id="hTodayCount">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Pending Assignment</div><div class="kpi-value" id="hPendingCount">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Completed Today</div><div class="kpi-value" id="hCompletedCount">0</div></div>
+          </div>
+
+          <!-- Import from Email -->
+          <details style="margin-bottom:var(--space-5);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:var(--space-4)">
+            <summary style="font-weight:700;font-size:var(--text-sm);cursor:pointer;padding:4px 0">Import from Email</summary>
+            <div style="margin-top:var(--space-4)">
+              <textarea id="oasrEmailText" class="form-input" rows="6" placeholder="Paste raw OASR email text here…" style="font-size:var(--text-xs);font-family:var(--font-mono);margin-bottom:var(--space-3)"></textarea>
+              <div id="oasrPreview" style="display:none;background:var(--color-surface-offset);border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-3);font-size:var(--text-sm)"></div>
+              <button class="btn btn--accent btn--sm" onclick="parseOasrEmail()">
+                <i data-lucide="scan-text" width="14" height="14"></i> Parse &amp; Import
+              </button>
+            </div>
+          </details>
+
+          <!-- Hospital booking list -->
+          <div id="hospitalRunsList" style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);font-size:var(--text-sm)">Loading…</div>
+          </div>
+        </div>
+      </div>
+
     </main>
+  </div>
+
+  <!-- ASSIGN DRIVER MODAL -->
+  <div id="assignModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;align-items:center;justify-content:center;padding:var(--space-4)">
+    <div style="background:var(--color-surface);border-radius:var(--radius-2xl);padding:var(--space-6);width:100%;max-width:480px;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-5)">
+        <div style="font-size:var(--text-lg);font-weight:800">Assign Driver</div>
+        <button onclick="closeAssignModal()" style="background:none;border:none;cursor:pointer;color:var(--color-text-muted)"><i data-lucide="x" width="20" height="20"></i></button>
+      </div>
+      <div id="assignDriverList" style="display:flex;flex-direction:column;gap:var(--space-2)"></div>
+    </div>
+  </div>
+
+  <!-- CANCEL CONFIRM MODAL -->
+  <div id="cancelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;align-items:center;justify-content:center;padding:var(--space-4)">
+    <div style="background:var(--color-surface);border-radius:var(--radius-2xl);padding:var(--space-6);width:100%;max-width:400px">
+      <div style="font-size:var(--text-lg);font-weight:800;margin-bottom:var(--space-3)">Cancel Booking?</div>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-6)">This will cancel the booking and notify the assigned driver. This cannot be undone.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+        <button class="btn btn--outline" onclick="closeCancelModal()">Keep Booking</button>
+        <button class="btn" style="background:var(--color-error);color:white" id="confirmCancelBtn" onclick="executeCancelBooking()">Yes, Cancel</button>
+      </div>
+    </div>
   </div>
 
   <!-- Toast container -->
@@ -880,11 +1002,14 @@
     setInterval(() => {
       document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-CA', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
     }, 1000);
+    setInterval(() => {
+      if (dispatchMapInst) loadDispatchMapData();
+    }, 20000);
   }
 
   function showPanel(name) {
-    const panels = ['overview', 'bookings', 'drivers', 'dispatch', 'earnings', 'sms'];
-    const titles = { overview:'Overview', bookings:'Bookings', drivers:'Drivers', dispatch:'Manual Dispatch', earnings:'Earnings', sms:'SMS Log' };
+    const panels = ['overview', 'bookings', 'drivers', 'dispatch', 'earnings', 'sms', 'receipts', 'hospital'];
+    const titles = { overview:'Overview', bookings:'Bookings', drivers:'Drivers', dispatch:'Manual Dispatch', earnings:'Analytics', sms:'SMS Log', receipts:'Receipts', hospital:'Hospital Runs' };
     panels.forEach(p => {
       const panel = document.getElementById(`panel${p.charAt(0).toUpperCase()+p.slice(1)}`);
       const nav = document.getElementById(`nav${p.charAt(0).toUpperCase()+p.slice(1)}`);
@@ -893,18 +1018,24 @@
     });
     document.getElementById('panelTitle').textContent = titles[name] || name;
     if (name === 'sms') loadSms();
+    if (name === 'receipts') loadReceipts();
+    if (name === 'hospital') loadHospitalRuns();
+    if (name === 'earnings') loadAnalytics('week');
+    if (name === 'dispatch') setTimeout(() => { initDispatchMap(); loadDispatchMapData(); }, 100);
     lucide.createIcons();
   }
 
   // Load bookings
   let allBookings = [];
+  let allDrivers = [];
   let statusFilter = 'all';
 
   async function loadBookings() {
     try {
-      const res = await fetch('/api/admin/bookings');
+      const res = await fetch('/api/bookings');
       if (res.ok) {
-        allBookings = await res.json();
+        const data = await res.json();
+        allBookings = data.bookings || [];
         renderBookings(allBookings);
         updateKPIs(allBookings);
       } else {
@@ -946,11 +1077,12 @@
     document.getElementById('kpiRides').textContent = completed;
     document.getElementById('kpiRevenue').textContent = `$${revenue.toFixed(0)}`;
     document.getElementById('pendingBadge').textContent = bookings.filter(b=>b.status==='pending').length;
-    document.getElementById('earningsToday').textContent = `$${revenue.toFixed(2)}`;
   }
 
   function renderBookings(bookings) {
-    const filtered = statusFilter === 'all' ? bookings : bookings.filter(b => b.status === statusFilter);
+    const filtered = statusFilter === 'all' ? bookings :
+      statusFilter === 'hospital' ? bookings.filter(b => b.source === 'oasr') :
+      bookings.filter(b => b.status === statusFilter);
     const searchVal = document.getElementById('searchBookings')?.value.toLowerCase() || '';
     const final = searchVal ? filtered.filter(b =>
       (b.customer_name||'').toLowerCase().includes(searchVal) ||
@@ -961,26 +1093,34 @@
     const tbody = document.getElementById('bookingsTbody');
     const recentTbody = document.getElementById('recentBookingsTbody');
 
-    const rows = final.slice(0, 50).map(b => `
+    const rows = final.slice(0, 50).map(b => {
+      const assignedDriver = allDrivers.find(d => d.id === b.assigned_driver_id);
+      const driverCell = assignedDriver ? assignedDriver.name : (b.assigned_driver_id ? 'Assigned' : '—');
+      const canAssign = ['pending','dispatched','dispatch_failed'].includes(b.status);
+      const canCancel = ['pending','dispatched','accepted'].includes(b.status);
+      const voiceBadge = b.source === 'voice_ai' ? '<i data-lucide="phone" width="10" height="10" style="margin-left:4px;color:var(--color-info)"></i>' : '';
+      return `
       <tr>
         <td><code style="font-size:var(--text-xs);font-family:var(--font-mono)">${(b.id||'').substr(0,8).toUpperCase()}</code></td>
         <td>
-          <div style="font-weight:600">${b.customer_name||'—'}</div>
+          <div style="font-weight:600;display:flex;align-items:center">${b.customer_name||'—'}${voiceBadge}</div>
           <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${b.customer_phone||''}</div>
         </td>
         <td style="max-width:140px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${b.pickup_address||'—'}</div></td>
         <td style="max-width:140px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${b.dropoff_address||'—'}</div></td>
-        <td><span style="font-size:var(--text-xs);color:var(--color-text-muted)">${b.assigned_driver_id ? 'Assigned' : '—'}</span></td>
+        <td><span style="font-size:var(--text-xs);color:var(--color-text-muted)">${driverCell}</span></td>
         <td><span class="badge ${statusBadgeClass(b.status)}">${b.status||'—'}</span></td>
         <td style="font-weight:700">$${parseFloat(b.estimated_fare||0).toFixed(2)}</td>
         <td>
           <div class="row-actions">
             ${b.status==='pending' ? `<button class="btn btn--accent btn--sm" onclick="dispatchBooking('${b.id}')"><i data-lucide="radio-tower" width="12" height="12"></i> Dispatch</button>` : ''}
+            ${canAssign ? `<button class="btn btn--outline btn--sm" onclick="openAssignModal('${b.id}')"><i data-lucide="user-check" width="12" height="12"></i> Assign</button>` : ''}
+            ${canCancel ? `<button class="btn btn--ghost btn--sm" style="color:var(--color-error)" onclick="confirmCancel('${b.id}')"><i data-lucide="x-circle" width="12" height="12"></i></button>` : ''}
             <a href="/track/${b.id}" class="btn btn--ghost btn--sm" target="_blank"><i data-lucide="eye" width="12" height="12"></i></a>
           </div>
         </td>
       </tr>
-    `).join('');
+    `}).join('');
 
     if (tbody) tbody.innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">No bookings found</td></tr>';
     if (recentTbody) {
@@ -1016,13 +1156,11 @@
   // Load drivers
   async function loadDrivers() {
     try {
-      const res = await fetch('/api/admin/drivers');
+      const res = await fetch('/api/drivers');
       if (res.ok) {
-        const drivers = await res.json();
+        const data = await res.json();
+        const drivers = data.drivers || [];
         renderDrivers(drivers);
-        const avail = drivers.filter(d=>d.status==='available').length;
-        document.getElementById('kpiAvailable').textContent = avail;
-        document.getElementById('kpiDriverChange').textContent = `${drivers.length} total`;
       } else {
         renderDrivers(getDemoDrivers());
       }
@@ -1041,6 +1179,7 @@
   }
 
   function renderDrivers(drivers) {
+    allDrivers = drivers;
     const grid = document.getElementById('driverGrid');
     if (!drivers.length) {
       grid.innerHTML = '<div style="text-align:center;color:var(--color-text-muted);padding:var(--space-12);grid-column:1/-1">No drivers found</div>';
@@ -1129,6 +1268,185 @@
     document.getElementById('loginOverlay').style.display = 'flex';
   }
 
+  // ── Assign Modal ─────────────────────────────────────────────
+  let assignBookingId = null;
+  let cancelBookingId = null;
+
+  function openAssignModal(bookingId) {
+    assignBookingId = bookingId;
+    const available = allDrivers.filter(d => d.status === 'available');
+    const el = document.getElementById('assignDriverList');
+    if (!available.length) {
+      el.innerHTML = '<div style="text-align:center;color:var(--color-text-muted);padding:var(--space-4)">No available drivers</div>';
+    } else {
+      el.innerHTML = available.map(d => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-lg)">
+          <div>
+            <div style="font-weight:700;font-size:var(--text-sm)">${d.name}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${d.vehicle||''} • ${d.phone||''}</div>
+          </div>
+          <button class="btn btn--accent btn--sm" onclick="executeAssign('${d.id}')">Assign</button>
+        </div>
+      `).join('');
+    }
+    document.getElementById('assignModal').style.display = 'flex';
+    lucide.createIcons();
+  }
+
+  function closeAssignModal() {
+    document.getElementById('assignModal').style.display = 'none';
+    assignBookingId = null;
+  }
+
+  async function executeAssign(driverId) {
+    if (!assignBookingId) return;
+    try {
+      const res = await fetch('/api/admin/assign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ booking_id: assignBookingId, driver_id: driverId })
+      });
+      if (res.ok) {
+        showToast('Driver assigned successfully', 'success');
+        closeAssignModal();
+        loadBookings();
+      } else {
+        showToast('Assignment failed', 'error');
+      }
+    } catch { showToast('Demo: assignment simulated', 'info'); closeAssignModal(); }
+  }
+
+  function confirmCancel(bookingId) {
+    cancelBookingId = bookingId;
+    document.getElementById('cancelModal').style.display = 'flex';
+  }
+
+  function closeCancelModal() {
+    document.getElementById('cancelModal').style.display = 'none';
+    cancelBookingId = null;
+  }
+
+  async function executeCancelBooking() {
+    if (!cancelBookingId) return;
+    try {
+      const res = await fetch(`/api/bookings/${cancelBookingId}/cancel`, { method: 'PATCH' });
+      if (res.ok) {
+        showToast('Booking cancelled', 'success');
+        closeCancelModal();
+        loadBookings();
+      } else { showToast('Cancel failed', 'error'); }
+    } catch { showToast('Demo: cancel simulated', 'info'); closeCancelModal(); }
+  }
+
+  // ── Receipts ─────────────────────────────────────────────────
+  async function loadReceipts() {
+    try {
+      const res = await fetch('/api/admin/receipts');
+      if (!res.ok) return;
+      const data = await res.json();
+      const receipts = data.receipts || [];
+      const tbody = document.getElementById('receiptsTbody');
+      if (!receipts.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">No completed bookings yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = receipts.map(b => `
+        <tr>
+          <td><code style="font-size:var(--text-xs)">${(b.id||'').substr(0,8).toUpperCase()}</code></td>
+          <td>${b.customer_name||'—'}</td>
+          <td style="font-weight:700">$${parseFloat(b.estimated_fare||0).toFixed(2)}</td>
+          <td style="font-size:var(--text-xs)">${new Date(b.created_at).toLocaleDateString('en-CA')}</td>
+          <td>
+            <div class="row-actions">
+              <a href="/api/bookings/${b.id}/receipt" class="btn btn--outline btn--sm" download>
+                <i data-lucide="download" width="12" height="12"></i> PDF
+              </a>
+              <button class="btn btn--ghost btn--sm" onclick="emailReceipt('${b.id}')">
+                <i data-lucide="mail" width="12" height="12"></i> Email
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    } catch(e) {}
+  }
+
+  async function emailReceipt(bookingId) {
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/send-receipt`, { method: 'POST' });
+      showToast(res.ok ? 'Receipt emailed!' : 'Email failed', res.ok ? 'success' : 'error');
+    } catch { showToast('Demo: email simulated', 'info'); }
+  }
+
+  // ── Hospital Runs ─────────────────────────────────────────────
+  async function loadHospitalRuns() {
+    try {
+      const res = await fetch('/api/admin/oasr');
+      if (!res.ok) return;
+      const bookings = await res.json();
+      const today = new Date().toDateString();
+      const todayRuns = bookings.filter(b => new Date(b.created_at).toDateString() === today);
+      const pending = bookings.filter(b => ['pending_assignment','needs_review'].includes(b.status));
+      const completed = todayRuns.filter(b => b.status === 'completed');
+      document.getElementById('hTodayCount').textContent = todayRuns.length;
+      document.getElementById('hPendingCount').textContent = pending.length;
+      document.getElementById('hCompletedCount').textContent = completed.length;
+      const list = document.getElementById('hospitalRunsList');
+      if (!bookings.length) {
+        list.innerHTML = '<div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);font-size:var(--text-sm)">No hospital runs yet</div>';
+        return;
+      }
+      list.innerHTML = bookings.map(b => `
+        <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:var(--space-4)">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-2)">
+            <div>
+              <div style="font-weight:700">${b.customer_name || 'OASR Patient'}</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${b.scheduled_for ? new Date(b.scheduled_for).toLocaleString('en-CA') : 'No time set'}</div>
+            </div>
+            <span class="badge ${b.status === 'needs_review' ? 'badge--pending' : b.status === 'completed' ? 'badge--completed' : 'badge--accent'}">${b.status.replace('_',' ')}</span>
+          </div>
+          <div style="font-size:var(--text-sm);margin-bottom:var(--space-3)">
+            <div>📍 ${b.pickup_address || '—'}</div>
+            <div>🏥 ${b.dropoff_address || '—'}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn--accent btn--sm" onclick="openAssignModal('${b.id}')"><i data-lucide="user-check" width="12" height="12"></i> Assign Driver</button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    } catch(e) {}
+  }
+
+  async function parseOasrEmail() {
+    const text = document.getElementById('oasrEmailText').value.trim();
+    if (!text) { showToast('Please paste email text first', 'warning'); return; }
+    try {
+      const res = await fetch('/api/oasr/parse', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ raw_email_text: text })
+      });
+      const data = await res.json();
+      const preview = document.getElementById('oasrPreview');
+      preview.style.display = 'block';
+      const p = data.parsed || {};
+      preview.innerHTML = `
+        <div style="font-weight:700;margin-bottom:var(--space-2)">${data.needs_review ? '⚠ Needs Review' : '✓ Auto-imported'} — Booking ${data.booking_id}</div>
+        <div>Patient: ${p.patient_name || '—'}</div>
+        <div>Pickup: ${p.pickup_address || '—'}</div>
+        <div>Hospital: ${p.dropoff_address || '—'}</div>
+        <div>Date/Time: ${p.ride_date || '—'} ${p.ride_time || ''}</div>
+        <div>Confidence: ${p.confidence || 0}/5</div>
+      `;
+      showToast(data.needs_review ? 'Imported for review' : 'Booking created!', data.needs_review ? 'warning' : 'success');
+      loadHospitalRuns();
+    } catch(e) {
+      showToast('Parse failed: ' + e.message, 'error');
+    }
+  }
+
   function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
@@ -1136,6 +1454,192 @@
     toast.innerHTML = `<span>${ ({success:'✓',error:'✕',warning:'⚠',info:'ℹ'})[type]||'ℹ' }</span><span style="font-size:var(--text-sm);font-weight:500">${message}</span>`;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 4000);
+  }
+
+  // ── Analytics ─────────────────────────────────────────────
+  let revenueChartInst = null;
+  let bookingChartInst = null;
+  let acceptanceChartInst = null;
+
+  async function loadAnalytics(period = 'week') {
+    // Update button active state
+    ['Day','Week','Month'].forEach(p => {
+      const btn = document.getElementById(`anal${p}`);
+      if (btn) btn.classList.toggle('active', p.toLowerCase() === period);
+    });
+
+    try {
+      // Load revenue data
+      const revRes = await fetch(`/api/admin/revenue?period=${period}`);
+      const revData = await revRes.json();
+
+      // Load all bookings for booking volume chart
+      const bookRes = await fetch('/api/bookings');
+      const bookData = await bookRes.json();
+      const allBookings = bookData.bookings || [];
+
+      // Load driver history for acceptance rate chart
+      const drvRes = await fetch('/api/admin/driver-history');
+      const drvData = await drvRes.json();
+      const drivers = drvData.drivers || [];
+
+      // KPI Cards
+      const total = revData.total || 0;
+      const completed = revData.completed || 0;
+      const cancelled = allBookings.filter(b => b.status === 'cancelled').length;
+      const total_b = allBookings.length;
+      const avgFare = completed > 0 ? (total / completed) : 0;
+      const successRate = total_b > 0 ? Math.round((completed / total_b) * 100) : 0;
+
+      document.getElementById('kpiRevenue').textContent = `$${total.toFixed(0)}`;
+      document.getElementById('kpiRides').textContent = completed;
+      document.getElementById('kpiAvgFare').textContent = `$${avgFare.toFixed(2)}`;
+      document.getElementById('kpiSuccess').textContent = `${successRate}%`;
+
+      // Revenue Chart
+      const revLabels = (revData.buckets || []).map(b => b.label);
+      const revValues = (revData.buckets || []).map(b => b.revenue);
+      if (revenueChartInst) revenueChartInst.destroy();
+      const revCtx = document.getElementById('revenueChart').getContext('2d');
+      revenueChartInst = new Chart(revCtx, {
+        type: 'line',
+        data: {
+          labels: revLabels.length ? revLabels : ['No data'],
+          datasets: [{
+            label: 'Revenue (CAD)',
+            data: revValues.length ? revValues : [0],
+            borderColor: '#f0a500',
+            backgroundColor: 'rgba(240,165,0,0.12)',
+            tension: 0.3,
+            fill: true,
+            pointBackgroundColor: '#f0a500'
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { callback: v => `$${v}` } },
+            x: { ticks: { maxRotation: 45 } }
+          }
+        }
+      });
+
+      // Booking volume chart
+      const completedCount = allBookings.filter(b => b.status === 'completed').length;
+      const cancelledCount = allBookings.filter(b => b.status === 'cancelled').length;
+      const pendingCount = allBookings.filter(b => ['pending','dispatched','accepted','in_progress'].includes(b.status)).length;
+      if (bookingChartInst) bookingChartInst.destroy();
+      const bookCtx = document.getElementById('bookingChart').getContext('2d');
+      bookingChartInst = new Chart(bookCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Completed', 'Cancelled', 'Active'],
+          datasets: [{
+            data: [completedCount, cancelledCount, pendingCount],
+            backgroundColor: ['#f0a500', '#ef4444', '#3b82f6'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+
+      // Driver acceptance chart
+      const drvLabels = drivers.map(d => d.name);
+      const drvRates = drivers.map(d => d.acceptance_rate || 100);
+      if (acceptanceChartInst) acceptanceChartInst.destroy();
+      const accCtx = document.getElementById('acceptanceChart').getContext('2d');
+      acceptanceChartInst = new Chart(accCtx, {
+        type: 'bar',
+        data: {
+          labels: drvLabels,
+          datasets: [{
+            label: 'Acceptance Rate (%)',
+            data: drvRates,
+            backgroundColor: '#f0a500',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, max: 100, ticks: { callback: v => `${v}%` } } }
+        }
+      });
+    } catch(e) {
+      console.error('Analytics load error:', e);
+    }
+  }
+
+  // ── Leaflet Map ────────────────────────────────────────────
+  let dispatchMapInst = null;
+  let driverMarkers = {};
+
+  function initDispatchMap() {
+    if (dispatchMapInst) return;
+    const mapEl = document.getElementById('dispatchMap');
+    if (!mapEl) return;
+
+    dispatchMapInst = L.map('dispatchMap').setView([43.2557, -79.8711], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(dispatchMapInst);
+  }
+
+  function updateDispatchMap(drivers) {
+    if (!dispatchMapInst) initDispatchMap();
+    if (!dispatchMapInst) return;
+
+    const seen = new Set();
+    drivers.forEach(d => {
+      if (!d.lat || !d.lng) return;
+      seen.add(d.id);
+
+      const color = d.status === 'available' ? '#22c55e' : d.status === 'busy' ? '#f0a500' : '#6b7280';
+      const initials = (d.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${initials}</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+
+      const popup = `<b>${d.name}</b><br>Status: ${d.status}<br>Vehicle: ${d.vehicle || '—'}${d.active_booking ? `<br>Booking: ${d.active_booking.id}` : ''}`;
+
+      if (driverMarkers[d.id]) {
+        driverMarkers[d.id].setLatLng([d.lat, d.lng]);
+        driverMarkers[d.id].setIcon(icon);
+        driverMarkers[d.id].getPopup().setContent(popup);
+      } else {
+        const marker = L.marker([d.lat, d.lng], { icon })
+          .addTo(dispatchMapInst)
+          .bindPopup(popup);
+        driverMarkers[d.id] = marker;
+      }
+    });
+
+    // Remove markers for drivers no longer in list
+    Object.keys(driverMarkers).forEach(id => {
+      if (!seen.has(id)) {
+        dispatchMapInst.removeLayer(driverMarkers[id]);
+        delete driverMarkers[id];
+      }
+    });
+  }
+
+  async function loadDispatchMapData() {
+    try {
+      const res = await fetch('/api/admin/driver-locations');
+      if (!res.ok) return;
+      const drivers = await res.json();
+      updateDispatchMap(Array.isArray(drivers) ? drivers : []);
+    } catch(e) {}
   }
   </script>
 </body>

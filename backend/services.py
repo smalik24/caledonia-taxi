@@ -294,6 +294,12 @@ def find_nearest_driver(
 # SURGE PRICING
 # ============================================
 
+def fare_from_distance(distance_km: float, service_type: str = "standard") -> float:
+    """Compatibility helper: compute flat fare from a raw km distance (no legs)."""
+    legs = [{"from": "Pickup", "to": "Dropoff", "km": distance_km}]
+    return calculate_fare(legs, service_type)["total"]
+
+
 def get_current_surge_multiplier(bookings_db: dict, drivers_db: dict) -> float:
     """Calculate current surge multiplier based on demand/supply."""
     try:
