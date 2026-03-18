@@ -141,10 +141,10 @@
         <!-- SVG Countdown Ring -->
         <div class="countdown-wrapper">
           <div class="countdown-ring">
-            <svg width="80" height="80" viewBox="0 0 80 80">
-              <circle class="track"    cx="40" cy="40" r="34"/>
-              <circle class="progress" cx="40" cy="40" r="34"
-                stroke-dasharray="213.6"
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle class="track"    cx="55" cy="55" r="50"/>
+              <circle class="progress" cx="55" cy="55" r="50"
+                stroke-dasharray="314.2"
                 stroke-dashoffset="0"
                 id="countdownCircle"/>
             </svg>
@@ -268,7 +268,7 @@ const API = '';
 let driver = null, currentRide = null, countdownTimer = null, ws = null;
 let sessionTrips = 0, sessionEarnings = 0;
 const TOTAL_SECS = 30;
-const CIRCUMFERENCE = 213.6; // 2 * π * 34
+const CIRCUMFERENCE = 314.2; // 2 * π * 50
 
 // ===================== LOGIN =====================
 document.getElementById('loginForm').addEventListener('submit', async e => {

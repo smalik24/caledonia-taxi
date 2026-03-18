@@ -742,3 +742,75 @@ tr:last-child td { border-bottom: none; }
   .filter-tab { padding: 0.32rem 0.65rem; font-size: 0.74rem; }
   .fare-amount { font-size: 2rem; }
 }
+
+/* ============================================
+   OVERHAUL v2 — DESIGN POLISH
+   ============================================ */
+
+/* Tighter card padding */
+.card { padding: 1.375rem; }
+
+/* Tighter form groups */
+.form-group { margin-bottom: 1rem; }
+.form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.4px;
+  margin-bottom: 0.38rem;
+}
+
+/* Countdown ring — thicker stroke, smoother number */
+.countdown-ring circle { stroke-width: 5; }
+.countdown-ring .progress { transition: stroke-dashoffset 1s linear, stroke 0.5s; }
+.countdown-ring .label { font-size: 1.75rem; font-weight: 900; }
+
+/* Status colour tokens */
+.status-available   { color: var(--success); }
+.status-busy        { color: var(--warning); }
+.status-dispatching { color: #f59e0b; }
+.status-en-route    { color: var(--info); }
+.status-arriving    { color: #8b5cf6; }
+.status-offline     { color: var(--text-muted); }
+
+/* Booking row status left-border accents */
+.booking-row { border-left: 3px solid var(--border); padding-left: 0.875rem; }
+.booking-row[data-status="in_progress"]  { border-left-color: var(--success); }
+.booking-row[data-status="dispatched"]   { border-left-color: var(--warning); }
+.booking-row[data-status="accepted"]     { border-left-color: var(--info); }
+.booking-row[data-status="completed"]    { border-left-color: var(--text-muted); }
+.booking-row[data-status="scheduled"]    { border-left-color: #8b5cf6; }
+.booking-row[data-status="cancelled"]    { border-left-color: var(--danger); }
+.booking-row[data-status="dispatch_failed"] { border-left-color: var(--danger); }
+
+/* Admin section title */
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Admin stat accent variants */
+.stat-card.accent-success .stat-value { color: var(--success); }
+.stat-card.accent-info    .stat-value { color: var(--info); }
+.stat-card.accent-warning .stat-value { color: var(--warning); }
+.stat-card.accent-purple  .stat-value { color: #8b5cf6; }
+
+/* GPS badge in driver header */
+.gps-badge {
+  display: inline-flex; align-items: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; padding: 2px 8px;
+  font-size: 0.72rem; color: rgba(255,255,255,0.4);
+  transition: color 0.2s, border-color 0.2s;
+}
+.gps-badge.active {
+  color: var(--success);
+  border-color: rgba(0,230,118,0.35);
+}

@@ -128,6 +128,10 @@ async function doAdminLogin() {
       <div class="stat-value" id="sDBusy">0</div>
       <div class="stat-label">Drivers Busy</div>
     </div>
+    <div class="stat-card accent-success">
+      <div class="stat-value" id="sRevenue">$0</div>
+      <div class="stat-label">Today's Revenue</div>
+    </div>
   </div>
 
   <!-- ===== TABS ===== -->
@@ -160,6 +164,13 @@ async function doAdminLogin() {
         <button class="filter-tab" onclick="setFilter('in_progress',this)">In Progress</button>
         <button class="filter-tab" onclick="setFilter('completed',this)">Completed</button>
         <button class="filter-tab" onclick="setFilter('cancelled',this)">Cancelled</button>
+        <button class="filter-tab" onclick="setFilter('scheduled',this)">🕐 Scheduled</button>
+      </div>
+
+      <!-- Scheduled rides section -->
+      <div id="scheduledSection" style="margin-bottom:1.25rem; display:none;">
+        <div class="section-title" style="color:#8b5cf6; border-color:rgba(139,92,246,0.2);">🕐 Upcoming Scheduled Rides</div>
+        <div id="scheduledList"></div>
       </div>
 
       <div class="table-responsive">
@@ -284,6 +295,11 @@ async function loadStats() {
     document.getElementById('sCompleted').textContent = d.completed;
     document.getElementById('sDAvail').textContent    = d.drivers_available;
     document.getElementById('sDBusy').textContent     = d.drivers_busy;
+    // Revenue from completed bookings
+    const rev = (allBookings || [])
+      .filter(b => b.status === 'completed')
+      .reduce((s, b) => s + parseFloat(b.estimated_fare || 0), 0);
+    document.getElementById('sRevenue').textContent = `$${rev.toFixed(2)}`;
   } catch(e) {}
 }
 
@@ -310,6 +326,11 @@ async function loadBookings() {
     const d = await (await fetch(`${API}/api/bookings`)).json();
     allBookings = d.bookings;
     renderBookings();
+    // Update revenue stat now that bookings are loaded
+    const rev = allBookings
+      .filter(b => b.status === 'completed')
+      .reduce((s, b) => s + parseFloat(b.estimated_fare || 0), 0);
+    document.getElementById('sRevenue').textContent = `$${rev.toFixed(2)}`;
   } catch(e) {}
 }
 
@@ -317,6 +338,27 @@ function renderBookings() {
   const list = filter === 'all' ? allBookings : allBookings.filter(b => b.status === filter);
   const tbody = document.getElementById('bookingsTbody');
   const empty = document.getElementById('emptyState');
+
+  // Scheduled section — always show upcoming scheduled regardless of filter
+  const scheduled = allBookings.filter(b => b.status === 'scheduled');
+  const schedSection = document.getElementById('scheduledSection');
+  if (schedSection) {
+    schedSection.style.display = (scheduled.length && filter === 'all') ? 'block' : 'none';
+    document.getElementById('scheduledList').innerHTML = scheduled.map(b => {
+      const sf = b.scheduled_for ? new Date(b.scheduled_for).toLocaleString('en-CA', {dateStyle:'short', timeStyle:'short'}) : '—';
+      return `<div class="booking-row" data-status="scheduled" style="background:var(--surface-2);border-radius:var(--radius-sm);padding:0.75rem 0.875rem;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:600;">${b.customer_name}</div>
+          <div style="font-size:0.8rem;color:var(--text-secondary);">${b.pickup_address} → ${b.dropoff_address}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="color:#8b5cf6;font-size:0.78rem;font-weight:700;">🕐 SCHEDULED</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">${sf}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
   if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   tbody.innerHTML = list.map(b => {
@@ -325,6 +367,9 @@ function renderBookings() {
     const fare  = b.estimated_fare ? `$${parseFloat(b.estimated_fare).toFixed(2)}` : '—';
     const trunc = (s,n) => s && s.length>n ? s.slice(0,n)+'…' : (s||'—');
     const srcBadge = `<span class="badge badge-${b.source}">${b.source}</span>`;
+    const pmBadge = b.payment_method === 'stripe'
+      ? `<span style="color:#22c55e;font-size:0.72rem;">💳 Paid</span>`
+      : `<span style="color:var(--text-muted);font-size:0.72rem;">💵 Cash</span>`;
     let actions = '';
     if (b.status==='pending')
       actions = `<button class="btn btn-primary btn-sm" onclick="openModal('${b.id}')">Assign</button> <button class="btn btn-danger btn-sm" onclick="cancelB('${b.id}')">Cancel</button>`;
@@ -332,13 +377,13 @@ function renderBookings() {
       actions = `<button class="btn btn-danger btn-sm" onclick="cancelB('${b.id}')">Cancel</button>`;
     else if (b.status==='completed')
       actions = `<button class="btn btn-secondary btn-sm" onclick="downloadReceipt('${b.id}')">🧾 Receipt</button>`;
-    return `<tr>
+    return `<tr class="booking-row" data-status="${b.status}">
       <td style="white-space:nowrap;">${time}</td>
       <td><strong>${b.customer_name}</strong><br><small style="color:var(--text-secondary);">${b.customer_phone}</small></td>
       <td style="max-width:160px;">${trunc(b.pickup_address,22)}</td>
       <td style="max-width:160px;">${trunc(b.dropoff_address,22)}</td>
-      <td style="font-weight:700; color:var(--accent);">${fare}</td>
-      <td><span class="badge badge-${b.status}">${b.status.replace('_',' ')}</span></td>
+      <td style="font-weight:700; color:var(--accent);">${fare}<br>${pmBadge}</td>
+      <td><span class="badge badge-${b.status}">${b.status.replace(/_/g,' ')}</span></td>
       <td>${dName}</td>
       <td>${srcBadge}</td>
       <td style="white-space:nowrap;">${actions}</td>
