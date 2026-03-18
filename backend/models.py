@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from enum import Enum
 from datetime import datetime
 
@@ -19,6 +19,7 @@ class BookingStatus(str, Enum):
     cancelled       = "cancelled"
     scheduled       = "scheduled"        # awaiting future dispatch
     dispatch_failed = "dispatch_failed"  # scheduler failed after retries
+    needs_review    = "needs_review"
 
 
 class BookingSource(str, Enum):
@@ -26,6 +27,7 @@ class BookingSource(str, Enum):
     phone    = "phone"
     admin    = "admin"
     voice_ai = "voice_ai"
+    oasr     = "oasr"
 
 
 # ── Request Models ─────────────────────────────────────────
@@ -38,11 +40,17 @@ class BookingRequest(BaseModel):
     source:             BookingSource = BookingSource.web
     payment_method:     str = "cash"  # "cash" or "stripe"
     scheduled_for:      Optional[datetime] = None  # UTC ISO datetime; None = dispatch now
+    service_type:       str = "standard"   # "standard" | "medical" | "long_distance"
+    stops:              List[str] = []     # intermediate stop addresses (max 3)
+    promo_code:         Optional[str] = None
 
 
 class FareEstimateRequest(BaseModel):
     pickup_address:  str = Field(..., min_length=3)
     dropoff_address: str = Field(..., min_length=3)
+    service_type:    str = "standard"
+    stops:           List[str] = []
+    promo_code:      Optional[str] = None
 
 
 class DriverLoginRequest(BaseModel):

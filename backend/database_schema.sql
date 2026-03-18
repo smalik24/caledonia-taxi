@@ -90,3 +90,24 @@ CREATE POLICY "Allow all for anon" ON dispatch_log FOR ALL USING (true) WITH CHE
 -- REALTIME (enable for live updates)
 -- ============================================
 -- In Supabase dashboard, enable Realtime for: bookings, drivers, dispatch_log
+
+-- =============================================
+-- MIGRATION: 2026-03-18 full platform redesign
+-- =============================================
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_type TEXT DEFAULT 'standard';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS stops JSONB DEFAULT '[]';
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS fare_breakdown JSONB;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS oasr_source BOOLEAN DEFAULT FALSE;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS needs_review BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS vehicle TEXT DEFAULT '';
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS plate TEXT DEFAULT '';
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS inactive BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
+ALTER TABLE bookings ADD CONSTRAINT bookings_status_check
+  CHECK (status IN ('pending','dispatched','accepted','in_progress','completed','cancelled','scheduled','dispatch_failed','needs_review'));
+
+ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_source_check;
+ALTER TABLE bookings ADD CONSTRAINT bookings_source_check
+  CHECK (source IN ('web','phone','admin','voice_ai','oasr'));
