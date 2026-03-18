@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Caledonia Taxi — Book a Ride</title>
   <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://js.stripe.com/v3/" async></script>
   <style>
     /* Page-specific tweaks */
@@ -116,6 +118,18 @@
 
 <div class="container">
 
+  <!-- Route Map Strip -->
+  <div id="routeMapStrip" style="position:relative; margin:0 0 1rem; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); display:none;">
+    <div id="routeMap" style="height:130px; width:100%;"></div>
+    <div id="fareOverlay" style="
+      position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+      background:rgba(8,8,17,.82); border:1px solid rgba(245,197,24,0.3);
+      border-radius:20px; padding:4px 14px;
+      color:#f5c518; font-size:0.82rem; font-weight:700;
+      white-space:nowrap; pointer-events:none;
+    "></div>
+  </div>
+
   <!-- STEP 1: Form -->
   <div id="step1" class="card">
     <div class="card-header">
@@ -158,7 +172,25 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-block btn-lg" id="estimateBtn" style="margin-top:1.5rem;">
+      <div class="divider" style="margin:1.25rem 0 0.75rem;">When?</div>
+      <div style="display:flex; gap:0.75rem; margin-bottom:1rem;">
+        <button type="button" id="btnNow" class="btn btn-primary" style="flex:1;" onclick="setScheduleMode(false)">⚡ Now</button>
+        <button type="button" id="btnSchedule" class="btn btn-secondary" style="flex:1;" onclick="setScheduleMode(true)">🕐 Schedule</button>
+      </div>
+      <div id="scheduleFields" style="display:none; margin-bottom:1rem;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+          <div class="form-group" style="margin:0;">
+            <label>Date</label>
+            <input type="date" id="schedDate">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Time</label>
+            <input type="time" id="schedTime" step="900">
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="estimateBtn" style="margin-top:1rem;">
         Get Fare Estimate
       </button>
     </form>
@@ -227,7 +259,7 @@
     <div class="confirmation">
       <div class="check-icon">✅</div>
       <h2>Ride Booked!</h2>
-      <p style="color:var(--text-secondary); margin-bottom:1.25rem; font-size:0.9rem;">
+      <p id="rideTimeInfo" style="color:var(--text-secondary); margin-bottom:1.25rem; font-size:0.9rem;">
         A driver is being dispatched. You'll receive an SMS update shortly.
       </p>
 
@@ -303,6 +335,13 @@ document.getElementById('bookingForm').addEventListener('submit', async e => {
     document.getElementById('fareDist').textContent  = estimate.distance_km.toFixed(1);
     document.getElementById('s2Pickup').textContent  = document.getElementById('pickup').value;
     document.getElementById('s2Dropoff').textContent = document.getElementById('dropoff').value;
+    if (estimate.pickup_coords && estimate.dropoff_coords) {
+      updateRouteMap(
+        estimate.pickup_coords,
+        estimate.dropoff_coords,
+        `~$${estimate.estimated_fare.toFixed(2)} · ${estimate.distance_km.toFixed(1)} km`
+      );
+    }
     prepareStep2(); return;
   } catch(err) {
     toast(err.message || 'Could not calculate fare', 'error');
@@ -406,7 +445,8 @@ async function confirmBooking() {
         dropoff_address:  document.getElementById('dropoff').value,
         source: 'web',
         payment_method: paymentMethod === 'card' ? 'stripe' : 'cash',
-        payment_intent_id: paymentIntentId
+        payment_intent_id: paymentIntentId,
+        scheduled_for: getScheduledForUTC()
       })
     });
     if (!r.ok) throw new Error('Booking failed');
@@ -418,6 +458,16 @@ async function confirmBooking() {
     if (document.getElementById('cPickup')) document.getElementById('cPickup').textContent = b.pickup_address;
     if (document.getElementById('cDropoff')) document.getElementById('cDropoff').textContent = b.dropoff_address;
     if (document.getElementById('cFare')) document.getElementById('cFare').textContent = `$${parseFloat(b.estimated_fare || 0).toFixed(2)}`;
+    const rideTimeEl = document.getElementById('rideTimeInfo');
+    if (rideTimeEl) {
+      const sf = getScheduledForUTC();
+      if (sf) {
+        const d = new Date(sf);
+        rideTimeEl.textContent = 'Scheduled for ' + d.toLocaleString('en-CA', {dateStyle:'medium', timeStyle:'short'});
+      } else {
+        rideTimeEl.textContent = 'A driver is being dispatched. You\'ll receive an SMS update shortly.';
+      }
+    }
     showStep(3);
     if (typeof toast === 'function') toast('Ride booked!', 'success');
   } catch(err) {
@@ -433,7 +483,72 @@ async function confirmBooking() {
 function resetForm() {
   document.getElementById('bookingForm').reset();
   estimate = null;
+  setScheduleMode(false);
   showStep(1);
+}
+
+// ── Route Map Strip ──────────────────────────────────────
+let routeMap = null;
+let pickupMarker = null;
+let dropoffMarker = null;
+let routeLine = null;
+
+function initRouteMap() {
+  if (routeMap) return;
+  routeMap = L.map('routeMap', {
+    zoomControl: false, attributionControl: false,
+    dragging: false, scrollWheelZoom: false, doubleClickZoom: false
+  }).setView([43.2557, -79.8711], 12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 18
+  }).addTo(routeMap);
+}
+
+function updateRouteMap(pickupCoords, dropoffCoords, fareText) {
+  initRouteMap();
+  document.getElementById('routeMapStrip').style.display = 'block';
+  if (pickupMarker) routeMap.removeLayer(pickupMarker);
+  if (dropoffMarker) routeMap.removeLayer(dropoffMarker);
+  if (routeLine) routeMap.removeLayer(routeLine);
+  pickupMarker = L.circleMarker([pickupCoords.lat, pickupCoords.lng],
+    { radius:7, color:'#22c55e', fillColor:'#22c55e', fillOpacity:1, weight:2 }
+  ).addTo(routeMap);
+  dropoffMarker = L.circleMarker([dropoffCoords.lat, dropoffCoords.lng],
+    { radius:7, color:'#ef4444', fillColor:'#ef4444', fillOpacity:1, weight:2 }
+  ).addTo(routeMap);
+  routeLine = L.polyline(
+    [[pickupCoords.lat, pickupCoords.lng], [dropoffCoords.lat, dropoffCoords.lng]],
+    { color:'#f5c518', weight:2, dashArray:'6,5', opacity:0.7 }
+  ).addTo(routeMap);
+  routeMap.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+  if (fareText) document.getElementById('fareOverlay').textContent = fareText;
+  setTimeout(function() { routeMap.invalidateSize(); }, 100);
+}
+
+// ── Schedule Mode ─────────────────────────────────────────
+let scheduleMode = false;
+
+function setScheduleMode(enable) {
+  scheduleMode = enable;
+  document.getElementById('btnNow').className = enable ? 'btn btn-secondary' : 'btn btn-primary';
+  document.getElementById('btnSchedule').className = enable ? 'btn btn-primary' : 'btn btn-secondary';
+  document.getElementById('scheduleFields').style.display = enable ? 'block' : 'none';
+  if (enable) {
+    const now = new Date();
+    document.getElementById('schedDate').min = now.toISOString().split('T')[0];
+    document.getElementById('schedDate').value = now.toISOString().split('T')[0];
+    const later = new Date(now.getTime() + 60 * 60000);
+    later.setMinutes(Math.ceil(later.getMinutes() / 15) * 15, 0, 0);
+    document.getElementById('schedTime').value = later.toTimeString().slice(0, 5);
+  }
+}
+
+function getScheduledForUTC() {
+  if (!scheduleMode) return null;
+  const date = document.getElementById('schedDate').value;
+  const time = document.getElementById('schedTime').value;
+  if (!date || !time) return null;
+  return new Date(date + 'T' + time).toISOString();
 }
 
 function toast(msg, type='info') {
