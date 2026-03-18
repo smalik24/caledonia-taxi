@@ -1,0 +1,2766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+   ______                            __
+  / ____/___  ____ ___  ____  __  __/ /____  _____
+ / /   / __ \/ __ `__ \/ __ \/ / / / __/ _ \/ ___/
+/ /___/ /_/ / / / / / / /_/ / /_/ / /_/  __/ /
+\____/\____/_/ /_/ /_/ .___/\__,_/\__/\___/_/
+                    /_/
+        Created with Perplexity Computer
+        https://www.perplexity.ai/computer
+-->
+<!-- Perplexity Computer Attribution — SEO Meta Tags -->
+<meta name="generator" content="Perplexity Computer">
+<meta name="author" content="Perplexity Computer">
+<meta property="og:see_also" content="https://www.perplexity.ai/computer">
+<link rel="author" href="https://www.perplexity.ai/computer">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caledonia Taxi — Hamilton's Most Trusted Ride Service</title>
+  <meta name="description" content="Book a reliable, professional taxi in Hamilton, Ontario. Available 24/7. Instant dispatch, upfront fares, friendly drivers.">
+
+  <!-- Fonts -->
+
+  <!-- Styles -->
+
+
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+/* ============================================
+   CALEDONIA TAXI — Design Tokens
+   Clean / Modern / Uber-inspired aesthetic
+   Premium black + amber gold accent palette
+   ============================================ */
+
+:root, [data-theme="light"] {
+  /* Surfaces — clean off-white */
+  --color-bg:              #f8f8f6;
+  --color-surface:         #ffffff;
+  --color-surface-2:       #fafaf8;
+  --color-surface-offset:  #f2f1ee;
+  --color-surface-offset-2:#e8e7e3;
+  --color-surface-dynamic: #e0deda;
+  --color-divider:         #e4e3df;
+  --color-border:          #d8d7d2;
+
+  /* Text */
+  --color-text:            #111110;
+  --color-text-muted:      #6b6a66;
+  --color-text-faint:      #b0afa9;
+  --color-text-inverse:    #ffffff;
+
+  /* Primary — deep charcoal/black (Uber-style) */
+  --color-primary:         #111110;
+  --color-primary-hover:   #2a2a28;
+  --color-primary-active:  #3d3d3a;
+  --color-primary-highlight: #e4e3df;
+
+  /* Accent — amber gold (taxi iconography) */
+  --color-accent:          #f0a500;
+  --color-accent-hover:    #d99200;
+  --color-accent-active:   #c07f00;
+  --color-accent-highlight:#fff3cc;
+  --color-accent-text:     #111110;
+
+  /* Semantic */
+  --color-success:         #2d7a22;
+  --color-success-hover:   #1f5a18;
+  --color-success-highlight:#d4edcc;
+  --color-error:           #c0392b;
+  --color-error-hover:     #9b2d22;
+  --color-error-highlight: #fde8e6;
+  --color-warning:         #d97706;
+  --color-warning-hover:   #b45309;
+  --color-warning-highlight:#fef3c7;
+  --color-info:            #0369a1;
+  --color-info-highlight:  #e0f2fe;
+
+  /* Status badges */
+  --color-status-pending:  #d97706;
+  --color-status-active:   #2d7a22;
+  --color-status-completed:#0369a1;
+  --color-status-cancelled:#c0392b;
+
+  /* Radii */
+  --radius-sm:  0.375rem;
+  --radius-md:  0.625rem;
+  --radius-lg:  1rem;
+  --radius-xl:  1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full:9999px;
+
+  /* Transitions */
+  --transition-fast:        120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-interactive: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow:        320ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Shadows */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.05);
+  --shadow-xl:  0 24px 48px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.06);
+
+  /* Content widths */
+  --content-narrow:  640px;
+  --content-default: 960px;
+  --content-wide:    1200px;
+  --content-full:    100%;
+
+  /* Type scale */
+  --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
+  --text-sm:   clamp(0.875rem, 0.8rem  + 0.35vw, 1rem);
+  --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
+  --text-lg:   clamp(1.125rem, 1rem    + 0.75vw, 1.5rem);
+  --text-xl:   clamp(1.5rem,   1.2rem  + 1.25vw, 2.25rem);
+  --text-2xl:  clamp(2rem,     1.2rem  + 2.5vw,  3.5rem);
+  --text-3xl:  clamp(2.5rem,   1rem    + 4vw,    5rem);
+  --text-hero: clamp(3rem,     0.5rem  + 7vw,    7rem);
+
+  /* Spacing */
+  --space-1:   0.25rem;
+  --space-2:   0.5rem;
+  --space-3:   0.75rem;
+  --space-4:   1rem;
+  --space-5:   1.25rem;
+  --space-6:   1.5rem;
+  --space-8:   2rem;
+  --space-10:  2.5rem;
+  --space-12:  3rem;
+  --space-16:  4rem;
+  --space-20:  5rem;
+  --space-24:  6rem;
+  --space-32:  8rem;
+
+  /* Fonts */
+  --font-display: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body:    'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+  --color-bg:              #0e0e0d;
+  --color-surface:         #141413;
+  --color-surface-2:       #1a1a18;
+  --color-surface-offset:  #1f1f1d;
+  --color-surface-offset-2:#252523;
+  --color-surface-dynamic: #2c2c29;
+  --color-divider:         #2a2a27;
+  --color-border:          #363633;
+
+  --color-text:            #f0efeb;
+  --color-text-muted:      #888782;
+  --color-text-faint:      #504f4b;
+  --color-text-inverse:    #111110;
+
+  --color-primary:         #f0efeb;
+  --color-primary-hover:   #ffffff;
+  --color-primary-active:  #d8d7d2;
+  --color-primary-highlight: #2a2a27;
+
+  --color-accent:          #f0a500;
+  --color-accent-hover:    #ffb520;
+  --color-accent-active:   #ffc940;
+  --color-accent-highlight:#2a2200;
+  --color-accent-text:     #0e0e0d;
+
+  --color-success:         #4caf50;
+  --color-success-hover:   #66bb6a;
+  --color-success-highlight:#1a2e1a;
+  --color-error:           #ef5350;
+  --color-error-hover:     #f44336;
+  --color-error-highlight: #2e1a1a;
+  --color-warning:         #ff9800;
+  --color-warning-hover:   #ffa726;
+  --color-warning-highlight:#2e2000;
+  --color-info:            #29b6f6;
+  --color-info-highlight:  #0a1e2e;
+
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.25);
+  --shadow-xl:  0 24px 48px rgba(0,0,0,0.6), 0 8px 16px rgba(0,0,0,0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg:              #0e0e0d;
+    --color-surface:         #141413;
+    --color-surface-2:       #1a1a18;
+    --color-surface-offset:  #1f1f1d;
+    --color-surface-offset-2:#252523;
+    --color-surface-dynamic: #2c2c29;
+    --color-divider:         #2a2a27;
+    --color-border:          #363633;
+    --color-text:            #f0efeb;
+    --color-text-muted:      #888782;
+    --color-text-faint:      #504f4b;
+    --color-text-inverse:    #111110;
+    --color-primary:         #f0efeb;
+    --color-primary-hover:   #ffffff;
+    --color-primary-active:  #d8d7d2;
+    --color-primary-highlight: #2a2a27;
+    --color-accent:          #f0a500;
+    --color-accent-hover:    #ffb520;
+    --color-accent-active:   #ffc940;
+    --color-accent-highlight:#2a2200;
+    --color-accent-text:     #0e0e0d;
+    --color-success:         #4caf50;
+    --color-success-highlight:#1a2e1a;
+    --color-error:           #ef5350;
+    --color-error-highlight: #2e1a1a;
+    --color-warning:         #ff9800;
+    --color-warning-highlight:#2e2000;
+    --shadow-xs:  0 1px 2px rgba(0,0,0,0.3);
+    --shadow-sm:  0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md:  0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+    --shadow-lg:  0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.25);
+    --shadow-xl:  0 24px 48px rgba(0,0,0,0.6), 0 8px 16px rgba(0,0,0,0.3);
+  }
+}
+/* ============================================
+   BASE STYLESHEET — Caledonia Taxi
+   ============================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--space-20);
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+body {
+  min-height: 100dvh;
+  line-height: 1.6;
+  font-family: var(--font-body, sans-serif);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  transition: background-color var(--transition-slow), color var(--transition-slow);
+}
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+input, button, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display, sans-serif);
+  text-wrap: balance;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+p, li, figcaption {
+  text-wrap: pretty;
+  max-width: 72ch;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul[role="list"], ol[role="list"] {
+  list-style: none;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 30%, transparent);
+  color: var(--color-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Transitions for interactive elements */
+a, button, [role="button"], input, textarea, select, .btn {
+  transition: color var(--transition-interactive),
+              background var(--transition-interactive),
+              border-color var(--transition-interactive),
+              box-shadow var(--transition-interactive),
+              transform var(--transition-interactive),
+              opacity var(--transition-interactive);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================
+   LAYOUT UTILITIES
+   ============================================ */
+.container {
+  width: 100%;
+  max-width: var(--content-wide);
+  margin-inline: auto;
+  padding-inline: clamp(var(--space-4), 5vw, var(--space-16));
+}
+
+.container--narrow {
+  max-width: var(--content-narrow);
+}
+
+.container--default {
+  max-width: var(--content-default);
+}
+
+.section {
+  padding-block: clamp(var(--space-12), 8vw, var(--space-32));
+}
+
+/* ============================================
+   BUTTON SYSTEM
+   ============================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  border: 2px solid transparent;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn--primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
+}
+.btn--primary:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.btn--primary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btn--accent {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-color: var(--color-accent);
+}
+.btn--accent:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--color-accent) 40%, transparent);
+}
+.btn--accent:active {
+  transform: translateY(0);
+}
+
+.btn--outline {
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.btn--outline:hover {
+  background: var(--color-surface-offset);
+  border-color: var(--color-text-muted);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-color: transparent;
+}
+.btn--ghost:hover {
+  background: var(--color-surface-offset);
+  color: var(--color-text);
+}
+
+.btn--lg {
+  padding: var(--space-4) var(--space-8);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.btn--sm {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs);
+}
+
+.btn--icon {
+  padding: var(--space-3);
+  aspect-ratio: 1;
+  border-radius: var(--radius-full);
+}
+
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.01em;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-base);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  transition: border-color var(--transition-interactive),
+              box-shadow var(--transition-interactive);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.form-input:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: var(--color-text-muted);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 20%, transparent);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--color-text-faint);
+}
+
+.form-help {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.form-error {
+  font-size: var(--text-xs);
+  color: var(--color-error);
+}
+
+/* ============================================
+   CARD
+   ============================================ */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.card--elevated {
+  box-shadow: var(--shadow-lg);
+  border-color: transparent;
+}
+
+/* ============================================
+   BADGE / STATUS
+   ============================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.2em var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge--pending  { background: var(--color-warning-highlight); color: var(--color-warning); }
+.badge--active   { background: var(--color-success-highlight); color: var(--color-success); }
+.badge--completed{ background: var(--color-info-highlight);    color: var(--color-info); }
+.badge--cancelled{ background: var(--color-error-highlight);   color: var(--color-error); }
+.badge--accent   { background: var(--color-accent-highlight);  color: var(--color-accent); }
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: color-mix(in oklab, var(--color-bg) 80%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--color-divider);
+  transition: background var(--transition-slow);
+}
+
+.nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  gap: var(--space-4);
+}
+
+.nav__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  list-style: none;
+}
+
+.nav__links a {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: color var(--transition-interactive),
+              background var(--transition-interactive);
+}
+
+.nav__links a:hover {
+  color: var(--color-text);
+  background: var(--color-surface-offset);
+}
+
+.nav__links a.active {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.nav__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Mobile hamburger */
+.nav__hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: var(--space-2);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+.nav__hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--color-text);
+  border-radius: 2px;
+  transition: transform var(--transition-interactive), opacity var(--transition-interactive);
+}
+
+@media (max-width: 768px) {
+  .nav__links { display: none; }
+  .nav__hamburger { display: flex; }
+
+  .nav__links.open {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-4);
+    gap: var(--space-1);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .nav__links.open a {
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+/* ============================================
+   THEME TOGGLE
+   ============================================ */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  color: var(--color-text);
+  background: var(--color-surface-offset);
+}
+
+/* ============================================
+   MAIN CONTENT OFFSET (for fixed nav)
+   ============================================ */
+.page-body {
+  padding-top: 64px;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding-block: var(--space-12) var(--space-8);
+}
+
+[data-theme="dark"] .footer {
+  background: var(--color-surface-offset);
+  color: var(--color-text);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ============================================
+   LOADING / SKELETON
+   ============================================ */
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--color-surface-offset) 25%,
+    var(--color-surface-dynamic) 50%,
+    var(--color-surface-offset) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up  { animation: fadeUp 0.5s ease forwards; }
+.animate-fade-in  { animation: fadeIn 0.4s ease forwards; }
+.animate-spin     { animation: spin 1s linear infinite; }
+.animate-pulse    { animation: pulse 2s ease-in-out infinite; }
+
+/* Stagger delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* ============================================
+   DIVIDER
+   ============================================ */
+.divider {
+  border: none;
+  border-top: 1px solid var(--color-divider);
+  margin-block: var(--space-6);
+}
+
+/* ============================================
+   TOAST NOTIFICATIONS
+   ============================================ */
+.toast-container {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 360px;
+  pointer-events: all;
+  animation: slideDown 0.3s ease forwards;
+}
+
+.toast--success { border-left: 3px solid var(--color-success); }
+.toast--error   { border-left: 3px solid var(--color-error); }
+.toast--warning { border-left: 3px solid var(--color-warning); }
+.toast--info    { border-left: 3px solid var(--color-accent); }
+
+/* ============================================
+   TABLE
+   ============================================ */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.data-table th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  background: var(--color-surface-offset);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table th:first-child { border-radius: var(--radius-md) 0 0 0; }
+.data-table th:last-child  { border-radius: 0 var(--radius-md) 0 0; }
+
+.data-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-text);
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--color-surface-offset); }
+
+/* ============================================
+   MODAL
+   ============================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: var(--space-4);
+  animation: fadeIn 0.2s ease;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 480px;
+  width: 100%;
+  padding: var(--space-8);
+  animation: fadeUp 0.3s ease;
+  position: relative;
+}
+
+.modal__close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border: none;
+  background: var(--color-surface-offset);
+}
+
+.modal__close:hover {
+  background: var(--color-surface-dynamic);
+  color: var(--color-text);
+}
+
+/* ============================================
+   PROGRESS STEPS
+   ============================================ */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: var(--space-8);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.step__dot {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-offset);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: all var(--transition-interactive);
+}
+
+.step.active .step__dot {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.step.done .step__dot {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: white;
+}
+
+.step__line {
+  flex: 1;
+  height: 2px;
+  background: var(--color-border);
+  margin-inline: var(--space-2);
+}
+
+.step.done .step__line {
+  background: var(--color-success);
+}
+
+</style>
+</head>
+<body class="page-body">
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="container nav__inner">
+      <a href="index.html" class="nav__logo">
+        <!-- SVG Logo -->
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-label="Caledonia Taxi logo" role="img">
+          <rect width="36" height="36" rx="10" fill="#F0A500"/>
+          <path d="M7 23L11 13H25L29 23" stroke="#111110" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M5 23H31" stroke="#111110" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="10" cy="25.5" r="2.5" fill="#111110"/>
+          <circle cx="26" cy="25.5" r="2.5" fill="#111110"/>
+          <path d="M16 13V9H20V13" stroke="#111110" stroke-width="2" stroke-linecap="round"/>
+          <rect x="13" y="16" width="10" height="5" rx="1.5" fill="#111110" opacity="0.15"/>
+        </svg>
+        Caledonia Taxi
+      </a>
+
+      <ul class="nav__links" id="navLinks">
+        <li><a href="#services">Services</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#fleet">Fleet</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="driver.html" style="color:var(--color-text-muted)">Drivers</a></li>
+      </ul>
+
+      <div class="nav__actions">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a href="booking.html" class="btn btn--accent btn--sm" style="font-weight:700;">
+          Book a Ride
+        </a>
+        <button class="nav__hamburger" id="hamburger" aria-label="Menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero__bg">
+      <div class="hero__grid-overlay"></div>
+    </div>
+    <div class="container hero__content">
+      <div class="hero__eyebrow animate-fade-up">
+        <span class="badge badge--accent">Hamilton, Ontario</span>
+        <span class="hero__eyebrow-text">Available 24 / 7</span>
+      </div>
+      <h1 class="hero__title animate-fade-up delay-100">
+        Your ride.<br>Your way.<br><span class="hero__title--accent">Always on time.</span>
+      </h1>
+      <p class="hero__subtitle animate-fade-up delay-200">
+        Professional taxi service serving Hamilton and the surrounding region. Instant dispatch, upfront pricing, and drivers you can trust.
+      </p>
+
+      <!-- Quick book form -->
+      <div class="hero__book-card animate-fade-up delay-300">
+        <div class="hero__book-tabs">
+          <button class="hero__tab active" data-tab="now">Ride Now</button>
+          <button class="hero__tab" data-tab="schedule">Schedule</button>
+        </div>
+        <div class="hero__book-form">
+          <div class="hero__book-field">
+            <div class="hero__book-icon" style="color:var(--color-success)">
+              <i data-lucide="map-pin" width="18" height="18"></i>
+            </div>
+            <input type="text" class="hero__book-input" placeholder="Pickup address…" id="heroPickup" autocomplete="off">
+          </div>
+          <div class="hero__book-divider">
+            <svg width="14" height="20" viewBox="0 0 14 20" fill="none"><path d="M7 2V18M7 18L2 13M7 18L12 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"/></svg>
+          </div>
+          <div class="hero__book-field">
+            <div class="hero__book-icon" style="color:var(--color-error)">
+              <i data-lucide="map-pin" width="18" height="18"></i>
+            </div>
+            <input type="text" class="hero__book-input" placeholder="Where to?" id="heroDropoff" autocomplete="off">
+          </div>
+          <a href="booking.html" class="btn btn--accent btn--lg hero__book-btn" id="heroBookBtn">
+            <i data-lucide="arrow-right" width="20" height="20"></i>
+            Book Now
+          </a>
+        </div>
+      </div>
+
+      <!-- Trust signals -->
+      <div class="hero__trust animate-fade-up delay-400">
+        <div class="trust-item">
+          <i data-lucide="shield-check" width="16" height="16"></i>
+          <span>Licensed & Insured</span>
+        </div>
+        <div class="trust-item">
+          <i data-lucide="clock" width="16" height="16"></i>
+          <span>Average 8 min pickup</span>
+        </div>
+        <div class="trust-item">
+          <i data-lucide="star" width="16" height="16"></i>
+          <span>4.9 ★ rating</span>
+        </div>
+        <div class="trust-item">
+          <i data-lucide="credit-card" width="16" height="16"></i>
+          <span>Cash & Card</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating ride card -->
+    <div class="hero__float-card">
+      <div class="hero__float-header">
+        <div class="driver-avatar">
+          <i data-lucide="user" width="20" height="20"></i>
+        </div>
+        <div>
+          <div class="hero__float-name">Saqib A.</div>
+          <div class="hero__float-sub">En route · 3 min away</div>
+        </div>
+        <div class="hero__float-rating">
+          <i data-lucide="star" width="14" height="14" fill="currentColor" style="color:var(--color-accent)"></i>
+          4.9
+        </div>
+      </div>
+      <div class="hero__float-route">
+        <div class="route-dot route-dot--green"></div>
+        <div class="route-line"></div>
+        <div class="route-dot route-dot--black"></div>
+      </div>
+      <div class="hero__float-meta">
+        <span>Estimated fare: <strong>$14.50</strong></span>
+        <span class="badge badge--active">Live</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS BAR -->
+  <section class="stats-bar">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="stat__number">4,000+</span>
+          <span class="stat__label">Rides Completed</span>
+        </div>
+        <div class="stat stat--divider">
+          <span class="stat__number">12+</span>
+          <span class="stat__label">Years in Hamilton</span>
+        </div>
+        <div class="stat stat--divider">
+          <span class="stat__number">4.9★</span>
+          <span class="stat__label">Average Rating</span>
+        </div>
+        <div class="stat stat--divider">
+          <span class="stat__number">24/7</span>
+          <span class="stat__label">Always Available</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="section" id="services">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Our Services</span>
+        <h2 class="section-title">A ride for every occasion</h2>
+        <p class="section-desc">From quick city trips to airport transfers, we've got you covered with reliable, professional service.</p>
+      </div>
+
+      <div class="services-grid">
+        <div class="service-card">
+          <div class="service-card__icon service-card__icon--amber">
+            <i data-lucide="zap" width="24" height="24"></i>
+          </div>
+          <h3 class="service-card__title">Instant Dispatch</h3>
+          <p class="service-card__desc">Book now and your nearest available driver is dispatched immediately. Average pickup time: 8 minutes.</p>
+          <a href="booking.html" class="service-card__link">
+            Book now <i data-lucide="arrow-right" width="14" height="14"></i>
+          </a>
+        </div>
+
+        <div class="service-card service-card--featured">
+          <div class="service-card__badge">Most Popular</div>
+          <div class="service-card__icon service-card__icon--black">
+            <i data-lucide="calendar" width="24" height="24"></i>
+          </div>
+          <h3 class="service-card__title">Scheduled Rides</h3>
+          <p class="service-card__desc">Plan ahead. Schedule your ride up to 7 days in advance for airport pickups, medical appointments, and more.</p>
+          <a href="/booking?type=scheduled" class="service-card__link">
+            Schedule <i data-lucide="arrow-right" width="14" height="14"></i>
+          </a>
+        </div>
+
+        <div class="service-card">
+          <div class="service-card__icon service-card__icon--blue">
+            <i data-lucide="plane" width="24" height="24"></i>
+          </div>
+          <h3 class="service-card__title">Airport Transfers</h3>
+          <p class="service-card__desc">Stress-free rides to Toronto Pearson and Billy Bishop airports. Flight tracking included — we wait if you're delayed.</p>
+          <a href="/booking?service=airport" class="service-card__link">
+            Book airport <i data-lucide="arrow-right" width="14" height="14"></i>
+          </a>
+        </div>
+
+        <div class="service-card">
+          <div class="service-card__icon service-card__icon--green">
+            <i data-lucide="package" width="24" height="24"></i>
+          </div>
+          <h3 class="service-card__title">Parcel Delivery</h3>
+          <p class="service-card__desc">Same-day parcel delivery across Hamilton. Fast, tracked, and handled with care by our professional drivers.</p>
+          <a href="/booking?service=parcel" class="service-card__link">
+            Send parcel <i data-lucide="arrow-right" width="14" height="14"></i>
+          </a>
+        </div>
+
+        <div class="service-card">
+          <div class="service-card__icon service-card__icon--purple">
+            <i data-lucide="building-2" width="24" height="24"></i>
+          </div>
+          <h3 class="service-card__title">Corporate Accounts</h3>
+          <p class="service-card__desc">Volume billing, monthly invoicing, and dedicated dispatch for businesses. Streamline your team's transportation.</p>
+          <a href="#contact" class="service-card__link">
+            Learn more <i data-lucide="arrow-right" width="14" height="14"></i>
+          </a>
+        </div>
+
+        <div class="service-card">
+          <div class="service-card__icon service-card__icon--red">
+            <i data-lucide="heart-pulse" width="24" height="24"></i>
+          </div>
+          <h3 class="service-card__title">Medical Transport</h3>
+          <p class="service-card__desc">Reliable transport to and from medical appointments. Patient, punctual drivers who understand your needs.</p>
+          <a href="/booking?service=medical" class="service-card__link">
+            Book medical <i data-lucide="arrow-right" width="14" height="14"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section how-it-works" id="how">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">How It Works</span>
+        <h2 class="section-title">Riding in 3 easy steps</h2>
+      </div>
+      <div class="how-steps">
+        <div class="how-step animate-fade-up">
+          <div class="how-step__number">01</div>
+          <div class="how-step__icon">
+            <i data-lucide="smartphone" width="28" height="28"></i>
+          </div>
+          <h3 class="how-step__title">Book Online or Call</h3>
+          <p class="how-step__desc">Use our website to book instantly or call us directly. Provide your pickup location, destination, and any special requests.</p>
+        </div>
+        <div class="how-step__arrow">
+          <i data-lucide="arrow-right" width="24" height="24"></i>
+        </div>
+        <div class="how-step animate-fade-up delay-200">
+          <div class="how-step__number">02</div>
+          <div class="how-step__icon">
+            <i data-lucide="navigation" width="28" height="28"></i>
+          </div>
+          <h3 class="how-step__title">Driver Dispatched</h3>
+          <p class="how-step__desc">Our system instantly dispatches the nearest available driver. You'll receive an SMS with driver details and estimated arrival.</p>
+        </div>
+        <div class="how-step__arrow">
+          <i data-lucide="arrow-right" width="24" height="24"></i>
+        </div>
+        <div class="how-step animate-fade-up delay-400">
+          <div class="how-step__number">03</div>
+          <div class="how-step__icon">
+            <i data-lucide="map-pin-check" width="28" height="28"></i>
+          </div>
+          <h3 class="how-step__title">Arrive &amp; Pay</h3>
+          <p class="how-step__desc">Your driver takes you to your destination safely and efficiently. Pay by cash or card — whichever is most convenient.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="section" id="about">
+    <div class="container">
+      <div class="about-layout">
+        <div class="about-visual">
+          <div class="about-card about-card--main">
+            <div class="about-card__icon">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <rect width="48" height="48" rx="14" fill="#F0A500"/>
+                <path d="M10 32L15 18H33L38 32" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <path d="M8 32H40" stroke="#111" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="14" cy="35" r="3.5" fill="#111"/>
+                <circle cx="34" cy="35" r="3.5" fill="#111"/>
+                <path d="M21 18V13H27V18" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="about-card__title">Family-Owned</div>
+            <div class="about-card__desc">Serving Hamilton since 2012</div>
+          </div>
+          <div class="about-card about-card--stat">
+            <div class="about-stat">
+              <span class="about-stat__n">12+</span>
+              <span class="about-stat__l">Years serving Hamilton</span>
+            </div>
+          </div>
+          <div class="about-card about-card--stat about-card--accent">
+            <div class="about-stat">
+              <i data-lucide="shield-check" width="24" height="24" style="color:var(--color-accent);margin-bottom:4px"></i>
+              <span class="about-stat__l">Fully licensed &amp; insured</span>
+            </div>
+          </div>
+        </div>
+        <div class="about-text">
+          <span class="section-tag">About Us</span>
+          <h2 class="section-title">Hamilton's hometown taxi company</h2>
+          <p class="about-p">Caledonia Taxi was built by a local family who believed that getting around Hamilton shouldn't be complicated, expensive, or unreliable. We started with one car and one mission: be the taxi company we'd want to call.</p>
+          <p class="about-p">Today, we operate a modern fleet of vehicles and use cutting-edge dispatch technology to get you where you need to go — quickly, safely, and affordably.</p>
+          <div class="about-values">
+            <div class="about-value">
+              <div class="about-value__icon"><i data-lucide="clock-3" width="18" height="18"></i></div>
+              <div>
+                <strong>Punctuality</strong>
+                <span>We value your time. Our average pickup is under 10 minutes.</span>
+              </div>
+            </div>
+            <div class="about-value">
+              <div class="about-value__icon"><i data-lucide="shield" width="18" height="18"></i></div>
+              <div>
+                <strong>Safety</strong>
+                <span>All drivers are licensed, insured, and background-checked.</span>
+              </div>
+            </div>
+            <div class="about-value">
+              <div class="about-value__icon"><i data-lucide="dollar-sign" width="18" height="18"></i></div>
+              <div>
+                <strong>Transparency</strong>
+                <span>Upfront fare estimates. No surge pricing surprises.</span>
+              </div>
+            </div>
+          </div>
+          <div class="about-ctas">
+            <a href="booking.html" class="btn btn--primary btn--lg">Book a Ride Now</a>
+            <a href="#contact" class="btn btn--outline btn--lg">Get in Touch</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLEET -->
+  <section class="section fleet-section" id="fleet">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Our Fleet</span>
+        <h2 class="section-title">Clean, comfortable vehicles</h2>
+        <p class="section-desc">Every vehicle in our fleet is regularly inspected, cleaned, and maintained to ensure a comfortable, safe ride.</p>
+      </div>
+      <div class="fleet-grid">
+        <div class="fleet-card">
+          <div class="fleet-card__visual">
+            <svg width="120" height="60" viewBox="0 0 120 60" fill="none">
+              <!-- Sedan silhouette -->
+              <rect x="10" y="30" width="100" height="18" rx="4" fill="currentColor" opacity="0.15"/>
+              <path d="M20 30 C25 15 45 10 60 10 C75 10 90 15 100 30Z" fill="currentColor" opacity="0.2"/>
+              <circle cx="30" cy="50" r="8" fill="currentColor" opacity="0.4"/>
+              <circle cx="90" cy="50" r="8" fill="currentColor" opacity="0.4"/>
+              <rect x="35" y="12" width="25" height="16" rx="2" fill="currentColor" opacity="0.1"/>
+              <rect x="62" y="12" width="20" height="16" rx="2" fill="currentColor" opacity="0.1"/>
+            </svg>
+          </div>
+          <h3 class="fleet-card__name">Standard Sedan</h3>
+          <p class="fleet-card__desc">Up to 4 passengers, comfortable for everyday trips across Hamilton.</p>
+          <div class="fleet-card__features">
+            <span><i data-lucide="users" width="12" height="12"></i> Up to 4</span>
+            <span><i data-lucide="briefcase" width="12" height="12"></i> 2 bags</span>
+            <span><i data-lucide="wifi" width="12" height="12"></i> AC</span>
+          </div>
+        </div>
+        <div class="fleet-card fleet-card--featured">
+          <div class="fleet-card__badge">Most Booked</div>
+          <div class="fleet-card__visual">
+            <svg width="120" height="60" viewBox="0 0 120 60" fill="none">
+              <!-- SUV silhouette -->
+              <rect x="8" y="28" width="104" height="22" rx="5" fill="currentColor" opacity="0.2"/>
+              <path d="M18 28 C22 12 42 8 60 8 C78 8 95 12 102 28Z" fill="currentColor" opacity="0.25"/>
+              <circle cx="28" cy="52" r="9" fill="currentColor" opacity="0.5"/>
+              <circle cx="92" cy="52" r="9" fill="currentColor" opacity="0.5"/>
+              <rect x="30" y="10" width="28" height="17" rx="2" fill="currentColor" opacity="0.15"/>
+              <rect x="62" y="10" width="24" height="17" rx="2" fill="currentColor" opacity="0.15"/>
+            </svg>
+          </div>
+          <h3 class="fleet-card__name">SUV / Minivan</h3>
+          <p class="fleet-card__desc">Spacious comfort for families and groups. Plenty of room for luggage.</p>
+          <div class="fleet-card__features">
+            <span><i data-lucide="users" width="12" height="12"></i> Up to 7</span>
+            <span><i data-lucide="briefcase" width="12" height="12"></i> 4+ bags</span>
+            <span><i data-lucide="wifi" width="12" height="12"></i> AC + WiFi</span>
+          </div>
+        </div>
+        <div class="fleet-card">
+          <div class="fleet-card__visual">
+            <svg width="120" height="60" viewBox="0 0 120 60" fill="none">
+              <!-- Accessible van silhouette -->
+              <rect x="8" y="25" width="104" height="25" rx="5" fill="currentColor" opacity="0.18"/>
+              <rect x="15" y="8" width="75" height="17" rx="4" fill="currentColor" opacity="0.22"/>
+              <circle cx="28" cy="52" r="9" fill="currentColor" opacity="0.45"/>
+              <circle cx="92" cy="52" r="9" fill="currentColor" opacity="0.45"/>
+              <path d="M90 35 L112 35 L112 50 L90 50 Z" fill="currentColor" opacity="0.1"/>
+              <path d="M90 42 L105 42" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+            </svg>
+          </div>
+          <h3 class="fleet-card__name">Accessible Vehicle</h3>
+          <p class="fleet-card__desc">Wheelchair accessible transport with compassionate, trained drivers.</p>
+          <div class="fleet-card__features">
+            <span><i data-lucide="accessibility" width="12" height="12"></i> Accessible</span>
+            <span><i data-lucide="heart" width="12" height="12"></i> Assisted</span>
+            <span><i data-lucide="shield-check" width="12" height="12"></i> Insured</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="section testimonials-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Reviews</span>
+        <h2 class="section-title">What our riders say</h2>
+      </div>
+      <div class="testimonials-grid">
+        <div class="testimonial">
+          <div class="testimonial__stars">
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+          </div>
+          <p class="testimonial__text">"Driver was there in 7 minutes flat. Super professional, clean car, and the fare was exactly what was quoted. Will always use Caledonia Taxi."</p>
+          <div class="testimonial__author">
+            <div class="testimonial__avatar">MR</div>
+            <div>
+              <strong>Maria R.</strong>
+              <span>Hamilton, ON</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial testimonial--accent">
+          <div class="testimonial__stars">
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+          </div>
+          <p class="testimonial__text">"I use Caledonia for my weekly hospital appointments. The drivers are always patient and kind. It makes such a difference when you're not feeling well."</p>
+          <div class="testimonial__author">
+            <div class="testimonial__avatar">JT</div>
+            <div>
+              <strong>James T.</strong>
+              <span>Ancaster, ON</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial">
+          <div class="testimonial__stars">
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+            <i data-lucide="star" width="16" height="16" fill="currentColor" style="color:var(--color-accent)"></i>
+          </div>
+          <p class="testimonial__text">"Used them for a 5am airport run. Saqib was on time, helped with bags, and was great company on the drive. Highly recommend for Pearson airport trips!"</p>
+          <div class="testimonial__author">
+            <div class="testimonial__avatar">SP</div>
+            <div>
+              <strong>Sarah P.</strong>
+              <span>Dundas, ON</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA BANNER -->
+  <section class="cta-banner">
+    <div class="container">
+      <div class="cta-banner__inner">
+        <div class="cta-banner__text">
+          <h2 class="cta-banner__title">Ready to ride?</h2>
+          <p>Book online in seconds or give us a call — we're always here.</p>
+        </div>
+        <div class="cta-banner__actions">
+          <a href="booking.html" class="btn btn--accent btn--lg">
+            <i data-lucide="map-pin" width="18" height="18"></i>
+            Book Online
+          </a>
+          <a href="tel:+12895551001" class="btn btn--outline btn--lg cta-banner__call">
+            <i data-lucide="phone" width="18" height="18"></i>
+            (289) 555-1001
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section class="section" id="contact">
+    <div class="container">
+      <div class="contact-layout">
+        <div class="contact-info">
+          <span class="section-tag">Contact Us</span>
+          <h2 class="section-title">Get in touch</h2>
+          <p class="contact-desc">Whether you have a question, want to set up a corporate account, or just need a ride — we're here for you.</p>
+
+          <div class="contact-items">
+            <div class="contact-item">
+              <div class="contact-item__icon">
+                <i data-lucide="phone" width="20" height="20"></i>
+              </div>
+              <div>
+                <strong>Call or Text</strong>
+                <a href="tel:+12895551001">(289) 555-1001</a>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item__icon">
+                <i data-lucide="mail" width="20" height="20"></i>
+              </div>
+              <div>
+                <strong>Email</strong>
+                <a href="mailto:dispatch@caledoniataxiservice.ca">dispatch@caledoniataxiservice.ca</a>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item__icon">
+                <i data-lucide="map-pin" width="20" height="20"></i>
+              </div>
+              <div>
+                <strong>Service Area</strong>
+                <span>Hamilton, Ancaster, Dundas, Stoney Creek &amp; surrounding areas</span>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item__icon">
+                <i data-lucide="clock" width="20" height="20"></i>
+              </div>
+              <div>
+                <strong>Hours</strong>
+                <span>24 hours, 7 days a week</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="contact-form-wrap card card--elevated">
+          <h3 style="font-size:var(--text-lg);font-weight:700;margin-bottom:var(--space-6)">Send a Message</h3>
+          <form class="contact-form" id="contactForm" onsubmit="handleContactSubmit(event)">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="contactName">Your Name</label>
+                <input type="text" id="contactName" class="form-input" placeholder="John Smith" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="contactPhone">Phone Number</label>
+                <input type="tel" id="contactPhone" class="form-input" placeholder="(289) 555-0000">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="contactEmail">Email</label>
+              <input type="email" id="contactEmail" class="form-input" placeholder="you@example.com" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="contactSubject">Subject</label>
+              <select id="contactSubject" class="form-select">
+                <option value="">Select a topic…</option>
+                <option value="general">General Inquiry</option>
+                <option value="corporate">Corporate Account</option>
+                <option value="complaint">Feedback or Complaint</option>
+                <option value="lost">Lost Item</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="contactMessage">Message</label>
+              <textarea id="contactMessage" class="form-textarea" rows="4" placeholder="Tell us how we can help…" required></textarea>
+            </div>
+            <button type="submit" class="btn btn--primary btn--lg" style="width:100%">
+              <i data-lucide="send" width="18" height="18"></i>
+              Send Message
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-logo">
+            <svg width="32" height="32" viewBox="0 0 36 36" fill="none">
+              <rect width="36" height="36" rx="10" fill="#F0A500"/>
+              <path d="M7 23L11 13H25L29 23" stroke="#111110" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <path d="M5 23H31" stroke="#111110" stroke-width="2.2" stroke-linecap="round"/>
+              <circle cx="10" cy="25.5" r="2.5" fill="#111110"/>
+              <circle cx="26" cy="25.5" r="2.5" fill="#111110"/>
+              <path d="M16 13V9H20V13" stroke="#111110" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Caledonia Taxi</span>
+          </div>
+          <p class="footer-tagline">Hamilton's trusted taxi service since 2012. Available 24/7 for all your transportation needs.</p>
+          <a href="tel:+12895551001" class="footer-phone">
+            <i data-lucide="phone" width="16" height="16"></i>
+            (289) 555-1001
+          </a>
+        </div>
+
+        <div class="footer-links-col">
+          <h4 class="footer-col-title">Quick Links</h4>
+          <ul>
+            <li><a href="booking.html">Book a Ride</a></li>
+            <li><a href="#services">Services</a></li>
+            <li><a href="#about">About Us</a></li>
+            <li><a href="#fleet">Fleet</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-links-col">
+          <h4 class="footer-col-title">Services</h4>
+          <ul>
+            <li><a href="booking.html">Instant Dispatch</a></li>
+            <li><a href="/booking?type=scheduled">Scheduled Rides</a></li>
+            <li><a href="/booking?service=airport">Airport Transfers</a></li>
+            <li><a href="/booking?service=medical">Medical Transport</a></li>
+            <li><a href="#contact">Corporate Accounts</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-links-col">
+          <h4 class="footer-col-title">Drivers</h4>
+          <ul>
+            <li><a href="driver.html">Driver Login</a></li>
+            <li><a href="admin.html">Dispatch Admin</a></li>
+          </ul>
+          <h4 class="footer-col-title" style="margin-top:var(--space-6)">Service Area</h4>
+          <p class="footer-area">Hamilton · Ancaster · Dundas · Stoney Creek · Flamborough</p>
+        </div>
+      </div>
+      <hr class="footer-divider">
+      <div class="footer-bottom">
+        <p>&copy; 2026 Caledonia Taxi. All rights reserved.</p>
+        <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer" class="footer-attribution">
+          Created with Perplexity Computer
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Inline CSS for this page -->
+  <style>
+  /* HERO */
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    background: var(--color-bg);
+  }
+
+  .hero__bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 70% 50%, color-mix(in oklab, var(--color-accent) 8%, transparent) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 80% at 15% 20%, color-mix(in oklab, var(--color-primary) 4%, transparent) 0%, transparent 60%);
+  }
+
+  .hero__grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--color-divider) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-divider) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.4;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 80%);
+  }
+
+  .hero__content {
+    position: relative;
+    z-index: 2;
+    padding-top: var(--space-20);
+    padding-bottom: var(--space-16);
+    max-width: 640px;
+  }
+
+  .hero__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+    opacity: 0;
+  }
+
+  .hero__eyebrow-text {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  .hero__title {
+    font-size: clamp(2rem, 1rem + 4vw, 4.5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: var(--color-text);
+    margin-bottom: var(--space-6);
+    opacity: 0;
+  }
+
+  .hero__title--accent {
+    color: var(--color-accent);
+    font-size: 0.88em;
+    display: block;
+  }
+
+  .hero__subtitle {
+    font-size: var(--text-lg);
+    color: var(--color-text-muted);
+    line-height: 1.6;
+    margin-bottom: var(--space-8);
+    max-width: 52ch;
+    opacity: 0;
+  }
+
+  /* Hero booking card */
+  .hero__book-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-xl);
+    max-width: 520px;
+    margin-bottom: var(--space-6);
+    opacity: 0;
+  }
+
+  .hero__book-tabs {
+    display: flex;
+    gap: var(--space-1);
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-full);
+    padding: var(--space-1);
+    margin-bottom: var(--space-5);
+    width: fit-content;
+  }
+
+  .hero__tab {
+    padding: var(--space-2) var(--space-5);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    transition: all var(--transition-interactive);
+  }
+
+  .hero__tab.active {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .hero__book-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .hero__book-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-2);
+    background: var(--color-bg);
+    transition: border-color var(--transition-interactive), box-shadow var(--transition-interactive);
+  }
+
+  .hero__book-field:focus-within {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 15%, transparent);
+  }
+
+  .hero__book-icon {
+    flex-shrink: 0;
+  }
+
+  .hero__book-input {
+    flex: 1;
+    border: none;
+    background: none;
+    font-size: var(--text-base);
+    color: var(--color-text);
+    outline: none;
+  }
+
+  .hero__book-input::placeholder { color: var(--color-text-faint); }
+
+  .hero__book-divider {
+    display: flex;
+    justify-content: center;
+    color: var(--color-text-faint);
+    margin-block: var(--space-1);
+  }
+
+  .hero__book-btn {
+    margin-top: var(--space-3);
+    width: 100%;
+    font-size: var(--text-base);
+    font-weight: 700;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+
+  /* Trust signals */
+  .hero__trust {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    opacity: 0;
+  }
+
+  .trust-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  /* Float card */
+  .hero__float-card {
+    position: absolute;
+    right: clamp(var(--space-4), 8vw, var(--space-20));
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-xl);
+    width: 240px;
+    animation: fadeUp 0.8s 0.6s ease both;
+    z-index: 3;
+  }
+
+  @media (max-width: 900px) {
+    .hero__float-card { display: none; }
+  }
+
+  .hero__float-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .driver-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent-highlight);
+    color: var(--color-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .hero__float-name { font-weight: 700; font-size: var(--text-sm); }
+  .hero__float-sub  { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .hero__float-rating {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .hero__float-route {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  .route-dot {
+    width: 10px; height: 10px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+  .route-dot--green { background: var(--color-success); }
+  .route-dot--black { background: var(--color-text); }
+  .route-line {
+    flex: 1;
+    height: 1.5px;
+    background: var(--color-border);
+    position: relative;
+  }
+  .route-line::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 60%;
+    background: var(--color-success);
+    animation: progress 2s ease-in-out infinite alternate;
+  }
+  @keyframes progress {
+    from { width: 40%; }
+    to   { width: 80%; }
+  }
+
+  .hero__float-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  /* STATS BAR */
+  .stats-bar {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    padding-block: var(--space-8);
+  }
+
+  [data-theme="dark"] .stats-bar {
+    background: var(--color-surface-offset-2);
+    color: var(--color-text);
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+  }
+
+  @media (max-width: 640px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .stat--divider:nth-child(3) { border-left: none; }
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    text-align: center;
+  }
+
+  .stat--divider {
+    border-left: 1px solid rgba(255,255,255,0.15);
+  }
+
+  [data-theme="dark"] .stat--divider {
+    border-left-color: var(--color-border);
+  }
+
+  .stat__number {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .stat__label {
+    font-size: var(--text-xs);
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* SECTION HEADER */
+  .section-header {
+    text-align: center;
+    max-width: 600px;
+    margin-inline: auto;
+    margin-bottom: var(--space-12);
+  }
+
+  .section-tag {
+    display: inline-block;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    margin-bottom: var(--space-3);
+  }
+
+  .section-title {
+    font-size: var(--text-2xl);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: var(--space-4);
+    color: var(--color-text);
+  }
+
+  .section-desc {
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    max-width: 56ch;
+    margin-inline: auto;
+  }
+
+  /* SERVICES GRID */
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-5);
+  }
+
+  @media (max-width: 900px) { .services-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .services-grid { grid-template-columns: 1fr; } }
+
+  .service-card {
+    position: relative;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    transition: box-shadow var(--transition-interactive), transform var(--transition-interactive);
+  }
+
+  .service-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-3px);
+  }
+
+  .service-card--featured {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: transparent;
+  }
+
+  [data-theme="dark"] .service-card--featured {
+    background: var(--color-surface-offset-2);
+    border-color: var(--color-accent);
+    color: var(--color-text);
+  }
+
+  .service-card__badge {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    padding: 2px var(--space-3);
+    border-radius: var(--radius-full);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .service-card__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-4);
+  }
+
+  .service-card__icon--amber { background: var(--color-accent-highlight); color: var(--color-accent); }
+  .service-card__icon--black { background: rgba(255,255,255,0.15); color: white; }
+  .service-card__icon--blue  { background: var(--color-info-highlight); color: var(--color-info); }
+  .service-card__icon--green { background: var(--color-success-highlight); color: var(--color-success); }
+  .service-card__icon--purple{ background: #f0eeff; color: #7c3aed; }
+  .service-card__icon--red   { background: var(--color-error-highlight); color: var(--color-error); }
+
+  [data-theme="dark"] .service-card__icon--purple { background: #1a1030; color: #a78bfa; }
+
+  .service-card__title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+
+  .service-card__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    line-height: 1.6;
+    margin-bottom: var(--space-4);
+  }
+
+  .service-card--featured .service-card__desc { color: rgba(255,255,255,0.7); }
+  [data-theme="dark"] .service-card--featured .service-card__desc { color: var(--color-text-muted); }
+
+  .service-card__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .service-card--featured .service-card__link { color: var(--color-accent); }
+
+  /* HOW IT WORKS */
+  .how-it-works { background: var(--color-surface-offset); }
+
+  .how-steps {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    max-width: 900px;
+    margin-inline: auto;
+  }
+
+  @media (max-width: 700px) {
+    .how-steps { flex-direction: column; }
+    .how-step__arrow { transform: rotate(90deg); margin-inline: auto; }
+  }
+
+  .how-step {
+    flex: 1;
+    text-align: center;
+    opacity: 0;
+  }
+
+  .how-step__number {
+    font-family: var(--font-display);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: var(--space-3);
+  }
+
+  .how-step__icon {
+    width: 64px;
+    height: 64px;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-inline: auto;
+    margin-bottom: var(--space-4);
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--transition-interactive), box-shadow var(--transition-interactive);
+  }
+
+  .how-step:hover .how-step__icon {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px var(--color-accent-highlight);
+  }
+
+  .how-step__title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+
+  .how-step__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    line-height: 1.6;
+  }
+
+  .how-step__arrow {
+    padding-top: 32px;
+    color: var(--color-text-faint);
+    flex-shrink: 0;
+  }
+
+  /* ABOUT */
+  .about-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-16);
+    align-items: center;
+  }
+
+  @media (max-width: 800px) {
+    .about-layout { grid-template-columns: 1fr; }
+    .about-visual { order: 2; }
+  }
+
+  .about-visual {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: var(--space-4);
+  }
+
+  .about-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .about-card--main {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .about-card--accent {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    border-color: transparent;
+  }
+
+  [data-theme="dark"] .about-card--accent {
+    background: var(--color-accent-highlight);
+    color: var(--color-accent);
+  }
+
+  .about-card__title {
+    font-weight: 700;
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-1);
+  }
+
+  .about-card__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .about-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-1);
+  }
+
+  .about-stat__n {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .about-stat__l {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    max-width: 16ch;
+    text-align: center;
+  }
+
+  .about-card--accent .about-stat__l { color: var(--color-accent-text); opacity: 0.75; }
+
+  .about-text .section-tag { display: block; margin-bottom: var(--space-2); }
+  .about-text .section-title { text-align: left; margin-bottom: var(--space-5); }
+
+  .about-p {
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    line-height: 1.7;
+    margin-bottom: var(--space-4);
+    max-width: none;
+  }
+
+  .about-values {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-block: var(--space-6);
+  }
+
+  .about-value {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .about-value__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: var(--color-accent-highlight);
+    color: var(--color-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .about-value strong {
+    display: block;
+    font-weight: 700;
+    font-size: var(--text-sm);
+    margin-bottom: 2px;
+  }
+
+  .about-value span {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .about-ctas {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  /* FLEET */
+  .fleet-section { background: var(--color-surface-offset); }
+
+  .fleet-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-5);
+  }
+
+  @media (max-width: 800px) { .fleet-grid { grid-template-columns: 1fr; max-width: 400px; margin-inline: auto; } }
+
+  .fleet-card {
+    position: relative;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    text-align: center;
+    transition: box-shadow var(--transition-interactive), transform var(--transition-interactive);
+  }
+
+  .fleet-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-3px);
+  }
+
+  .fleet-card--featured {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px var(--color-accent);
+  }
+
+  .fleet-card__badge {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    padding: 2px var(--space-3);
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .fleet-card__visual {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-4);
+    color: var(--color-text);
+  }
+
+  .fleet-card__name {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+
+  .fleet-card__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .fleet-card__features {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  .fleet-card__features span {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  /* TESTIMONIALS */
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-5);
+  }
+
+  @media (max-width: 800px) { .testimonials-grid { grid-template-columns: 1fr; max-width: 480px; margin-inline: auto; } }
+
+  .testimonial {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .testimonial--accent {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: transparent;
+  }
+
+  [data-theme="dark"] .testimonial--accent {
+    background: var(--color-surface-offset-2);
+    color: var(--color-text);
+    border-color: var(--color-border);
+  }
+
+  .testimonial__stars {
+    display: flex;
+    gap: 2px;
+    margin-bottom: var(--space-4);
+  }
+
+  .testimonial__text {
+    font-size: var(--text-base);
+    line-height: 1.7;
+    margin-bottom: var(--space-5);
+    max-width: none;
+  }
+
+  .testimonial--accent .testimonial__text { color: rgba(255,255,255,0.85); }
+
+  .testimonial__author {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .testimonial__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .testimonial__author strong { display: block; font-weight: 700; font-size: var(--text-sm); }
+  .testimonial__author span  { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .testimonial--accent .testimonial__author span { color: rgba(255,255,255,0.6); }
+
+  /* CTA BANNER */
+  .cta-banner {
+    background: var(--color-accent);
+    padding-block: var(--space-12);
+  }
+
+  .cta-banner__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    flex-wrap: wrap;
+  }
+
+  .cta-banner__title {
+    font-size: var(--text-xl);
+    font-weight: 800;
+    color: var(--color-accent-text);
+    margin-bottom: var(--space-2);
+    letter-spacing: -0.03em;
+  }
+
+  .cta-banner__text p {
+    color: rgba(0,0,0,0.6);
+    font-size: var(--text-base);
+    max-width: none;
+  }
+
+  .cta-banner__actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .cta-banner .btn--accent {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+  }
+
+  .cta-banner__call {
+    background: rgba(0,0,0,0.1);
+    border-color: rgba(0,0,0,0.2);
+    color: var(--color-accent-text);
+  }
+
+  .cta-banner__call:hover {
+    background: rgba(0,0,0,0.2);
+    border-color: rgba(0,0,0,0.3);
+  }
+
+  /* CONTACT */
+  .contact-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: var(--space-16);
+    align-items: start;
+  }
+
+  @media (max-width: 800px) { .contact-layout { grid-template-columns: 1fr; } }
+
+  .contact-desc {
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-8);
+    max-width: none;
+  }
+
+  .contact-items { display: flex; flex-direction: column; gap: var(--space-5); }
+
+  .contact-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .contact-item__icon {
+    width: 44px;
+    height: 44px;
+    background: var(--color-accent-highlight);
+    color: var(--color-accent);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .contact-item strong { display: block; font-weight: 700; font-size: var(--text-sm); margin-bottom: 2px; }
+  .contact-item a, .contact-item span { font-size: var(--text-sm); color: var(--color-text-muted); }
+  .contact-item a:hover { color: var(--color-accent); }
+
+  .contact-info .section-tag { display: block; margin-bottom: var(--space-2); }
+  .contact-info .section-title { text-align: left; margin-bottom: var(--space-4); }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+  }
+
+  @media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
+
+  .contact-form { display: flex; flex-direction: column; gap: var(--space-4); }
+
+  /* FOOTER */
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: var(--space-8);
+    margin-bottom: var(--space-10);
+  }
+
+  @media (max-width: 900px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 500px) { .footer-grid { grid-template-columns: 1fr; } }
+
+  .footer-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: var(--space-4);
+    color: var(--color-text-inverse);
+  }
+
+  [data-theme="dark"] .footer-logo { color: var(--color-text); }
+
+  .footer-tagline {
+    font-size: var(--text-sm);
+    opacity: 0.65;
+    line-height: 1.7;
+    margin-bottom: var(--space-5);
+    max-width: 36ch;
+    color: var(--color-text-inverse);
+  }
+
+  [data-theme="dark"] .footer-tagline { color: var(--color-text-muted); }
+
+  .footer-phone {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .footer-col-title {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    margin-bottom: var(--space-4);
+    color: var(--color-text-inverse);
+  }
+
+  [data-theme="dark"] .footer-col-title { color: var(--color-text); }
+
+  .footer-links-col ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .footer-links-col a {
+    font-size: var(--text-sm);
+    opacity: 0.65;
+    color: var(--color-text-inverse);
+    text-decoration: none;
+    transition: opacity var(--transition-interactive);
+  }
+
+  [data-theme="dark"] .footer-links-col a { color: var(--color-text-muted); }
+
+  .footer-links-col a:hover { opacity: 1; }
+
+  .footer-area {
+    font-size: var(--text-sm);
+    opacity: 0.55;
+    color: var(--color-text-inverse);
+    line-height: 1.6;
+  }
+
+  [data-theme="dark"] .footer-area { color: var(--color-text-muted); }
+
+  .footer-divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: var(--space-6);
+  }
+
+  [data-theme="dark"] .footer-divider { border-top-color: var(--color-border); }
+
+  .footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    font-size: var(--text-sm);
+    opacity: 0.5;
+    color: var(--color-text-inverse);
+  }
+
+  [data-theme="dark"] .footer-bottom { color: var(--color-text-muted); }
+
+  .footer-attribution {
+    font-size: var(--text-xs);
+    opacity: 0.6;
+    color: var(--color-text-inverse);
+    text-decoration: none;
+  }
+
+  [data-theme="dark"] .footer-attribution { color: var(--color-text-muted); }
+  .footer-attribution:hover { opacity: 1; }
+  </style>
+
+  <script>
+  // Initialize Lucide icons
+  lucide.createIcons();
+
+  // Theme toggle
+  (function(){
+    const t = document.querySelector('[data-theme-toggle]');
+    const r = document.documentElement;
+    let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+    r.setAttribute('data-theme', d);
+    if (t) {
+      updateToggleIcon(t, d);
+      t.addEventListener('click', () => {
+        d = d === 'dark' ? 'light' : 'dark';
+        r.setAttribute('data-theme', d);
+        updateToggleIcon(t, d);
+      });
+    }
+    function updateToggleIcon(btn, theme) {
+      btn.innerHTML = theme === 'dark'
+        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    }
+  })();
+
+  // Mobile hamburger
+  const ham = document.getElementById('hamburger');
+  const navLinks = document.getElementById('navLinks');
+  if (ham) {
+    ham.addEventListener('click', () => {
+      const open = navLinks.classList.toggle('open');
+      ham.setAttribute('aria-expanded', open);
+    });
+  }
+
+  // Hero tabs
+  document.querySelectorAll('.hero__tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.hero__tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      // For now both tabs go to booking page
+    });
+  });
+
+  // Hero book button — pass addresses to booking page
+  const heroBookBtn = document.getElementById('heroBookBtn');
+  if (heroBookBtn) {
+    heroBookBtn.addEventListener('click', (e) => {
+      const pickup = document.getElementById('heroPickup').value;
+      const dropoff = document.getElementById('heroDropoff').value;
+      if (pickup || dropoff) {
+        e.preventDefault();
+        const params = new URLSearchParams();
+        if (pickup) params.set('pickup', pickup);
+        if (dropoff) params.set('dropoff', dropoff);
+        window.location.href = `/booking?${params.toString()}`;
+      }
+    });
+  }
+
+  // Contact form
+  function handleContactSubmit(e) {
+    e.preventDefault();
+    showToast('Message sent! We\'ll get back to you within 2 hours.', 'success');
+    e.target.reset();
+  }
+
+  // Toast
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+    toast.innerHTML = `
+      <span style="font-size:16px;flex-shrink:0;">${icons[type] || icons.info}</span>
+      <span style="font-size:var(--text-sm);font-weight:500;">${message}</span>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
+  // Intersection observer for animations
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.animation = 'fadeUp 0.5s ease forwards';
+        entry.target.style.opacity = '1';
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.how-step').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

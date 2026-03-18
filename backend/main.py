@@ -248,6 +248,11 @@ def require_admin(admin_session: str = Cookie(default=None)):
 # ============================================================
 
 @app.get("/", response_class=HTMLResponse)
+async def home_page(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/booking", response_class=HTMLResponse)
 async def booking_page(request: Request):
     return templates.TemplateResponse("booking.html", {"request": request})
 

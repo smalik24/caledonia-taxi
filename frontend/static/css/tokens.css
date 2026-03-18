@@ -1,0 +1,194 @@
+/* ============================================
+   CALEDONIA TAXI — Design Tokens
+   Clean / Modern / Uber-inspired aesthetic
+   Premium black + amber gold accent palette
+   ============================================ */
+
+:root, [data-theme="light"] {
+  /* Surfaces — clean off-white */
+  --color-bg:              #f8f8f6;
+  --color-surface:         #ffffff;
+  --color-surface-2:       #fafaf8;
+  --color-surface-offset:  #f2f1ee;
+  --color-surface-offset-2:#e8e7e3;
+  --color-surface-dynamic: #e0deda;
+  --color-divider:         #e4e3df;
+  --color-border:          #d8d7d2;
+
+  /* Text */
+  --color-text:            #111110;
+  --color-text-muted:      #6b6a66;
+  --color-text-faint:      #b0afa9;
+  --color-text-inverse:    #ffffff;
+
+  /* Primary — deep charcoal/black (Uber-style) */
+  --color-primary:         #111110;
+  --color-primary-hover:   #2a2a28;
+  --color-primary-active:  #3d3d3a;
+  --color-primary-highlight: #e4e3df;
+
+  /* Accent — amber gold (taxi iconography) */
+  --color-accent:          #f0a500;
+  --color-accent-hover:    #d99200;
+  --color-accent-active:   #c07f00;
+  --color-accent-highlight:#fff3cc;
+  --color-accent-text:     #111110;
+
+  /* Semantic */
+  --color-success:         #2d7a22;
+  --color-success-hover:   #1f5a18;
+  --color-success-highlight:#d4edcc;
+  --color-error:           #c0392b;
+  --color-error-hover:     #9b2d22;
+  --color-error-highlight: #fde8e6;
+  --color-warning:         #d97706;
+  --color-warning-hover:   #b45309;
+  --color-warning-highlight:#fef3c7;
+  --color-info:            #0369a1;
+  --color-info-highlight:  #e0f2fe;
+
+  /* Status badges */
+  --color-status-pending:  #d97706;
+  --color-status-active:   #2d7a22;
+  --color-status-completed:#0369a1;
+  --color-status-cancelled:#c0392b;
+
+  /* Radii */
+  --radius-sm:  0.375rem;
+  --radius-md:  0.625rem;
+  --radius-lg:  1rem;
+  --radius-xl:  1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full:9999px;
+
+  /* Transitions */
+  --transition-fast:        120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-interactive: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow:        320ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Shadows */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.05);
+  --shadow-xl:  0 24px 48px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.06);
+
+  /* Content widths */
+  --content-narrow:  640px;
+  --content-default: 960px;
+  --content-wide:    1200px;
+  --content-full:    100%;
+
+  /* Type scale */
+  --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
+  --text-sm:   clamp(0.875rem, 0.8rem  + 0.35vw, 1rem);
+  --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
+  --text-lg:   clamp(1.125rem, 1rem    + 0.75vw, 1.5rem);
+  --text-xl:   clamp(1.5rem,   1.2rem  + 1.25vw, 2.25rem);
+  --text-2xl:  clamp(2rem,     1.2rem  + 2.5vw,  3.5rem);
+  --text-3xl:  clamp(2.5rem,   1rem    + 4vw,    5rem);
+  --text-hero: clamp(3rem,     0.5rem  + 7vw,    7rem);
+
+  /* Spacing */
+  --space-1:   0.25rem;
+  --space-2:   0.5rem;
+  --space-3:   0.75rem;
+  --space-4:   1rem;
+  --space-5:   1.25rem;
+  --space-6:   1.5rem;
+  --space-8:   2rem;
+  --space-10:  2.5rem;
+  --space-12:  3rem;
+  --space-16:  4rem;
+  --space-20:  5rem;
+  --space-24:  6rem;
+  --space-32:  8rem;
+
+  /* Fonts */
+  --font-display: 'Cabinet Grotesk', 'Helvetica Neue', sans-serif;
+  --font-body:    'Satoshi', 'Helvetica Neue', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+  --color-bg:              #0e0e0d;
+  --color-surface:         #141413;
+  --color-surface-2:       #1a1a18;
+  --color-surface-offset:  #1f1f1d;
+  --color-surface-offset-2:#252523;
+  --color-surface-dynamic: #2c2c29;
+  --color-divider:         #2a2a27;
+  --color-border:          #363633;
+
+  --color-text:            #f0efeb;
+  --color-text-muted:      #888782;
+  --color-text-faint:      #504f4b;
+  --color-text-inverse:    #111110;
+
+  --color-primary:         #f0efeb;
+  --color-primary-hover:   #ffffff;
+  --color-primary-active:  #d8d7d2;
+  --color-primary-highlight: #2a2a27;
+
+  --color-accent:          #f0a500;
+  --color-accent-hover:    #ffb520;
+  --color-accent-active:   #ffc940;
+  --color-accent-highlight:#2a2200;
+  --color-accent-text:     #0e0e0d;
+
+  --color-success:         #4caf50;
+  --color-success-hover:   #66bb6a;
+  --color-success-highlight:#1a2e1a;
+  --color-error:           #ef5350;
+  --color-error-hover:     #f44336;
+  --color-error-highlight: #2e1a1a;
+  --color-warning:         #ff9800;
+  --color-warning-hover:   #ffa726;
+  --color-warning-highlight:#2e2000;
+  --color-info:            #29b6f6;
+  --color-info-highlight:  #0a1e2e;
+
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.25);
+  --shadow-xl:  0 24px 48px rgba(0,0,0,0.6), 0 8px 16px rgba(0,0,0,0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg:              #0e0e0d;
+    --color-surface:         #141413;
+    --color-surface-2:       #1a1a18;
+    --color-surface-offset:  #1f1f1d;
+    --color-surface-offset-2:#252523;
+    --color-surface-dynamic: #2c2c29;
+    --color-divider:         #2a2a27;
+    --color-border:          #363633;
+    --color-text:            #f0efeb;
+    --color-text-muted:      #888782;
+    --color-text-faint:      #504f4b;
+    --color-text-inverse:    #111110;
+    --color-primary:         #f0efeb;
+    --color-primary-hover:   #ffffff;
+    --color-primary-active:  #d8d7d2;
+    --color-primary-highlight: #2a2a27;
+    --color-accent:          #f0a500;
+    --color-accent-hover:    #ffb520;
+    --color-accent-active:   #ffc940;
+    --color-accent-highlight:#2a2200;
+    --color-accent-text:     #0e0e0d;
+    --color-success:         #4caf50;
+    --color-success-highlight:#1a2e1a;
+    --color-error:           #ef5350;
+    --color-error-highlight: #2e1a1a;
+    --color-warning:         #ff9800;
+    --color-warning-highlight:#2e2000;
+    --shadow-xs:  0 1px 2px rgba(0,0,0,0.3);
+    --shadow-sm:  0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md:  0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+    --shadow-lg:  0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.25);
+    --shadow-xl:  0 24px 48px rgba(0,0,0,0.6), 0 8px 16px rgba(0,0,0,0.3);
+  }
+}
