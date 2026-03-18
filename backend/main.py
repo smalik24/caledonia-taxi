@@ -6,14 +6,23 @@ Includes: bookings, dispatch, SMS, PDF invoicing, heatmap, Voice AI hooks.
 """
 
 import os
+import uuid
 import json
 import asyncio
 import hashlib
-from datetime import datetime, timezone
-from typing import Optional
+import logging
+from datetime import datetime, timezone, timedelta
+from typing import Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Cookie, Depends
+# Structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+)
+logger = logging.getLogger("caledonia")
+
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Cookie, Depends, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, Response, JSONResponse
@@ -25,7 +34,9 @@ from config import (
     SUPABASE_URL, SUPABASE_KEY,
     DISPATCH_TIMEOUT_SECONDS, MAX_DISPATCH_ATTEMPTS,
     ADMIN_PASSWORD, APP_SECRET_KEY, COOKIE_SECURE, ALLOWED_ORIGINS,
-    STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
+    STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY,
+    VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT,
+    PROMO_CODES
 )
 from auth_service import create_session_token, verify_session_token, safe_compare, SESSION_DURATION_SECONDS
 from models import (
@@ -35,8 +46,9 @@ from models import (
 )
 from services import (
     geocode_address, get_route_distance, calculate_fare, find_nearest_driver,
-    haversine_distance
+    haversine_distance, geocode_route, get_current_surge_multiplier
 )
+from oasr_parser import parse_oasr_email
 from sms_service import (
     sms_booking_confirmed, sms_driver_assigned, sms_driver_arrived,
     sms_ride_started, sms_ride_completed, sms_dispatch_failed,
@@ -52,12 +64,24 @@ from scheduler import setup_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚕  Caledonia Taxi API starting — Hamilton, ON")
+    # ── Startup security warnings ────────────────────────────────────────────
+    if APP_SECRET_KEY in ("dev-secret-key", "caledonia-taxi-secret-change-me"):
+        logger.warning("⚠️  APP_SECRET_KEY is using an insecure default. Set a strong random value in production!")
+    if ADMIN_PASSWORD in ("admin1234", "admin", "password", ""):
+        logger.warning("⚠️  ADMIN_PASSWORD is weak or default. Change it before going to production!")
+    if not COOKIE_SECURE:
+        logger.warning("⚠️  COOKIE_SECURE=false — cookies are not HTTPS-only. Set COOKIE_SECURE=true in production!")
+    if not SUPABASE_URL:
+        logger.info("ℹ️  Running in demo mode (no Supabase) — data is in-memory only")
+    if not VAPID_PRIVATE_KEY:
+        logger.warning("⚠️  VAPID_PRIVATE_KEY not set — push notifications disabled")
+
+    logger.info("🚕  Caledonia Taxi API starting — Hamilton, ON")
     sched = setup_scheduler(bookings_db, dispatch_booking, sms_fn=None)
     sched.start()
     yield
     sched.shutdown(wait=False)
-    print("🚕  Caledonia Taxi API stopped.")
+    logger.info("🚕  Caledonia Taxi API stopped.")
 
 
 app = FastAPI(
@@ -74,6 +98,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Security headers middleware ──────────────────────────────────────────────
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"]  = "nosniff"
+        response.headers["X-Frame-Options"]          = "DENY"
+        response.headers["X-XSS-Protection"]         = "1; mode=block"
+        response.headers["Referrer-Policy"]           = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"]        = "geolocation=(), camera=(), microphone=()"
+        # Only set HSTS in production (when COOKIE_SECURE is true)
+        if COOKIE_SECURE:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+# ── Simple in-memory rate limiter for auth endpoints ────────────────────────
+import time as _time
+_auth_attempts: dict[str, list] = {}  # ip -> [timestamp, ...]
+_RATE_LIMIT_WINDOW = 60   # seconds
+_RATE_LIMIT_MAX    = 10   # attempts per window
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if the IP is within rate limit, False if exceeded."""
+    now  = _time.time()
+    hits = _auth_attempts.get(ip, [])
+    hits = [t for t in hits if now - t < _RATE_LIMIT_WINDOW]
+    hits.append(now)
+    _auth_attempts[ip] = hits
+    return len(hits) <= _RATE_LIMIT_MAX
 
 BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "frontend", "templates"))
@@ -130,6 +189,15 @@ drivers_db: dict[str, dict] = {d["id"]: d for d in demo_drivers}
 
 # Dict view of bookings keyed by booking ID (used by scheduler for advance dispatch)
 bookings_db: dict[str, dict] = {}
+
+# Push notification subscriptions keyed by driver_id
+push_subscriptions: dict[str, dict] = {}
+
+# Ratings: list of {booking_id, driver_id, rating, comment, created_at}
+ratings_db: list[dict] = []
+
+# Dispatch log: list of {booking_id, driver_id, action, timestamp}
+dispatch_log: list[dict] = []
 
 
 # ============================================================
@@ -211,10 +279,18 @@ async def track_page(request: Request, booking_id: str):
 
 @app.post("/admin/login")
 async def admin_login(request: Request):
+    # Rate-limit auth endpoint
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(client_ip):
+        logger.warning(f"[Auth] Rate limit exceeded for {client_ip}")
+        raise HTTPException(status_code=429, detail="Too many login attempts. Wait 60 seconds.")
+
     data = await request.json()
     password = data.get("password", "")
     if not safe_compare(password, ADMIN_PASSWORD):
+        logger.warning(f"[Auth] Failed admin login attempt from {client_ip}")
         raise HTTPException(status_code=401, detail="Invalid password")
+
     token = create_session_token(APP_SECRET_KEY)
     response = JSONResponse({"ok": True})
     response.set_cookie(
@@ -223,6 +299,7 @@ async def admin_login(request: Request):
         max_age=SESSION_DURATION_SECONDS,
         secure=COOKIE_SECURE
     )
+    logger.info(f"[Auth] Admin login successful from {client_ip}")
     return response
 
 
@@ -294,21 +371,31 @@ async def get_tracking_data(booking_id: str):
 # FARE ESTIMATE
 # ============================================================
 
-@app.post("/api/estimate-fare", response_model=FareEstimate)
-async def estimate_fare(req: FareEstimateRequest):
-    pickup  = await geocode_address(req.pickup_address)
-    dropoff = await geocode_address(req.dropoff_address)
-    if not pickup or not dropoff:
-        raise HTTPException(400, "Could not geocode one or both addresses")
-    distance = await get_route_distance(
-        pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"]
-    )
-    return FareEstimate(
-        distance_km=distance,
-        estimated_fare=calculate_fare(distance),
-        pickup_coords=pickup,
-        dropoff_coords=dropoff
-    )
+@app.post("/api/estimate-fare")
+async def estimate_fare(request: FareEstimateRequest):
+    # Build full address list: pickup + intermediate stops + dropoff
+    addresses = [request.pickup_address] + list(request.stops or []) + [request.dropoff_address]
+
+    # Geocode all addresses and compute legs
+    legs = await geocode_route(addresses)
+
+    # Get current surge
+    surge_mult = get_current_surge_multiplier(bookings_db, drivers_db)
+
+    # Get promo discount
+    promo_disc = 0.0
+    if request.promo_code:
+        try:
+            from config import get_active_promo_codes
+        except ImportError:
+            from backend.config import get_active_promo_codes
+        for pc in get_active_promo_codes():
+            if pc["code"].upper() == request.promo_code.upper():
+                promo_disc = pc["discount_pct"] / 100.0
+                break
+
+    breakdown = calculate_fare(legs, request.service_type or "standard", surge_mult, promo_disc)
+    return {**breakdown, "legs_geocoded": legs, "surge_multiplier": surge_mult}
 
 
 # ============================================================
@@ -503,12 +590,21 @@ async def dispatch_booking(booking: dict):
         )
         eta_mins = max(1, int((dist_to_pickup / 30) * 60))
 
-        await manager.send_to_driver(did, {
+        ride_msg = {
             "type": "new_ride",
             "booking": booking,
             "timeout_seconds": DISPATCH_TIMEOUT_SECONDS,
             "eta_mins": eta_mins
-        })
+        }
+        await manager.send_to_driver(did, ride_msg)
+
+        # Web Push — fires even when the driver app tab is closed
+        push_payload = {
+            "title":      "🚕 New Ride Request!",
+            "body":       f"{booking.get('pickup_address','Pickup')} → {booking.get('dropoff_address','Drop-off')}  •  ${float(booking.get('estimated_fare',0)):.2f}",
+            "booking_id": bid,
+        }
+        asyncio.create_task(send_push_to_driver(did, push_payload))
         await manager.broadcast("admin", {
             "type": "dispatched",
             "booking_id": bid,
@@ -1398,6 +1494,585 @@ async def _dispatch_vapi_tool(name: str, args: dict) -> dict:
 
     else:
         return {"error": f"Unknown tool: {name}"}
+
+
+# ============================================================
+# PUSH NOTIFICATIONS (Web Push / VAPID)
+# ============================================================
+
+@app.get("/api/push/vapid-public-key")
+async def get_vapid_public_key():
+    """Return the VAPID public key so the driver app can subscribe."""
+    if not VAPID_PUBLIC_KEY:
+        raise HTTPException(503, "Push notifications not configured")
+    return {"public_key": VAPID_PUBLIC_KEY}
+
+
+@app.post("/api/drivers/{driver_id}/push-subscribe")
+async def push_subscribe(driver_id: str, request: Request):
+    """Save a browser push subscription for a driver."""
+    data = await request.json()
+    sub = data.get("subscription")
+    if not sub or "endpoint" not in sub:
+        raise HTTPException(400, "Invalid subscription object")
+    push_subscriptions[driver_id] = sub
+    logger.info(f"[Push] Driver {driver_id} subscribed — {sub['endpoint'][:60]}…")
+    return {"success": True}
+
+
+@app.delete("/api/drivers/{driver_id}/push-subscribe")
+async def push_unsubscribe(driver_id: str):
+    push_subscriptions.pop(driver_id, None)
+    return {"success": True}
+
+
+async def send_push_to_driver(driver_id: str, payload: dict):
+    """Send a Web Push message to a driver's browser even when the tab is closed."""
+    sub = push_subscriptions.get(driver_id)
+    if not sub:
+        return  # driver hasn't subscribed
+
+    if not VAPID_PRIVATE_KEY:
+        logger.warning("[Push] VAPID not configured — skipping push")
+        return
+
+    try:
+        from pywebpush import webpush, WebPushException
+        webpush(
+            subscription_info=sub,
+            data=json.dumps(payload),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": VAPID_SUBJECT},
+        )
+        logger.info(f"[Push] Sent to driver {driver_id}")
+    except Exception as e:
+        logger.error(f"[Push] Failed for driver {driver_id}: {e}")
+
+
+# ============================================================
+# PROMO CODES
+# ============================================================
+
+@app.post("/api/promo/validate")
+async def validate_promo(request: Request):
+    """Validate a promo code and return the discount percentage."""
+    data = await request.json()
+    code = str(data.get("code", "")).strip().upper()
+    if not code:
+        raise HTTPException(400, "No code provided")
+    discount = PROMO_CODES.get(code)
+    if discount is None:
+        raise HTTPException(404, "Invalid or expired promo code")
+    return {"code": code, "discount_percent": discount, "valid": True}
+
+
+# ============================================================
+# DRIVER RATINGS
+# ============================================================
+
+@app.post("/api/bookings/{booking_id}/rate")
+async def rate_driver(booking_id: str, request: Request):
+    """Customer rates their driver after a completed ride (1–5 stars)."""
+    data = await request.json()
+    rating  = int(data.get("rating", 0))
+    comment = str(data.get("comment", "")).strip()[:280]
+
+    if not 1 <= rating <= 5:
+        raise HTTPException(400, "Rating must be between 1 and 5")
+
+    # Check booking exists and is completed
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data:
+            booking = r.data[0]
+    else:
+        booking = next((b for b in demo_bookings if b["id"] == booking_id), None)
+
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    if booking["status"] != "completed":
+        raise HTTPException(400, "Can only rate a completed ride")
+
+    # Prevent duplicate ratings
+    if any(r["booking_id"] == booking_id for r in ratings_db):
+        raise HTTPException(409, "This ride has already been rated")
+
+    driver_id = booking.get("assigned_driver_id")
+    entry = {
+        "booking_id": booking_id,
+        "driver_id":  driver_id,
+        "rating":     rating,
+        "comment":    comment,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    ratings_db.append(entry)
+
+    # Update driver's running average
+    if driver_id:
+        driver_ratings = [r["rating"] for r in ratings_db if r["driver_id"] == driver_id]
+        avg = sum(driver_ratings) / len(driver_ratings)
+        for d in demo_drivers:
+            if d["id"] == driver_id:
+                d["rating"] = round(avg, 2)
+        if db:
+            db.table("drivers").update({"rating": round(avg, 2)}).eq("id", driver_id).execute()
+
+    return {"success": True, "average_rating": round(avg, 2) if driver_id else None}
+
+
+@app.get("/api/drivers/{driver_id}/ratings")
+async def get_driver_ratings(driver_id: str):
+    """Return all ratings for a driver."""
+    driver_ratings = [r for r in ratings_db if r["driver_id"] == driver_id]
+    avg = (sum(r["rating"] for r in driver_ratings) / len(driver_ratings)) if driver_ratings else None
+    return {
+        "driver_id":      driver_id,
+        "ratings":        driver_ratings,
+        "average_rating": round(avg, 2) if avg else None,
+        "total_ratings":  len(driver_ratings),
+    }
+
+
+# ============================================================
+# SURGE PRICING CHECK
+# ============================================================
+
+@app.get("/api/surge")
+async def get_surge_status():
+    """
+    Returns current surge multiplier based on live demand (config-driven thresholds).
+    """
+    multiplier = get_current_surge_multiplier(bookings_db, drivers_db)
+    pending   = sum(1 for b in bookings_db.values() if b.get("status") == "pending")
+    available = sum(1 for d in drivers_db.values()  if d.get("status") == "available")
+    return {
+        "multiplier":        multiplier,
+        "active":            multiplier > 1.0,
+        "pending_count":     pending,
+        "available_drivers": available,
+    }
+
+
+# ============================================================
+# ADMIN — EXTENDED DATA ENDPOINTS
+# ============================================================
+
+@app.get("/api/admin/driver-history", dependencies=[Depends(require_admin)])
+async def admin_driver_history():
+    """Return per-driver trip history with totals for the admin centre."""
+    db = get_db()
+    if db:
+        all_bookings = db.table("bookings").select("*").order("created_at", desc=True).execute().data
+        all_drivers_data = db.table("drivers").select("*").execute().data
+    else:
+        all_bookings    = sorted(demo_bookings, key=lambda b: b["created_at"], reverse=True)
+        all_drivers_data = demo_drivers
+
+    result = []
+    for d in all_drivers_data:
+        did   = d["id"]
+        rides = [b for b in all_bookings if b.get("assigned_driver_id") == did]
+        completed = [b for b in rides if b["status"] == "completed"]
+        total_earnings = sum(float(b.get("actual_fare") or b.get("estimated_fare") or 0) for b in completed)
+        driver_rts = [r for r in ratings_db if r["driver_id"] == did]
+        avg_rating = round(sum(r["rating"] for r in driver_rts) / len(driver_rts), 2) if driver_rts else d.get("rating", 5.0)
+        dispatched_to_driver = [e for e in dispatch_log if e.get("driver_id") == did]
+        accepted_by_driver   = [e for e in dispatched_to_driver if e.get("action") == "accept"]
+        acceptance_rate = round(len(accepted_by_driver) / len(dispatched_to_driver) * 100) if dispatched_to_driver else 100
+        result.append({
+            "id":              did,
+            "name":            d["name"],
+            "phone":           d["phone"],
+            "status":          d["status"],
+            "vehicle":         d.get("vehicle", ""),
+            "plate":           d.get("plate", ""),
+            "rating":          avg_rating,
+            "total_rides":     len(rides),
+            "completed_rides": len(completed),
+            "total_earnings":  round(total_earnings, 2),
+            "acceptance_rate": acceptance_rate,
+            "bookings":        rides[:50],  # cap at 50 per driver
+        })
+    return {"drivers": result}
+
+
+@app.get("/api/admin/revenue", dependencies=[Depends(require_admin)])
+async def admin_revenue(period: str = "day"):
+    """
+    Return revenue grouped by period.
+    period: "day" (last 30 days), "week" (last 12 weeks), "month" (last 12 months)
+    """
+    db = get_db()
+    if db:
+        bookings = db.table("bookings").select("*").eq("status", "completed").execute().data
+    else:
+        bookings = [b for b in demo_bookings if b["status"] == "completed"]
+
+    buckets: dict[str, float] = {}
+    now = datetime.now(timezone.utc)
+
+    for b in bookings:
+        try:
+            created = datetime.fromisoformat(b["created_at"].replace("Z", "+00:00"))
+        except Exception:
+            continue
+        fare = float(b.get("actual_fare") or b.get("estimated_fare") or 0)
+
+        if period == "day":
+            if (now - created).days > 30:
+                continue
+            key = created.strftime("%Y-%m-%d")
+        elif period == "week":
+            if (now - created).days > 84:
+                continue
+            # ISO week key
+            key = f"{created.isocalendar()[0]}-W{created.isocalendar()[1]:02d}"
+        else:  # month
+            if (now - created).days > 365:
+                continue
+            key = created.strftime("%Y-%m")
+
+        buckets[key] = buckets.get(key, 0.0) + fare
+
+    # Sort chronologically
+    sorted_buckets = sorted(buckets.items())
+    total = sum(v for _, v in sorted_buckets)
+    completed_count = len(bookings)
+
+    return {
+        "period":    period,
+        "buckets":   [{"label": k, "revenue": round(v, 2)} for k, v in sorted_buckets],
+        "total":     round(total, 2),
+        "completed": completed_count,
+    }
+
+
+@app.get("/api/admin/receipts", dependencies=[Depends(require_admin)])
+async def admin_receipts(
+    period: str = "all",
+    driver_id: Optional[str] = None,
+):
+    """Return completed bookings (receipts) with optional period and driver filters."""
+    db = get_db()
+    if db:
+        bookings = db.table("bookings").select("*").eq("status", "completed").order("created_at", desc=True).execute().data
+    else:
+        bookings = sorted(
+            [b for b in demo_bookings if b["status"] == "completed"],
+            key=lambda b: b["created_at"], reverse=True
+        )
+
+    now = datetime.now(timezone.utc)
+
+    def _cutoff(days: int) -> datetime:
+        return now - timedelta(days=days)
+
+    if period == "today":
+        cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        cutoff = _cutoff(7)
+    elif period == "month":
+        cutoff = _cutoff(30)
+    else:
+        cutoff = None
+
+    result = []
+    for b in bookings:
+        if driver_id and b.get("assigned_driver_id") != driver_id:
+            continue
+        if cutoff:
+            try:
+                created = datetime.fromisoformat(b["created_at"].replace("Z", "+00:00"))
+                if created < cutoff:
+                    continue
+            except Exception:
+                pass
+        # Attach driver name
+        driver = next((d for d in demo_drivers if d["id"] == b.get("assigned_driver_id")), None)
+        row = dict(b)
+        row["driver_name"] = driver["name"] if driver else "—"
+        result.append(row)
+
+    total_revenue = sum(float(b.get("actual_fare") or b.get("estimated_fare") or 0) for b in result)
+    return {
+        "receipts": result,
+        "count":    len(result),
+        "total_revenue": round(total_revenue, 2),
+    }
+
+
+# ============================================================
+# BOOKING STOPS (add a stop to an in-progress ride)
+# ============================================================
+
+@app.post("/api/bookings/{booking_id}/stops")
+async def add_stop_to_ride(booking_id: str, body: dict = Body(...)):
+    booking = bookings_db.get(booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.get("status") != "in_progress":
+        raise HTTPException(status_code=400, detail="Can only add stops to in-progress rides")
+
+    new_addr = body.get("address", "")
+    lat = body.get("lat")
+    lng = body.get("lng")
+
+    if not lat or not lng:
+        coords = await geocode_address(new_addr)
+        if coords:
+            lat, lng = coords["lat"], coords["lng"]
+
+    stops = list(booking.get("stops", []))
+    stops.append(new_addr)
+    booking["stops"] = stops
+    booking["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Recalculate fare with full updated route
+    all_addresses = [booking["pickup_address"]] + stops + [booking["dropoff_address"]]
+    legs = await geocode_route(all_addresses)
+    breakdown = calculate_fare(legs, booking.get("service_type", "standard"))
+    booking["actual_fare"] = breakdown["total"]
+    booking["fare_breakdown"] = breakdown
+
+    # Broadcast fare update to tracking page
+    await manager.broadcast("admin", {"type": "fare_updated", "booking_id": booking_id,
+                     "fare": breakdown["total"], "breakdown": breakdown})
+
+    return {"booking_id": booking_id, "actual_fare": breakdown["total"], "fare_breakdown": breakdown}
+
+
+# ============================================================
+# FLAT RATES
+# ============================================================
+
+@app.get("/api/flat-rates")
+async def get_flat_rates_endpoint():
+    try:
+        from config import get_flat_rates
+    except ImportError:
+        from backend.config import get_flat_rates
+    return get_flat_rates()
+
+
+@app.post("/api/flat-rates")
+async def set_flat_rate(body: dict = Body(...), _=Depends(require_admin)):
+    try:
+        from config import load_settings, save_settings
+    except ImportError:
+        from backend.config import load_settings, save_settings
+    s = load_settings()
+    s.setdefault("flat_rates", {})[body["city"]] = float(body["price"])
+    save_settings(s)
+    return {"ok": True}
+
+
+@app.delete("/api/flat-rates/{city}")
+async def delete_flat_rate(city: str, _=Depends(require_admin)):
+    try:
+        from config import load_settings, save_settings
+    except ImportError:
+        from backend.config import load_settings, save_settings
+    s = load_settings()
+    s.get("flat_rates", {}).pop(city, None)
+    save_settings(s)
+    return {"ok": True}
+
+
+# ============================================================
+# OASR (Online Advance Service Requests)
+# ============================================================
+
+@app.post("/api/oasr/inbound")
+async def oasr_inbound(request: Request):
+    """Receive OASR email (JSON or SendGrid Inbound Parse form) and create a booking."""
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        data = await request.json()
+        raw = data.get("raw_email", "")
+    else:
+        form = await request.form()
+        raw = form.get("text", "") or form.get("html", "") or ""
+
+    if not raw:
+        raise HTTPException(status_code=400, detail="No email content provided")
+
+    parsed = parse_oasr_email(raw)
+
+    scheduled_for = None
+    if parsed.get("ride_date") and parsed.get("ride_time"):
+        try:
+            scheduled_for = f"{parsed['ride_date']}T{parsed['ride_time']}:00+00:00"
+        except Exception:
+            pass
+
+    booking_id = str(uuid.uuid4())[:8].upper()
+    now = datetime.now(timezone.utc).isoformat()
+    booking = {
+        "id": booking_id,
+        "customer_name": parsed.get("patient_name") or "OASR Patient",
+        "customer_phone": "",
+        "pickup_address": parsed.get("pickup_address") or "",
+        "dropoff_address": parsed.get("dropoff_address") or "",
+        "stops": [],
+        "service_type": "medical",
+        "estimated_fare": 0.0,
+        "actual_fare": 0.0,
+        "status": "needs_review" if parsed.get("needs_review") else "scheduled",
+        "source": "oasr",
+        "oasr_source": True,
+        "needs_review": parsed.get("needs_review", False),
+        "scheduled_for": scheduled_for,
+        "notes": parsed.get("notes"),
+        "created_at": now,
+        "updated_at": now,
+        "assigned_driver_id": None,
+        "payment_method": "cash",
+        "dispatch_attempts": 0,
+        "payment_intent_id": None,
+    }
+    bookings_db[booking_id] = booking
+    logger.info(f"[OASR] Created booking {booking_id} confidence={parsed['confidence']} needs_review={parsed['needs_review']}")
+    return {"booking_id": booking_id, "parsed": parsed, "needs_review": parsed.get("needs_review")}
+
+
+@app.get("/api/admin/oasr")
+async def admin_oasr(_=Depends(require_admin)):
+    oasr_bookings = [b for b in bookings_db.values() if b.get("source") == "oasr"]
+    oasr_bookings.sort(key=lambda b: b.get("created_at", ""), reverse=True)
+    return oasr_bookings
+
+
+# ============================================================
+# DRIVER CRUD (admin)
+# ============================================================
+
+@app.post("/api/drivers")
+async def create_driver_admin(body: dict = Body(...), _=Depends(require_admin)):
+    driver_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    driver = {
+        "id": driver_id,
+        "name": body["name"],
+        "phone": body["phone"],
+        "pin": body["pin"],
+        "vehicle": body.get("vehicle", ""),
+        "plate": body.get("plate", ""),
+        "status": "offline",
+        "latitude": 43.0773,
+        "longitude": -79.9408,
+        "last_location_update": None,
+        "inactive": False,
+        "push_subscriptions": [],
+        "ratings": [],
+        "created_at": now,
+        "updated_at": now,
+    }
+    drivers_db[driver_id] = driver
+    logger.info(f"[Admin] Created driver {driver_id}: {body['name']}")
+    return driver
+
+
+@app.put("/api/drivers/{driver_id}")
+async def update_driver_admin(driver_id: str, body: dict = Body(...), _=Depends(require_admin)):
+    driver = drivers_db.get(driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    for field in ["name", "phone", "pin", "vehicle", "plate"]:
+        if field in body:
+            driver[field] = body[field]
+    driver["updated_at"] = datetime.now(timezone.utc).isoformat()
+    return driver
+
+
+@app.patch("/api/drivers/{driver_id}/deactivate")
+async def deactivate_driver(driver_id: str, _=Depends(require_admin)):
+    driver = drivers_db.get(driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    driver["inactive"] = True
+    driver["status"] = "offline"
+    driver["updated_at"] = datetime.now(timezone.utc).isoformat()
+    logger.info(f"[Admin] Deactivated driver {driver_id}")
+    return {"ok": True}
+
+
+# ============================================================
+# ADMIN — DRIVER LOCATIONS MAP
+# ============================================================
+
+@app.get("/api/admin/driver-locations")
+async def admin_driver_locations(_=Depends(require_admin)):
+    result = []
+    for d in drivers_db.values():
+        if d.get("inactive"):
+            continue
+        active_booking = None
+        for b in bookings_db.values():
+            if b.get("assigned_driver_id") == d["id"] and b.get("status") in ("accepted", "in_progress"):
+                all_stops = [b["pickup_address"]] + list(b.get("stops", [])) + [b["dropoff_address"]]
+                active_booking = {
+                    "id": b["id"],
+                    "customer_name": b.get("customer_name", ""),
+                    "pickup_address": b.get("pickup_address", ""),
+                    "dropoff_address": b.get("dropoff_address", ""),
+                    "stops": list(b.get("stops", [])),
+                    "current_leg": b.get("current_leg", 0),
+                    "total_legs": max(1, len(all_stops) - 1),
+                    "estimated_fare": b.get("estimated_fare", 0),
+                    "waypoints": b.get("waypoints", []),
+                }
+                break
+        result.append({
+            "id": d["id"],
+            "name": d.get("name", ""),
+            "phone": d.get("phone", ""),
+            "vehicle": d.get("vehicle", ""),
+            "plate": d.get("plate", ""),
+            "status": d.get("status", "offline"),
+            "lat": d.get("latitude"),
+            "lng": d.get("longitude"),
+            "last_update": d.get("last_location_update"),
+            "active_booking": active_booking,
+        })
+    return result
+
+
+# ============================================================
+# ADMIN — SETTINGS
+# ============================================================
+
+@app.get("/api/admin/settings")
+async def admin_get_settings(_=Depends(require_admin)):
+    try:
+        from config import load_settings
+    except ImportError:
+        from backend.config import load_settings
+    return load_settings()
+
+
+@app.post("/api/admin/settings")
+async def admin_save_settings(body: dict = Body(...), _=Depends(require_admin)):
+    try:
+        from config import save_settings
+    except ImportError:
+        from backend.config import save_settings
+    save_settings(body)
+    return {"ok": True}
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "version": "2.0.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 # ============================================================
