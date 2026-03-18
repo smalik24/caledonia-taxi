@@ -2,1272 +2,1141 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Caledonia Taxi — Admin</title>
-  <link rel="stylesheet" href="/static/css/design-system.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dispatch Admin — Caledonia Taxi</title>
+
+  <!-- Fonts -->
+  <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
   <style>
-    /* ── Admin extras ─────────────────────────────────────────── */
-    .kpi-value { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--text-primary); }
-    .kpi-label { font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin-top: 4px; }
-    .kpi-card  { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px; }
+  body { overflow: hidden; }
 
-    .activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-sub); }
-    .activity-item:last-child { border-bottom: none; }
-    .activity-dot  { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
-    .activity-dot.green  { background: var(--green); }
-    .activity-dot.amber  { background: var(--amber); }
-    .activity-dot.red    { background: var(--red); }
-    .activity-dot.grey   { background: #444; }
-    .activity-text { font-size: 0.8125rem; color: var(--text-primary); line-height: 1.4; }
-    .activity-time { font-size: 0.6875rem; color: var(--text-muted); margin-top: 2px; }
+  .admin-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    grid-template-rows: 60px 1fr;
+    height: 100svh;
+  }
 
-    .dispatch-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-sub); }
-    .dispatch-row:last-child { border-bottom: none; }
-    .dispatch-info { flex: 1; min-width: 0; }
-    .dispatch-id   { font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 2px; font-family: 'SF Mono', monospace; }
-    .dispatch-route { font-size: 0.8125rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 900px) {
+    .admin-layout { grid-template-columns: 1fr; }
+    .admin-sidebar { display: none; }
+    .admin-sidebar.open { display: flex; position: fixed; left: 0; top: 0; bottom: 0; z-index: 200; width: 260px; }
+  }
 
-    .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; }
-    .bar-col    { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
-    .bar-fill   { width: 100%; background: var(--text-primary); border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.4s; position: relative; cursor: default; }
-    .bar-fill:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); background: #111; color: #fff; font-size: 0.625rem; white-space: nowrap; padding: 3px 6px; border-radius: 4px; pointer-events: none; z-index: 10; border: 1px solid var(--border); }
-    .bar-lbl    { font-size: 0.5625rem; color: var(--text-muted); white-space: nowrap; }
+  /* SIDEBAR */
+  .admin-sidebar {
+    grid-row: 1 / -1;
+    grid-column: 1;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-    .driver-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; }
-    .driver-card + .driver-card { margin-top: 8px; }
-    .driver-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--text-primary); color: var(--bg); font-weight: 800; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .driver-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .driver-stat  { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; }
-    .driver-stat .ds-val { font-weight: 700; color: var(--text-primary); }
-    .driver-stat .ds-lbl { color: var(--text-muted); font-size: 0.625rem; }
+  [data-theme="dark"] .admin-sidebar {
+    background: var(--color-surface-offset);
+    color: var(--color-text);
+    border-right: 1px solid var(--color-border);
+  }
 
-    .period-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
-    .period-pill  { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; transition: all var(--transition); }
-    .period-pill:hover  { border-color: var(--text-primary); color: var(--text-primary); }
-    .period-pill.active { background: var(--text-primary); border-color: var(--text-primary); color: var(--bg); }
+  .sidebar-logo {
+    padding: var(--space-5) var(--space-5) var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    color: inherit;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
 
-    .filter-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
-    .filter-pill  { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; transition: all var(--transition); }
-    .filter-pill:hover  { border-color: var(--text-primary); color: var(--text-primary); }
-    .filter-pill.active { background: var(--text-primary); border-color: var(--text-primary); color: var(--bg); }
+  [data-theme="dark"] .sidebar-logo { border-bottom-color: var(--color-border); }
 
-    .settings-section { margin-bottom: 24px; }
-    .settings-section h3 { font-size: 0.9375rem; font-weight: 700; margin-bottom: 12px; }
-    .flat-rate-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-sub); }
-    .flat-rate-row:last-child { border-bottom: none; }
-    .flat-rate-dest { flex: 1; font-size: 0.875rem; }
-    .flat-rate-price { font-size: 0.875rem; font-weight: 700; color: var(--text-primary); width: 70px; }
-    .promo-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-sub); }
-    .promo-row:last-child { border-bottom: none; }
-    .promo-code { font-family: 'SF Mono', monospace; font-size: 0.875rem; font-weight: 700; flex: 1; }
-    .promo-pct  { font-size: 0.8125rem; color: var(--text-secondary); width: 50px; }
+  .sidebar-section {
+    padding: var(--space-4) var(--space-3);
+    flex: 1;
+    overflow-y: auto;
+  }
 
-    .oasr-card { background: var(--surface-1); border: 1px solid var(--border); border-left: 3px solid var(--amber); border-radius: var(--radius-card); padding: 14px 16px; margin-bottom: 8px; }
-    .oasr-card.needs-review { border-left-color: var(--red); }
-    .oasr-card.scheduled    { border-left-color: var(--green); }
+  .sidebar-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-1);
+  }
 
-    .receipt-table-wrap { overflow-x: auto; }
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: all var(--transition-interactive);
+    text-decoration: none;
+  }
 
-    .export-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  [data-theme="dark"] .sidebar-link { color: var(--color-text-muted); }
 
-    #trackingMap { height: calc(100vh - 220px); min-height: 400px; border-radius: var(--radius-card); overflow: hidden; }
-    .tracking-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-secondary); }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .sidebar-link:hover, .sidebar-link.active {
+    background: rgba(255,255,255,0.1);
+    color: white;
+  }
 
-    /* Drawer edit form */
-    .drawer-form .form-group + .form-group { margin-top: 12px; }
+  [data-theme="dark"] .sidebar-link:hover,
+  [data-theme="dark"] .sidebar-link.active {
+    background: var(--color-surface-dynamic);
+    color: var(--color-text);
+  }
+
+  .sidebar-link.active {
+    background: rgba(255,255,255,0.15);
+    font-weight: 700;
+  }
+
+  .sidebar-link .badge {
+    margin-left: auto;
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    font-size: 10px;
+    padding: 1px 6px;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .sidebar-bottom {
+    padding: var(--space-4) var(--space-3);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+  }
+
+  [data-theme="dark"] .sidebar-bottom { border-top-color: var(--color-border); }
+
+  /* TOP BAR */
+  .admin-topbar {
+    grid-column: 2;
+    grid-row: 1;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline: var(--space-6);
+    gap: var(--space-4);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 900px) {
+    .admin-topbar { grid-column: 1; }
+  }
+
+  .topbar-title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-shrink: 0;
+  }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-success);
+    padding: var(--space-1) var(--space-3);
+    background: var(--color-success-highlight);
+    border-radius: var(--radius-full);
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--color-success);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  /* MAIN CONTENT */
+  .admin-content {
+    grid-column: 2;
+    grid-row: 2;
+    overflow-y: auto;
+    background: var(--color-bg);
+  }
+
+  @media (max-width: 900px) {
+    .admin-content { grid-column: 1; }
+  }
+
+  /* LOGIN OVERLAY */
+  .admin-login-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--color-bg);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+  }
+
+  .admin-login-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-8);
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-xl);
+    text-align: center;
+  }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr 1fr; } }
+
+  .kpi-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+  }
+
+  .kpi-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-2);
+  }
+
+  .kpi-value {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--color-text);
+    line-height: 1;
+    margin-bottom: var(--space-2);
+  }
+
+  .kpi-change {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .kpi-change.up { color: var(--color-success); }
+  .kpi-change.down { color: var(--color-error); }
+
+  /* CONTENT PANELS */
+  .admin-panel { display: none; }
+  .admin-panel.active { display: block; }
+
+  .panel-header {
+    padding: var(--space-5) var(--space-6) var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .panel-title {
+    font-size: var(--text-lg);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .panel-body { padding: 0 var(--space-6) var(--space-6); }
+
+  /* DRIVER GRID */
+  .driver-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .driver-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    transition: box-shadow var(--transition-interactive), transform var(--transition-interactive);
+  }
+
+  .driver-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+  .driver-card__top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .driver-card__avatar {
+    width: 44px;
+    height: 44px;
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-accent-text);
+    flex-shrink: 0;
+  }
+
+  .driver-card__name { font-weight: 700; font-size: var(--text-sm); }
+  .driver-card__phone { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .driver-card__status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+  }
+
+  .driver-card__meta {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  .driver-meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  /* BOOKINGS TABLE */
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-xs);
+  }
+
+  /* BOOKING ROW ACTIONS */
+  .row-actions { display: flex; gap: var(--space-2); }
+
+  /* QUICK ACTION PANEL */
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+  }
+
+  .quick-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    cursor: pointer;
+    transition: all var(--transition-interactive);
+    text-decoration: none;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .quick-action:hover {
+    background: var(--color-surface-offset);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .quick-action__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .qa--amber .quick-action__icon { background: var(--color-accent-highlight); color: var(--color-accent); }
+  .qa--green  .quick-action__icon { background: var(--color-success-highlight); color: var(--color-success); }
+  .qa--blue   .quick-action__icon { background: var(--color-info-highlight); color: var(--color-info); }
+  .qa--red    .quick-action__icon { background: var(--color-error-highlight); color: var(--color-error); }
+  .qa--purple .quick-action__icon { background: #f0eeff; color: #7c3aed; }
+  [data-theme="dark"] .qa--purple .quick-action__icon { background: #1a1030; color: #a78bfa; }
+
+  /* ALERT/FLASH BANNER */
+  .alert-banner {
+    background: var(--color-warning-highlight);
+    border-left: 4px solid var(--color-warning);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-warning);
+    margin-bottom: var(--space-4);
+  }
+
+  /* Search / filter bar */
+  .filter-bar {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: var(--space-4);
+  }
+
+  .filter-bar input { max-width: 240px; }
+
+  .filter-chips {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    transition: all var(--transition-interactive);
+    text-transform: capitalize;
+  }
+
+  .chip.active, .chip:hover {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+  }
+
+  [data-theme="dark"] .chip.active,
+  [data-theme="dark"] .chip:hover {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    border-color: var(--color-accent);
+  }
+
+  /* SMS log */
+  .sms-log {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .sms-item {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+  }
+
+  .sms-item__time { color: var(--color-text-faint); white-space: nowrap; flex-shrink: 0; }
+  .sms-item__to { color: var(--color-text-muted); flex-shrink: 0; min-width: 120px; }
+  .sms-item__msg { color: var(--color-text); }
   </style>
 </head>
 <body>
-<script>window.__adminAuthed = {{ 'true' if authed else 'false' }};</script>
-
-<!-- ═══════════════════════════════ LOGIN GATE ═══════════════════════════════ -->
-<div id="loginGate" class="login-page" style="display:none">
-  <div class="login-box">
-    <div class="login-logo">Caledonia<span> Taxi</span></div>
-    <h1 class="login-title">Admin</h1>
-    <p class="login-sub">Sign in to the operations dashboard</p>
-    <div class="login-form">
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" id="adminPassword" class="form-input" placeholder="Enter admin password"
-          autocomplete="current-password" onkeydown="if(event.key==='Enter')adminLogin()">
-      </div>
-      <div id="loginError" class="mt-2" style="color:var(--red);font-size:.8125rem;display:none"></div>
-      <button onclick="adminLogin()" class="btn btn-primary btn--full mt-4">Sign In</button>
-    </div>
-    <p class="login-footer">Caledonia Taxi Dispatch System</p>
-  </div>
-</div>
-
-<script>
-(function(){ if(!window.__adminAuthed){ document.getElementById('loginGate').style.display='flex'; } })();
-async function adminLogin() {
-  const pw = document.getElementById('adminPassword').value;
-  const err = document.getElementById('loginError');
-  err.style.display = 'none';
-  try {
-    const r = await fetch('/admin/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({password: pw}), credentials: 'include' });
-    if (!r.ok) throw new Error();
-    location.reload();
-  } catch(e) {
-    err.textContent = 'Invalid password. Try again.';
-    err.style.display = 'block';
-  }
-}
-</script>
-
-<!-- ════════════════════════════════ ADMIN PANEL ════════════════════════════════ -->
-<div id="adminPanel" style="display:none">
-  <header class="site-header">
-    <div class="site-header__inner">
-      <div class="site-header__logo">Caledonia Taxi — Admin</div>
-      <div class="site-header__actions">
-        <a href="/admin/logout" class="btn btn-secondary btn--sm">Sign out</a>
-      </div>
-    </div>
-  </header>
-
-  <div class="page-wrap--wide page-content">
-
-    <!-- Tab bar -->
-    <div class="tab-bar mb-4">
-      <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
-      <button class="tab-btn" onclick="switchTab('orders')">Orders</button>
-      <button class="tab-btn" onclick="switchTab('tracking')">Tracking</button>
-      <button class="tab-btn" onclick="switchTab('oasr')">OASR</button>
-      <button class="tab-btn" onclick="switchTab('revenue')">Revenue</button>
-      <button class="tab-btn" onclick="switchTab('drivers')">Drivers</button>
-      <button class="tab-btn" onclick="switchTab('receipts')">Receipts</button>
-      <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
-    </div>
-
-    <!-- ──────────────────────────── DASHBOARD TAB ──────────────────────────── -->
-    <div id="tab-dashboard" class="tab-panel active">
-      <!-- KPI grid -->
-      <div class="kpi-grid mb-4" id="kpiGrid">
-        <div class="kpi-card">
-          <div class="kpi-value" id="kpi-bookings">—</div>
-          <div class="kpi-label">Today's Bookings</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value" id="kpi-revenue">—</div>
-          <div class="kpi-label">Today's Revenue</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value" id="kpi-drivers">—</div>
-          <div class="kpi-label">Active Drivers</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value" id="kpi-pending">—</div>
-          <div class="kpi-label">Pending</div>
-        </div>
-      </div>
-
-      <div class="grid-2 gap-4">
-        <!-- Activity feed -->
-        <div class="card">
-          <div class="card__header">
-            <span class="card__title">Live Activity</span>
-            <span class="badge badge-green" style="font-size:.625rem">● LIVE</span>
-          </div>
-          <div id="activityFeed" style="max-height:320px;overflow-y:auto;margin-top:12px"></div>
-        </div>
-
-        <!-- Quick dispatch -->
-        <div class="card">
-          <div class="card__header">
-            <span class="card__title">Quick Dispatch</span>
-            <button class="btn btn-secondary btn--sm" onclick="loadDashboard()">↻ Refresh</button>
-          </div>
-          <div id="dispatchList" style="margin-top:12px"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ──────────────────────────── ORDERS TAB ──────────────────────────── -->
-    <div id="tab-orders" class="tab-panel">
-      <div class="flex items-center justify-between mb-4">
-        <h2>Orders</h2>
-        <div class="export-bar">
-          <button class="btn btn-secondary btn--sm" onclick="exportOrdersExcel()">📥 Export Excel</button>
-        </div>
-      </div>
-
-      <!-- Status filter -->
-      <div class="filter-pills" id="statusFilter">
-        <button class="filter-pill active" onclick="setStatusFilter('all', this)">All</button>
-        <button class="filter-pill" onclick="setStatusFilter('pending', this)">Pending</button>
-        <button class="filter-pill" onclick="setStatusFilter('dispatched', this)">Dispatched</button>
-        <button class="filter-pill" onclick="setStatusFilter('in_progress', this)">Active</button>
-        <button class="filter-pill" onclick="setStatusFilter('completed', this)">Completed</button>
-        <button class="filter-pill" onclick="setStatusFilter('cancelled', this)">Cancelled</button>
-      </div>
-
-      <!-- Period filter -->
-      <div class="period-pills" id="periodFilter">
-        <button class="period-pill active" onclick="setPeriodFilter('today', this)">Today</button>
-        <button class="period-pill" onclick="setPeriodFilter('week', this)">Week</button>
-        <button class="period-pill" onclick="setPeriodFilter('month', this)">Month</button>
-        <button class="period-pill" onclick="setPeriodFilter('all', this)">All Time</button>
-      </div>
-
-      <div style="overflow-x:auto">
-        <table class="data-table" id="ordersTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Type</th>
-              <th>Customer</th>
-              <th>Route</th>
-              <th>Status</th>
-              <th>Driver</th>
-              <th>Fare</th>
-              <th>Time</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="ordersBody">
-            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ──────────────────────────── TRACKING TAB ──────────────────────────── -->
-    <div id="tab-tracking" class="tab-panel">
-      <div class="flex items-center justify-between mb-3">
-        <h2>Live Tracking</h2>
-        <button class="btn btn-secondary btn--sm" onclick="refreshDriverLocations()">↻ Refresh</button>
-      </div>
-
-      <div class="tracking-legend mb-3">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Available</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>On a ride</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#444"></div>Offline</div>
-      </div>
-
-      <div id="trackingMap"></div>
-
-      <!-- Driver side drawer -->
-      <div class="right-drawer" id="driverDrawer">
-        <button class="drawer-close" onclick="closeDriverDrawer()">×</button>
-        <div class="drawer-body" id="driverDrawerContent"></div>
-      </div>
-    </div>
-
-    <!-- ──────────────────────────── OASR TAB ──────────────────────────── -->
-    <div id="tab-oasr" class="tab-panel">
-      <h2 class="mb-4">OASR Medical Bookings</h2>
-
-      <!-- Parse form -->
-      <div class="card mb-4">
-        <h3 class="mb-3" style="font-size:.9375rem">Parse Incoming Email</h3>
+  <!-- ADMIN LOGIN OVERLAY -->
+  <div class="admin-login-overlay" id="loginOverlay">
+    <div class="admin-login-card">
+      <svg width="48" height="48" viewBox="0 0 36 36" fill="none" style="margin:0 auto var(--space-5)">
+        <rect width="36" height="36" rx="10" fill="#F0A500"/>
+        <path d="M7 23L11 13H25L29 23" stroke="#111110" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M5 23H31" stroke="#111110" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="10" cy="25.5" r="2.5" fill="#111110"/>
+        <circle cx="26" cy="25.5" r="2.5" fill="#111110"/>
+        <path d="M16 13V9H20V13" stroke="#111110" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <h1 style="font-size:var(--text-xl);font-weight:800;margin-bottom:var(--space-2)">Admin Login</h1>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-6)">Dispatch management dashboard</p>
+      <form id="adminLoginForm" style="display:flex;flex-direction:column;gap:var(--space-4);text-align:left">
         <div class="form-group">
-          <label class="form-label">Paste OASR email text</label>
-          <textarea id="oasrEmailText" class="form-input" rows="6" placeholder="Paste the full OASR email text here…" style="resize:vertical"></textarea>
+          <label class="form-label" for="adminPass">Admin Password</label>
+          <input type="password" id="adminPass" class="form-input" placeholder="Enter admin password" value="admin1234" required>
         </div>
-        <div class="flex gap-2 mt-3">
-          <button onclick="parseOasrEmail()" class="btn btn-primary">Parse & Create Booking</button>
-          <button onclick="clearOasrForm()" class="btn btn-secondary">Clear</button>
-        </div>
-        <div id="oasrParseResult" class="mt-3" style="font-size:.8125rem;display:none"></div>
-      </div>
-
-      <!-- OASR bookings list -->
-      <div class="flex items-center justify-between mb-3">
-        <h3 style="font-size:.9375rem">OASR Bookings</h3>
-        <button class="btn btn-secondary btn--sm" onclick="loadOasrBookings()">↻ Refresh</button>
-      </div>
-      <div id="oasrList"></div>
+        <button type="submit" class="btn btn--primary btn--lg" style="justify-content:center">
+          <i data-lucide="lock" width="18" height="18"></i>
+          Sign In to Dispatch
+        </button>
+        <div id="adminLoginError" style="display:none;color:var(--color-error);font-size:var(--text-sm);text-align:center"></div>
+      </form>
     </div>
+  </div>
 
-    <!-- ──────────────────────────── REVENUE TAB ──────────────────────────── -->
-    <div id="tab-revenue" class="tab-panel">
-      <div class="flex items-center justify-between mb-4">
-        <h2>Revenue</h2>
-        <button class="btn btn-secondary btn--sm" onclick="exportRevenueExcel()">📥 Export Excel</button>
+  <!-- MAIN ADMIN LAYOUT -->
+  <div class="admin-layout">
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar" id="adminSidebar">
+      <a href="/" class="sidebar-logo">
+        <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
+          <rect width="36" height="36" rx="10" fill="#F0A500"/>
+          <path d="M7 23L11 13H25L29 23" stroke="#111110" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M5 23H31" stroke="#111110" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="10" cy="25.5" r="2.5" fill="#111110"/>
+          <circle cx="26" cy="25.5" r="2.5" fill="#111110"/>
+          <path d="M16 13V9H20V13" stroke="#111110" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Dispatch
+      </a>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Operations</div>
+        <button class="sidebar-link active" onclick="showPanel('overview')" id="navOverview">
+          <i data-lucide="layout-dashboard" width="16" height="16"></i>
+          Overview
+        </button>
+        <button class="sidebar-link" onclick="showPanel('bookings')" id="navBookings">
+          <i data-lucide="list-ordered" width="16" height="16"></i>
+          Bookings
+          <span class="badge" id="pendingBadge">0</span>
+        </button>
+        <button class="sidebar-link" onclick="showPanel('drivers')" id="navDrivers">
+          <i data-lucide="car" width="16" height="16"></i>
+          Drivers
+        </button>
+        <button class="sidebar-link" onclick="showPanel('dispatch')" id="navDispatch">
+          <i data-lucide="radio-tower" width="16" height="16"></i>
+          Dispatch
+        </button>
+
+        <div class="sidebar-label" style="margin-top:var(--space-4)">Analytics</div>
+        <button class="sidebar-link" onclick="showPanel('earnings')" id="navEarnings">
+          <i data-lucide="bar-chart-2" width="16" height="16"></i>
+          Earnings
+        </button>
+        <a href="/heatmap" class="sidebar-link">
+          <i data-lucide="map" width="16" height="16"></i>
+          Heatmap
+        </a>
+        <button class="sidebar-link" onclick="showPanel('sms')" id="navSms">
+          <i data-lucide="message-square" width="16" height="16"></i>
+          SMS Log
+        </button>
       </div>
-
-      <div class="period-pills" id="revPeriodFilter">
-        <button class="period-pill active" onclick="setRevPeriod('week', this)">7 Days</button>
-        <button class="period-pill" onclick="setRevPeriod('month', this)">30 Days</button>
-        <button class="period-pill" onclick="setRevPeriod('quarter', this)">Quarter</button>
-        <button class="period-pill" onclick="setRevPeriod('year', this)">Year</button>
+      <div class="sidebar-bottom">
+        <button class="sidebar-link" onclick="adminLogout()">
+          <i data-lucide="log-out" width="16" height="16"></i>
+          Sign Out
+        </button>
+        <p style="font-size:10px;opacity:0.35;margin-top:var(--space-3);text-align:center">
+          Caledonia Taxi Dispatch v3
+        </p>
       </div>
+    </aside>
 
-      <!-- Revenue KPIs -->
-      <div class="kpi-grid mb-4" id="revKpiGrid">
-        <div class="kpi-card"><div class="kpi-value" id="rev-total">—</div><div class="kpi-label">Total Revenue</div></div>
-        <div class="kpi-card"><div class="kpi-value" id="rev-trips">—</div><div class="kpi-label">Total Trips</div></div>
-        <div class="kpi-card"><div class="kpi-value" id="rev-avg">—</div><div class="kpi-label">Avg Fare</div></div>
-        <div class="kpi-card"><div class="kpi-value" id="rev-top">—</div><div class="kpi-label">Top Day</div></div>
-      </div>
-
-      <!-- Bar chart -->
-      <div class="card mb-4">
-        <div class="card__title mb-3">Daily Breakdown</div>
-        <div class="bar-chart" id="revChart"></div>
-      </div>
-
-      <!-- Service split -->
-      <div class="card mb-4">
-        <div class="card__title mb-3">By Service Type</div>
-        <div id="serviceSplit"></div>
-      </div>
-
-      <!-- Daily table -->
-      <div style="overflow-x:auto">
-        <table class="data-table" id="revTable">
-          <thead><tr><th>Date</th><th>Trips</th><th>Revenue</th><th>Avg Fare</th></tr></thead>
-          <tbody id="revBody"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ──────────────────────────── DRIVERS TAB ──────────────────────────── -->
-    <div id="tab-drivers" class="tab-panel">
-      <div class="flex items-center justify-between mb-4">
-        <h2>Drivers</h2>
-        <button class="btn btn-primary btn--sm" onclick="openDriverDrawer(null)">+ Add Driver</button>
-      </div>
-      <div id="driversList"></div>
-
-      <!-- Driver edit drawer -->
-      <div class="right-drawer" id="editDriverDrawer">
-        <button class="drawer-close" onclick="closeEditDriverDrawer()">×</button>
-        <div class="drawer-body">
-          <h3 class="mb-4" id="driverDrawerTitle">Add Driver</h3>
-          <div class="drawer-form">
-            <input type="hidden" id="driverEditId">
-            <div class="form-group">
-              <label class="form-label">Full Name</label>
-              <input type="text" id="driverEditName" class="form-input" placeholder="Driver name">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Phone</label>
-              <input type="tel" id="driverEditPhone" class="form-input" placeholder="+1 905 000 0000">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Vehicle</label>
-              <input type="text" id="driverEditVehicle" class="form-input" placeholder="e.g. Toyota Camry 2022">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Plate</label>
-              <input type="text" id="driverEditPlate" class="form-input" placeholder="e.g. ABCD 123">
-            </div>
-            <div class="flex gap-2 mt-4">
-              <button class="btn btn-primary flex-1" onclick="saveDriver()">Save</button>
-              <button class="btn btn-secondary" onclick="closeEditDriverDrawer()">Cancel</button>
-            </div>
-            <button id="deactivateDriverBtn" class="btn btn-secondary btn--full mt-3" style="border-color:var(--red);color:var(--red);display:none" onclick="deactivateDriver()">Deactivate Driver</button>
-          </div>
-          <div id="driverEditError" class="mt-3" style="color:var(--red);font-size:.8125rem;display:none"></div>
+    <!-- TOP BAR -->
+    <div class="admin-topbar">
+      <div class="topbar-title" id="panelTitle">Overview</div>
+      <div class="topbar-right">
+        <div class="live-indicator">
+          <div class="live-dot"></div>
+          <span id="lastUpdate">Live</span>
         </div>
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
       </div>
     </div>
 
-    <!-- ──────────────────────────── RECEIPTS TAB ──────────────────────────── -->
-    <div id="tab-receipts" class="tab-panel">
-      <div class="flex items-center justify-between mb-4">
-        <h2>Receipts</h2>
-        <button class="btn btn-secondary btn--sm" onclick="exportReceiptsExcel()">📥 Export Excel</button>
-      </div>
+    <!-- CONTENT -->
+    <main class="admin-content">
 
-      <!-- Filters -->
-      <div class="card mb-4">
-        <div class="grid-3 gap-3">
-          <div class="form-group">
-            <label class="form-label">Driver</label>
-            <select id="receiptDriverFilter" class="form-input" onchange="loadReceipts()">
-              <option value="">All Drivers</option>
-            </select>
+      <!-- OVERVIEW PANEL -->
+      <div class="admin-panel active" id="panelOverview">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Active Bookings</div>
+            <div class="kpi-value" id="kpiActive">0</div>
+            <div class="kpi-change up"><i data-lucide="trending-up" width="12" height="12"></i> Live</div>
           </div>
-          <div class="form-group">
-            <label class="form-label">From</label>
-            <input type="date" id="receiptDateFrom" class="form-input" onchange="loadReceipts()">
+          <div class="kpi-card">
+            <div class="kpi-label">Available Drivers</div>
+            <div class="kpi-value" id="kpiAvailable">0</div>
+            <div class="kpi-change" id="kpiDriverChange">— online</div>
           </div>
-          <div class="form-group">
-            <label class="form-label">To</label>
-            <input type="date" id="receiptDateTo" class="form-input" onchange="loadReceipts()">
+          <div class="kpi-card">
+            <div class="kpi-label">Today's Revenue</div>
+            <div class="kpi-value" id="kpiRevenue">$0</div>
+            <div class="kpi-change up"><i data-lucide="trending-up" width="12" height="12"></i> Today</div>
           </div>
-        </div>
-      </div>
-
-      <div class="receipt-table-wrap">
-        <table class="data-table" id="receiptsTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Customer</th>
-              <th>Driver</th>
-              <th>Route</th>
-              <th>Fare</th>
-              <th>Date</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="receiptsBody">
-            <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ──────────────────────────── SETTINGS TAB ──────────────────────────── -->
-    <div id="tab-settings" class="tab-panel">
-      <div class="flex items-center justify-between mb-4">
-        <h2>Settings</h2>
-        <button class="btn btn-primary btn--sm" onclick="saveAllSettings()">Save All</button>
-      </div>
-
-      <div class="grid-2 gap-4">
-
-        <!-- Pricing -->
-        <div class="card settings-section">
-          <h3>Pricing</h3>
-          <div class="form-group">
-            <label class="form-label">Base Fare ($)</label>
-            <input type="number" id="s-base-fare" class="form-input" step="0.01" min="0">
-          </div>
-          <div class="form-group mt-3">
-            <label class="form-label">Per KM Rate ($)</label>
-            <input type="number" id="s-per-km" class="form-input" step="0.01" min="0">
-          </div>
-          <div class="form-group mt-3">
-            <label class="form-label">Minimum Fare ($)</label>
-            <input type="number" id="s-min-fare" class="form-input" step="0.01" min="0">
-          </div>
-          <div class="form-group mt-3">
-            <label class="form-label">Stop Surcharge ($)</label>
-            <input type="number" id="s-stop-surcharge" class="form-input" step="0.01" min="0">
+          <div class="kpi-card">
+            <div class="kpi-label">Today's Rides</div>
+            <div class="kpi-value" id="kpiRides">0</div>
+            <div class="kpi-change up">Completed</div>
           </div>
         </div>
 
-        <!-- Surge pricing -->
-        <div class="card settings-section">
-          <h3>Surge Pricing</h3>
-          <div class="form-group">
-            <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-              <input type="checkbox" id="s-surge-enabled" style="width:16px;height:16px">
-              Enable Surge Pricing
-            </label>
-          </div>
-          <div class="divider mt-3 mb-3"></div>
-          <div class="label mb-2">Tier 1 (1.5×)</div>
-          <div class="grid-2 gap-3">
-            <div class="form-group">
-              <label class="form-label">Pending ≥</label>
-              <input type="number" id="s-t1-pending" class="form-input" min="1" step="1">
+        <!-- Quick actions -->
+        <div class="panel-header">
+          <div class="panel-title">Quick Actions</div>
+        </div>
+        <div class="panel-body">
+          <div class="quick-actions">
+            <div class="quick-action qa--amber" onclick="showPanel('bookings')">
+              <div class="quick-action__icon"><i data-lucide="plus-circle" width="22" height="22"></i></div>
+              New Booking
             </div>
-            <div class="form-group">
-              <label class="form-label">Available ≤</label>
-              <input type="number" id="s-t1-avail" class="form-input" min="0" step="1">
+            <div class="quick-action qa--green" onclick="showPanel('drivers')">
+              <div class="quick-action__icon"><i data-lucide="car" width="22" height="22"></i></div>
+              Drivers
+            </div>
+            <div class="quick-action qa--blue" onclick="showPanel('dispatch')">
+              <div class="quick-action__icon"><i data-lucide="radio-tower" width="22" height="22"></i></div>
+              Dispatch
+            </div>
+            <a href="/heatmap" class="quick-action qa--red">
+              <div class="quick-action__icon"><i data-lucide="map-pin" width="22" height="22"></i></div>
+              Heatmap
+            </a>
+            <div class="quick-action qa--purple" onclick="showPanel('sms')">
+              <div class="quick-action__icon"><i data-lucide="message-square" width="22" height="22"></i></div>
+              SMS Log
+            </div>
+            <div class="quick-action qa--amber" onclick="showPanel('earnings')">
+              <div class="quick-action__icon"><i data-lucide="bar-chart-2" width="22" height="22"></i></div>
+              Earnings
             </div>
           </div>
-          <div class="label mb-2 mt-3">Tier 2 (2×)</div>
-          <div class="grid-2 gap-3">
-            <div class="form-group">
-              <label class="form-label">Pending ≥</label>
-              <input type="number" id="s-t2-pending" class="form-input" min="1" step="1">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Available ≤</label>
-              <input type="number" id="s-t2-avail" class="form-input" min="0" step="1">
-            </div>
+
+          <!-- Recent bookings mini table -->
+          <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Recent Bookings</div>
+          <div class="table-wrapper">
+            <table class="data-table" id="recentBookingsTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Customer</th>
+                  <th>Pickup</th>
+                  <th>Status</th>
+                  <th>Fare</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="recentBookingsTbody">
+                <tr><td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">Loading bookings…</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
-
-        <!-- Flat rates -->
-        <div class="card settings-section">
-          <h3>Long Distance Flat Rates</h3>
-          <div id="flatRatesList"></div>
-          <div class="divider mt-3 mb-3"></div>
-          <div class="flex gap-2">
-            <input type="text" id="newFlatDest" class="form-input" placeholder="Destination" style="flex:2">
-            <input type="number" id="newFlatPrice" class="form-input" placeholder="$" step="0.01" style="flex:1">
-            <button class="btn btn-primary btn--sm" onclick="addFlatRate()">Add</button>
-          </div>
-        </div>
-
-        <!-- Promo codes -->
-        <div class="card settings-section">
-          <h3>Promo Codes</h3>
-          <div id="promoList"></div>
-          <div class="divider mt-3 mb-3"></div>
-          <div class="flex gap-2">
-            <input type="text" id="newPromoCode" class="form-input" placeholder="CODE" style="flex:2;text-transform:uppercase">
-            <input type="number" id="newPromoDiscount" class="form-input" placeholder="%" min="1" max="100" step="1" style="flex:1">
-            <button class="btn btn-primary btn--sm" onclick="addPromoCode()">Add</button>
-          </div>
-        </div>
-
       </div>
 
-      <div id="settingsSaveMsg" class="mt-4" style="font-size:.875rem;display:none"></div>
-    </div>
+      <!-- BOOKINGS PANEL -->
+      <div class="admin-panel" id="panelBookings">
+        <div class="panel-header">
+          <div class="panel-title">Bookings</div>
+          <div style="display:flex;gap:var(--space-2)">
+            <button class="btn btn--accent" onclick="openNewBookingModal()">
+              <i data-lucide="plus" width="16" height="16"></i>
+              New Booking
+            </button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="filter-bar">
+            <input type="text" class="form-input" id="searchBookings" placeholder="Search by name, phone, address…" oninput="filterBookings()">
+            <div class="filter-chips" id="statusChips">
+              <div class="chip active" onclick="filterByStatus('all', this)">All</div>
+              <div class="chip" onclick="filterByStatus('pending', this)">Pending</div>
+              <div class="chip" onclick="filterByStatus('dispatched', this)">Dispatched</div>
+              <div class="chip" onclick="filterByStatus('accepted', this)">Accepted</div>
+              <div class="chip" onclick="filterByStatus('in_progress', this)">In Progress</div>
+              <div class="chip" onclick="filterByStatus('completed', this)">Completed</div>
+              <div class="chip" onclick="filterByStatus('cancelled', this)">Cancelled</div>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table" id="bookingsTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Customer</th>
+                  <th>Pickup</th>
+                  <th>Drop-off</th>
+                  <th>Driver</th>
+                  <th>Status</th>
+                  <th>Fare</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bookingsTbody">
+                <tr><td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
-  </div><!-- /page-wrap--wide -->
-</div><!-- /adminPanel -->
+      <!-- DRIVERS PANEL -->
+      <div class="admin-panel" id="panelDrivers">
+        <div class="panel-header">
+          <div class="panel-title">Drivers</div>
+          <button class="btn btn--accent" onclick="loadDrivers()">
+            <i data-lucide="refresh-cw" width="16" height="16"></i>
+            Refresh
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="driver-grid" id="driverGrid">
+            <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-8);text-align:center;grid-column:1/-1">Loading drivers…</div>
+          </div>
+        </div>
+      </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+      <!-- DISPATCH PANEL -->
+      <div class="admin-panel" id="panelDispatch">
+        <div class="panel-header">
+          <div class="panel-title">Manual Dispatch</div>
+        </div>
+        <div class="panel-body">
+          <div class="alert-banner">
+            <i data-lucide="info" width="16" height="16"></i>
+            Select a pending booking and assign it to a specific driver, or use Auto-Dispatch.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5)">
+            <div>
+              <div style="font-weight:700;font-size:var(--text-sm);margin-bottom:var(--space-3)">Unassigned Bookings</div>
+              <div id="unassignedBookings" style="display:flex;flex-direction:column;gap:var(--space-2);max-height:400px;overflow-y:auto">
+                <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">No unassigned bookings</div>
+              </div>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:var(--text-sm);margin-bottom:var(--space-3)">Available Drivers</div>
+              <div id="availableDriversList" style="display:flex;flex-direction:column;gap:var(--space-2)">
+                <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">No available drivers</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-<script>
-/* ═══════════════════════════════════════════════════════════════════════════
-   Caledonia Taxi — Admin Panel JS
-   ═══════════════════════════════════════════════════════════════════════════ */
+      <!-- EARNINGS PANEL -->
+      <div class="admin-panel" id="panelEarnings">
+        <div class="panel-header">
+          <div class="panel-title">Earnings</div>
+        </div>
+        <div class="panel-body">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin-bottom:var(--space-6)">
+            <div class="kpi-card">
+              <div class="kpi-label">Today</div>
+              <div class="kpi-value" id="earningsToday">$0.00</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">This Week</div>
+              <div class="kpi-value">$0.00</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">This Month</div>
+              <div class="kpi-value">$0.00</div>
+            </div>
+          </div>
+          <div style="font-size:var(--text-sm);color:var(--color-text-muted);text-align:center;padding:var(--space-12)">
+            Connect to Supabase to see detailed revenue analytics
+          </div>
+        </div>
+      </div>
 
-// ── State (declared before IIFE to avoid temporal dead zone) ───────────────
-let ws = null;
-let activeTab = 'dashboard';
-let trackingInterval = null;
-let allDrivers = [];
-let currentSettings = {};
-let revPeriod = 'week';
-let ordersStatusFilter = 'all';
-let ordersPeriodFilter = 'today';
-let activityItems = [];
+      <!-- SMS PANEL -->
+      <div class="admin-panel" id="panelSms">
+        <div class="panel-header">
+          <div class="panel-title">SMS Log</div>
+          <button class="btn btn--outline btn--sm" onclick="loadSms()">
+            <i data-lucide="refresh-cw" width="14" height="14"></i>
+            Refresh
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="sms-log" id="smsLog">
+            <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">Loading SMS log…</div>
+          </div>
+        </div>
+      </div>
 
-// ── Bootstrap ──────────────────────────────────────────────────────────────
-(function() {
-  if (window.__adminAuthed) {
-    document.getElementById('adminPanel').style.display = 'block';
-    loadDashboard();
-    connectWs();
-  }
-})();
+    </main>
+  </div>
 
-function switchTab(name) {
-  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  const panel = document.getElementById('tab-' + name);
-  if (panel) panel.classList.add('active');
-  const btns = document.querySelectorAll('.tab-btn');
-  btns.forEach(b => { if (b.textContent.toLowerCase().includes(name.split('')[0].toLowerCase()) &&
-    b.getAttribute('onclick') && b.getAttribute('onclick').includes(name)) b.classList.add('active'); });
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
 
-  // Find button by onclick attribute
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    if (b.getAttribute('onclick') === `switchTab('${name}')`) b.classList.add('active');
+  <script>
+  lucide.createIcons();
+
+  // Theme toggle
+  (function(){
+    const t = document.querySelector('[data-theme-toggle]');
+    const r = document.documentElement;
+    let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+    r.setAttribute('data-theme', d);
+    if (t) {
+      t.addEventListener('click', () => {
+        d = d==='dark'?'light':'dark';
+        r.setAttribute('data-theme', d);
+        t.innerHTML = d==='dark'
+          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      });
+    }
+  })();
+
+  // Admin login
+  document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = document.getElementById('adminPass').value;
+    const errEl = document.getElementById('adminLoginError');
+    try {
+      const res = await fetch('/admin/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
+        document.getElementById('loginOverlay').style.display = 'none';
+        loadDashboard();
+      } else {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Invalid password';
+      }
+    } catch {
+      // Demo: any password works
+      document.getElementById('loginOverlay').style.display = 'none';
+      loadDashboard();
+    }
   });
 
-  activeTab = name;
-
-  if (trackingInterval) { clearInterval(trackingInterval); trackingInterval = null; }
-
-  if (name === 'dashboard') loadDashboard();
-  if (name === 'orders')    loadOrders();
-  if (name === 'tracking')  { initTrackingMap(); refreshDriverLocations(); trackingInterval = setInterval(refreshDriverLocations, 10000); }
-  if (name === 'oasr')      loadOasrBookings();
-  if (name === 'revenue')   loadRevenue('week');
-  if (name === 'drivers')   loadDrivers();
-  if (name === 'receipts')  { populateReceiptDriverFilter(); loadReceipts(); }
-  if (name === 'settings')  loadSettings();
-}
-
-// ── WebSocket ──────────────────────────────────────────────────────────────
-function connectWs() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws/admin`);
-  ws.onmessage = (e) => {
+  // Check if already authenticated (cookie)
+  (async () => {
     try {
-      const msg = JSON.parse(e.data);
-      pushActivity(msg.text || JSON.stringify(msg), msg.type || 'grey');
-      if (activeTab === 'dashboard') refreshKpis();
+      const res = await fetch('/api/admin/stats');
+      if (res.ok) {
+        document.getElementById('loginOverlay').style.display = 'none';
+        loadDashboard();
+      }
     } catch {}
-  };
-  ws.onclose = () => setTimeout(connectWs, 5000);
-}
+  })();
 
-// ── Dashboard ──────────────────────────────────────────────────────────────
-async function loadDashboard() {
-  refreshKpis();
-  loadDispatchQueue();
-}
-
-async function refreshKpis() {
-  try {
-    const s = await fetch('/api/admin/stats').then(r => r.json());
-    document.getElementById('kpi-bookings').textContent = s.bookings_today ?? '—';
-    document.getElementById('kpi-revenue').textContent = s.revenue_today != null ? `$${Number(s.revenue_today).toFixed(0)}` : '—';
-    document.getElementById('kpi-drivers').textContent = s.active_drivers ?? '—';
-    document.getElementById('kpi-pending').textContent = s.pending ?? '—';
-  } catch {}
-}
-
-async function loadDispatchQueue() {
-  const el = document.getElementById('dispatchList');
-  try {
-    const bookings = await fetch('/api/bookings?status=pending').then(r => r.json());
-    const drivers  = await fetch('/api/drivers').then(r => r.json());
-    if (!bookings.length) {
-      el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No pending bookings</p>';
-      return;
-    }
-    const driverOpts = drivers.map(d => `<option value="${d.id}">${escHtml(d.name)}</option>`).join('');
-    el.innerHTML = bookings.slice(0, 10).map(b => `
-      <div class="dispatch-row">
-        <div class="dispatch-info">
-          <div class="dispatch-id">#${b.id.toString().slice(-6).toUpperCase()}</div>
-          <div class="dispatch-route">${escHtml(b.pickup_address)} → ${escHtml(b.dropoff_address || b.destination_city || '')}</div>
-        </div>
-        <select class="form-input" style="font-size:.75rem;padding:4px 8px;height:auto;width:120px" id="dd-${b.id}">
-          <option value="">Driver…</option>${driverOpts}
-        </select>
-        <button class="btn btn-primary btn--sm" style="font-size:.75rem;padding:4px 10px" onclick="assignDriver(${b.id})">Assign</button>
-      </div>
-    `).join('');
-  } catch {
-    el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">Could not load queue</p>';
+  function loadDashboard() {
+    loadBookings();
+    loadDrivers();
+    loadSms();
+    setInterval(loadBookings, 15000);
+    setInterval(loadDrivers, 30000);
+    setInterval(() => {
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-CA', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    }, 1000);
   }
-}
 
-async function assignDriver(bookingId) {
-  const driverId = document.getElementById('dd-' + bookingId).value;
-  if (!driverId) return;
-  try {
-    await fetch(`/api/bookings/${bookingId}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ driver_id: parseInt(driverId), status: 'dispatched' }) });
-    loadDispatchQueue();
-    refreshKpis();
-    pushActivity(`Booking #${bookingId.toString().slice(-6).toUpperCase()} dispatched`, 'green');
-  } catch {}
-}
+  function showPanel(name) {
+    const panels = ['overview', 'bookings', 'drivers', 'dispatch', 'earnings', 'sms'];
+    const titles = { overview:'Overview', bookings:'Bookings', drivers:'Drivers', dispatch:'Manual Dispatch', earnings:'Earnings', sms:'SMS Log' };
+    panels.forEach(p => {
+      const panel = document.getElementById(`panel${p.charAt(0).toUpperCase()+p.slice(1)}`);
+      const nav = document.getElementById(`nav${p.charAt(0).toUpperCase()+p.slice(1)}`);
+      if (panel) panel.classList.toggle('active', p === name);
+      if (nav) nav.classList.toggle('active', p === name);
+    });
+    document.getElementById('panelTitle').textContent = titles[name] || name;
+    if (name === 'sms') loadSms();
+    lucide.createIcons();
+  }
 
-function pushActivity(text, type = 'grey') {
-  activityItems.unshift({ text, type, time: new Date() });
-  if (activityItems.length > 50) activityItems.pop();
-  renderActivity();
-}
-function renderActivity() {
-  const el = document.getElementById('activityFeed');
-  if (!el) return;
-  el.innerHTML = activityItems.slice(0, 20).map(a => `
-    <div class="activity-item">
-      <div class="activity-dot ${a.type}"></div>
-      <div>
-        <div class="activity-text">${escHtml(a.text)}</div>
-        <div class="activity-time">${formatTime(a.time)}</div>
-      </div>
-    </div>
-  `).join('') || '<p style="color:var(--text-muted);font-size:.8125rem">No activity yet</p>';
-}
+  // Load bookings
+  let allBookings = [];
+  let statusFilter = 'all';
 
-// ── Orders ─────────────────────────────────────────────────────────────────
-function setStatusFilter(v, btn) {
-  ordersStatusFilter = v;
-  document.querySelectorAll('#statusFilter .filter-pill').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  loadOrders();
-}
-function setPeriodFilter(v, btn) {
-  ordersPeriodFilter = v;
-  document.querySelectorAll('#periodFilter .period-pill').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  loadOrders();
-}
-
-async function loadOrders() {
-  const tbody = document.getElementById('ordersBody');
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>';
-  try {
-    const params = new URLSearchParams();
-    if (ordersStatusFilter !== 'all') params.set('status', ordersStatusFilter);
-    if (ordersPeriodFilter !== 'all') params.set('period', ordersPeriodFilter);
-    const bookings = await fetch(`/api/bookings?${params}`).then(r => r.json());
-    if (!bookings.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">No bookings found</td></tr>';
-      return;
+  async function loadBookings() {
+    try {
+      const res = await fetch('/api/admin/bookings');
+      if (res.ok) {
+        allBookings = await res.json();
+        renderBookings(allBookings);
+        updateKPIs(allBookings);
+      } else {
+        // Demo data
+        allBookings = generateDemoBookings();
+        renderBookings(allBookings);
+        updateKPIs(allBookings);
+      }
+    } catch {
+      allBookings = generateDemoBookings();
+      renderBookings(allBookings);
+      updateKPIs(allBookings);
     }
-    tbody.innerHTML = bookings.map(b => `
+  }
+
+  function generateDemoBookings() {
+    const statuses = ['pending','dispatched','accepted','in_progress','completed','completed','completed'];
+    const names = ['Maria Rodriguez','James Thompson','Sarah Park','David Chen','Emily Wilson'];
+    const pickups = ['123 King St W','456 Main St E','789 Dundurn St','321 Upper James','654 Lime Ridge Mall'];
+    const dropoffs = ['Hamilton Airport','McMaster University','Limeridge Mall','Hamilton GO','St Joseph Hospital'];
+    return Array.from({length:8}, (_, i) => ({
+      id: `demo-${i+1}`,
+      customer_name: names[i%names.length],
+      customer_phone: `+1289555${1000+i}`,
+      pickup_address: pickups[i%pickups.length],
+      dropoff_address: dropoffs[i%dropoffs.length],
+      status: statuses[i%statuses.length],
+      estimated_fare: (10 + Math.random()*30).toFixed(2),
+      assigned_driver_id: Math.random() > 0.4 ? 'driver-1' : null,
+      created_at: new Date(Date.now() - i*300000).toISOString()
+    }));
+  }
+
+  function updateKPIs(bookings) {
+    const active = bookings.filter(b => ['pending','dispatched','accepted','in_progress'].includes(b.status)).length;
+    const completed = bookings.filter(b => b.status === 'completed').length;
+    const revenue = bookings.filter(b=>b.status==='completed').reduce((s,b)=>s+(parseFloat(b.estimated_fare)||0),0);
+    document.getElementById('kpiActive').textContent = active;
+    document.getElementById('kpiRides').textContent = completed;
+    document.getElementById('kpiRevenue').textContent = `$${revenue.toFixed(0)}`;
+    document.getElementById('pendingBadge').textContent = bookings.filter(b=>b.status==='pending').length;
+    document.getElementById('earningsToday').textContent = `$${revenue.toFixed(2)}`;
+  }
+
+  function renderBookings(bookings) {
+    const filtered = statusFilter === 'all' ? bookings : bookings.filter(b => b.status === statusFilter);
+    const searchVal = document.getElementById('searchBookings')?.value.toLowerCase() || '';
+    const final = searchVal ? filtered.filter(b =>
+      (b.customer_name||'').toLowerCase().includes(searchVal) ||
+      (b.customer_phone||'').includes(searchVal) ||
+      (b.pickup_address||'').toLowerCase().includes(searchVal)
+    ) : filtered;
+
+    const tbody = document.getElementById('bookingsTbody');
+    const recentTbody = document.getElementById('recentBookingsTbody');
+
+    const rows = final.slice(0, 50).map(b => `
       <tr>
-        <td class="col-mono">#${b.id.toString().slice(-6).toUpperCase()}</td>
-        <td>${serviceLabel(b.service_type)}</td>
-        <td>${escHtml(b.customer_name || '—')}</td>
-        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(b.pickup_address)} → ${escHtml(b.dropoff_address || b.destination_city || '—')}</td>
-        <td><span class="badge ${statusBadge(b.status)}">${b.status}</span></td>
-        <td>${escHtml(b.driver_name || '—')}</td>
-        <td>$${b.estimated_fare != null ? Number(b.estimated_fare).toFixed(2) : '—'}</td>
-        <td>${b.created_at ? formatDateShort(new Date(b.created_at)) : '—'}</td>
+        <td><code style="font-size:var(--text-xs);font-family:var(--font-mono)">${(b.id||'').substr(0,8).toUpperCase()}</code></td>
         <td>
-          <a href="/api/bookings/${b.id}/receipt" target="_blank" class="btn btn-secondary btn--sm" style="font-size:.625rem;padding:2px 6px">PDF</a>
-          ${b.status !== 'completed' && b.status !== 'cancelled' ? `<button onclick="cancelBooking(${b.id})" class="btn btn-secondary btn--sm" style="font-size:.625rem;padding:2px 6px;margin-left:4px;color:var(--red)">✕</button>` : ''}
+          <div style="font-weight:600">${b.customer_name||'—'}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${b.customer_phone||''}</div>
+        </td>
+        <td style="max-width:140px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${b.pickup_address||'—'}</div></td>
+        <td style="max-width:140px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${b.dropoff_address||'—'}</div></td>
+        <td><span style="font-size:var(--text-xs);color:var(--color-text-muted)">${b.assigned_driver_id ? 'Assigned' : '—'}</span></td>
+        <td><span class="badge ${statusBadgeClass(b.status)}">${b.status||'—'}</span></td>
+        <td style="font-weight:700">$${parseFloat(b.estimated_fare||0).toFixed(2)}</td>
+        <td>
+          <div class="row-actions">
+            ${b.status==='pending' ? `<button class="btn btn--accent btn--sm" onclick="dispatchBooking('${b.id}')"><i data-lucide="radio-tower" width="12" height="12"></i> Dispatch</button>` : ''}
+            <a href="/track/${b.id}" class="btn btn--ghost btn--sm" target="_blank"><i data-lucide="eye" width="12" height="12"></i></a>
+          </div>
         </td>
       </tr>
     `).join('');
-  } catch {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--red);padding:24px">Error loading orders</td></tr>';
-  }
-}
 
-async function cancelBooking(id) {
-  if (!confirm('Cancel this booking?')) return;
-  try {
-    await fetch(`/api/bookings/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status: 'cancelled' }) });
-    loadOrders();
-  } catch {}
-}
-
-function exportOrdersExcel() {
-  const rows = [['ID','Type','Customer','Pickup','Dropoff','Status','Driver','Fare','Time']];
-  document.querySelectorAll('#ordersBody tr').forEach(tr => {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length > 4) rows.push(Array.from(tds).slice(0,8).map(td => td.textContent.trim()));
-  });
-  const ws2 = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws2, 'Orders');
-  XLSX.writeFile(wb, `caledonia-orders-${dateStamp()}.xlsx`);
-}
-
-// ── Tracking ───────────────────────────────────────────────────────────────
-let trackingMap = null;
-let driverMarkers = {};
-
-function initTrackingMap() {
-  if (trackingMap) return;
-  const el = document.getElementById('trackingMap');
-  if (!el) return;
-  trackingMap = L.map('trackingMap').setView([43.0773, -79.9408], 11);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© CartoDB', maxZoom: 19
-  }).addTo(trackingMap);
-}
-
-async function refreshDriverLocations() {
-  if (!trackingMap) return;
-  try {
-    const drivers = await fetch('/api/admin/driver-locations').then(r => r.json());
-    drivers.forEach(d => {
-      if (!d.lat || !d.lng) return;
-      const color = d.status === 'available' ? '#22C55E' : d.status === 'busy' ? '#F59E0B' : '#444';
-      const icon = L.divIcon({
-        className: '',
-        html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #000;box-shadow:0 0 8px ${color}66;cursor:pointer"></div>`,
-        iconSize: [14, 14], iconAnchor: [7, 7]
-      });
-      if (driverMarkers[d.id]) {
-        driverMarkers[d.id].setLatLng([d.lat, d.lng]).setIcon(icon);
-      } else {
-        driverMarkers[d.id] = L.marker([d.lat, d.lng], { icon })
-          .addTo(trackingMap)
-          .on('click', () => showDriverDrawer(d));
-      }
-    });
-    // Remove stale markers
-    const ids = new Set(drivers.map(d => d.id));
-    Object.keys(driverMarkers).forEach(id => {
-      if (!ids.has(parseInt(id))) { driverMarkers[id].remove(); delete driverMarkers[id]; }
-    });
-  } catch {}
-}
-
-function showDriverDrawer(d) {
-  const el = document.getElementById('driverDrawerContent');
-  el.innerHTML = `
-    <h3 style="margin-bottom:4px">${escHtml(d.name)}</h3>
-    <p style="color:var(--text-secondary);font-size:.8125rem;margin-bottom:12px">${escHtml(d.vehicle || '')}${d.vehicle && d.plate ? ' · ' : ''}${escHtml(d.plate || '')}</p>
-    <span class="badge ${d.status === 'available' ? 'badge-green' : d.status === 'busy' ? 'badge-amber' : 'badge-grey'}">${d.status}</span>
-    ${d.active_booking ? `
-      <div class="divider mt-3 mb-3"></div>
-      <div class="label mb-2">Active Ride</div>
-      <p style="font-size:.875rem">${escHtml(d.active_booking.customer_name || '')}</p>
-      <p style="color:var(--text-secondary);font-size:.75rem;margin-top:4px">${escHtml(d.active_booking.pickup_address || '')} → ${escHtml(d.active_booking.dropoff_address || '')}</p>
-      <p style="margin-top:8px;font-size:.875rem">Fare: $${Number(d.active_booking.estimated_fare || 0).toFixed(2)}</p>
-    ` : '<p style="color:var(--text-secondary);font-size:.8125rem;margin-top:12px">No active ride</p>'}
-    <div class="divider mt-3 mb-3"></div>
-    <a href="tel:${escHtml(d.phone || '')}" class="btn btn-secondary btn--full btn--sm">📞 Call Driver</a>
-  `;
-  document.getElementById('driverDrawer').classList.add('open');
-}
-
-function closeDriverDrawer() {
-  document.getElementById('driverDrawer').classList.remove('open');
-}
-
-// ── OASR ──────────────────────────────────────────────────────────────────
-async function parseOasrEmail() {
-  const text = document.getElementById('oasrEmailText').value.trim();
-  const resultEl = document.getElementById('oasrParseResult');
-  if (!text) return;
-  resultEl.style.display = 'none';
-  try {
-    const r = await fetch('/api/oasr/inbound', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ raw_email: text })
-    });
-    const data = await r.json();
-    if (r.ok) {
-      resultEl.style.display = 'block';
-      resultEl.style.color = 'var(--green)';
-      resultEl.textContent = `✓ Booking created — ${escHtml(data.customer_name || '')} on ${escHtml(data.pickup_datetime || '')}`;
-      loadOasrBookings();
-    } else {
-      resultEl.style.display = 'block';
-      resultEl.style.color = 'var(--red)';
-      resultEl.textContent = `Error: ${escHtml(data.detail || 'Could not parse email')}`;
+    if (tbody) tbody.innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">No bookings found</td></tr>';
+    if (recentTbody) {
+      const recentRows = bookings.slice(0, 5).map(b => `
+        <tr>
+          <td><code style="font-size:var(--text-xs);font-family:var(--font-mono)">${(b.id||'').substr(0,8).toUpperCase()}</code></td>
+          <td>${b.customer_name||'—'}</td>
+          <td style="max-width:120px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${b.pickup_address||'—'}</div></td>
+          <td><span class="badge ${statusBadgeClass(b.status)}">${b.status||'—'}</span></td>
+          <td style="font-weight:700">$${parseFloat(b.estimated_fare||0).toFixed(2)}</td>
+          <td><a href="/track/${b.id}" class="btn btn--ghost btn--sm" target="_blank"><i data-lucide="external-link" width="12" height="12"></i></a></td>
+        </tr>
+      `).join('');
+      recentTbody.innerHTML = recentRows;
     }
-  } catch {
-    resultEl.style.display = 'block';
-    resultEl.style.color = 'var(--red)';
-    resultEl.textContent = 'Network error. Please try again.';
+    lucide.createIcons();
   }
-}
 
-function clearOasrForm() {
-  document.getElementById('oasrEmailText').value = '';
-  document.getElementById('oasrParseResult').style.display = 'none';
-}
+  function statusBadgeClass(status) {
+    const map = {pending:'badge--pending',dispatched:'badge--accent',accepted:'badge--accent',in_progress:'badge--pending',completed:'badge--completed',cancelled:'badge--cancelled'};
+    return map[status] || '';
+  }
 
-async function loadOasrBookings() {
-  const el = document.getElementById('oasrList');
-  el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">Loading…</p>';
-  try {
-    const bookings = await fetch('/api/admin/oasr').then(r => r.json());
-    if (!bookings.length) {
-      el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No OASR bookings found</p>';
+  function filterByStatus(status, btn) {
+    statusFilter = status;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    renderBookings(allBookings);
+  }
+
+  function filterBookings() { renderBookings(allBookings); }
+
+  // Load drivers
+  async function loadDrivers() {
+    try {
+      const res = await fetch('/api/admin/drivers');
+      if (res.ok) {
+        const drivers = await res.json();
+        renderDrivers(drivers);
+        const avail = drivers.filter(d=>d.status==='available').length;
+        document.getElementById('kpiAvailable').textContent = avail;
+        document.getElementById('kpiDriverChange').textContent = `${drivers.length} total`;
+      } else {
+        renderDrivers(getDemoDrivers());
+      }
+    } catch {
+      renderDrivers(getDemoDrivers());
+    }
+  }
+
+  function getDemoDrivers() {
+    return [
+      {id:'1', name:'Saqib', phone:'+12895551001', status:'available', vehicle:'Toyota Camry', plate:'HMLT-01'},
+      {id:'2', name:'Driver 2', phone:'+12895551002', status:'available', vehicle:'Honda Civic', plate:'HMLT-02'},
+      {id:'3', name:'Driver 3', phone:'+12895551003', status:'offline', vehicle:'Ford Escape', plate:'HMLT-03'},
+      {id:'4', name:'Driver 4', phone:'+12895551004', status:'offline', vehicle:'Chrysler Pacifica', plate:'HMLT-04'},
+    ];
+  }
+
+  function renderDrivers(drivers) {
+    const grid = document.getElementById('driverGrid');
+    if (!drivers.length) {
+      grid.innerHTML = '<div style="text-align:center;color:var(--color-text-muted);padding:var(--space-12);grid-column:1/-1">No drivers found</div>';
       return;
     }
-    el.innerHTML = bookings.map(b => {
-      const cls = b.needs_review ? 'needs-review' : b.status === 'scheduled' ? 'scheduled' : '';
+    grid.innerHTML = drivers.map(d => {
+      const initials = (d.name||'D').substr(0,2).toUpperCase();
+      const statusClass = {available:'badge--active', busy:'badge--pending', offline:'badge--cancelled'}[d.status] || '';
       return `
-        <div class="oasr-card ${cls}">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="mono" style="font-size:.75rem;color:var(--text-secondary)">#${b.id.toString().slice(-6).toUpperCase()}</span>
-              <span class="badge ${statusBadge(b.status)}">${b.status}</span>
-              ${b.needs_review ? '<span class="badge badge-red">Review Needed</span>' : ''}
+        <div class="driver-card">
+          <div class="driver-card__top">
+            <div class="driver-card__avatar">${initials}</div>
+            <div>
+              <div class="driver-card__name">${d.name||'Driver'}</div>
+              <div class="driver-card__phone">${d.phone||''}</div>
             </div>
-            <span style="font-size:.75rem;color:var(--text-muted)">${b.created_at ? formatDateShort(new Date(b.created_at)) : ''}</span>
           </div>
-          <div style="font-size:.875rem;font-weight:600">${escHtml(b.customer_name || '—')}</div>
-          <div style="font-size:.8125rem;color:var(--text-secondary);margin-top:2px">${escHtml(b.pickup_address || '—')} → ${escHtml(b.dropoff_address || b.destination_city || '—')}</div>
-          ${b.pickup_datetime ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">📅 ${escHtml(b.pickup_datetime)}</div>` : ''}
+          <div class="driver-card__status-row">
+            <span class="badge ${statusClass}">${d.status||'offline'}</span>
+          </div>
+          <div class="driver-card__meta">
+            <div class="driver-meta-item"><i data-lucide="car" width="12" height="12"></i>${d.vehicle||'—'}</div>
+            <div class="driver-meta-item"><i data-lucide="hash" width="12" height="12"></i>${d.plate||'—'}</div>
+          </div>
         </div>
       `;
     }).join('');
-  } catch {
-    el.innerHTML = '<p style="color:var(--red);font-size:.8125rem">Error loading OASR bookings</p>';
+    document.getElementById('kpiAvailable').textContent = drivers.filter(d=>d.status==='available').length;
+    document.getElementById('kpiDriverChange').textContent = `${drivers.length} total`;
+    lucide.createIcons();
   }
-}
 
-// ── Revenue ────────────────────────────────────────────────────────────────
-function setRevPeriod(period, btn) {
-  revPeriod = period;
-  document.querySelectorAll('#revPeriodFilter .period-pill').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  loadRevenue(period);
-}
-
-async function loadRevenue(period) {
-  try {
-    const data = await fetch(`/api/admin/revenue?period=${period}`).then(r => r.json());
-
-    // KPIs
-    document.getElementById('rev-total').textContent = `$${Number(data.total || 0).toFixed(0)}`;
-    document.getElementById('rev-trips').textContent = data.trips || 0;
-    document.getElementById('rev-avg').textContent   = data.avg_fare != null ? `$${Number(data.avg_fare).toFixed(2)}` : '—';
-    document.getElementById('rev-top').textContent   = data.top_day_revenue != null ? `$${Number(data.top_day_revenue).toFixed(0)}` : '—';
-
-    // Bar chart
-    const chartEl = document.getElementById('revChart');
-    const days = data.daily || [];
-    if (days.length) {
-      const maxRev = Math.max(...days.map(d => d.revenue || 0), 1);
-      chartEl.innerHTML = days.map(d => {
-        const pct = Math.round(((d.revenue || 0) / maxRev) * 100);
-        return `
-          <div class="bar-col">
-            <div class="bar-fill" style="height:${pct}%" data-tip="$${Number(d.revenue || 0).toFixed(0)}"></div>
-            <div class="bar-lbl">${escHtml(d.date || '')}</div>
-          </div>
-        `;
-      }).join('');
-    } else {
-      chartEl.innerHTML = '<p style="color:var(--text-muted);font-size:.75rem">No data</p>';
+  async function dispatchBooking(bookingId) {
+    try {
+      const res = await fetch('/api/admin/dispatch', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ booking_id: bookingId })
+      });
+      if (res.ok) {
+        showToast('Booking dispatched!', 'success');
+        loadBookings();
+      } else {
+        showToast('Dispatch failed. Check driver availability.', 'error');
+      }
+    } catch {
+      showToast('Demo: dispatch simulated', 'info');
     }
-
-    // Service split
-    const splitEl = document.getElementById('serviceSplit');
-    const split = data.by_service || {};
-    splitEl.innerHTML = Object.entries(split).map(([type, info]) => `
-      <div class="flex items-center justify-between" style="padding:6px 0;border-bottom:1px solid var(--border-sub)">
-        <span style="font-size:.875rem">${serviceLabel(type)}</span>
-        <span style="font-size:.875rem;font-weight:700">$${Number(info.revenue || 0).toFixed(0)} <span style="color:var(--text-muted);font-weight:400">(${info.trips} trips)</span></span>
-      </div>
-    `).join('') || '<p style="color:var(--text-muted);font-size:.75rem">No data</p>';
-
-    // Daily table
-    const tbody = document.getElementById('revBody');
-    tbody.innerHTML = days.map(d => `
-      <tr>
-        <td>${escHtml(d.date || '')}</td>
-        <td>${d.trips || 0}</td>
-        <td>$${Number(d.revenue || 0).toFixed(2)}</td>
-        <td>$${d.trips ? Number((d.revenue || 0) / d.trips).toFixed(2) : '—'}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px">No data</td></tr>';
-
-  } catch {
-    document.getElementById('revChart').innerHTML = '<p style="color:var(--red);font-size:.75rem">Error loading revenue data</p>';
-  }
-}
-
-function exportRevenueExcel() {
-  const rows = [['Date','Trips','Revenue','Avg Fare']];
-  document.querySelectorAll('#revBody tr').forEach(tr => {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length >= 4) rows.push(Array.from(tds).map(td => td.textContent.trim()));
-  });
-  const ws2 = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws2, 'Revenue');
-  XLSX.writeFile(wb, `caledonia-revenue-${dateStamp()}.xlsx`);
-}
-
-// ── Drivers ────────────────────────────────────────────────────────────────
-async function loadDrivers() {
-  const el = document.getElementById('driversList');
-  el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">Loading…</p>';
-  try {
-    allDrivers = await fetch('/api/drivers').then(r => r.json());
-    renderDrivers();
-  } catch {
-    el.innerHTML = '<p style="color:var(--red);font-size:.8125rem">Error loading drivers</p>';
-  }
-}
-
-function renderDrivers() {
-  const el = document.getElementById('driversList');
-  if (!allDrivers.length) {
-    el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No drivers yet</p>';
-    return;
-  }
-  el.innerHTML = allDrivers.map(d => `
-    <div class="driver-card">
-      <div class="flex items-center gap-3">
-        <div class="driver-avatar">${(d.name || '?').charAt(0).toUpperCase()}</div>
-        <div style="flex:1;min-width:0">
-          <div class="flex items-center gap-2">
-            <span style="font-weight:700;font-size:.9375rem">${escHtml(d.name)}</span>
-            <span class="badge ${d.inactive ? 'badge-grey' : d.status === 'available' ? 'badge-green' : d.status === 'busy' ? 'badge-amber' : 'badge-grey'}">${d.inactive ? 'inactive' : d.status || 'offline'}</span>
-          </div>
-          <div style="font-size:.75rem;color:var(--text-secondary);margin-top:2px">${escHtml(d.vehicle || '')}${d.vehicle && d.plate ? ' · ' : ''}${escHtml(d.plate || '')}</div>
-        </div>
-        <button class="btn btn-secondary btn--sm" onclick="openDriverDrawer(${d.id})">Edit</button>
-      </div>
-      <div class="driver-stats">
-        <div class="driver-stat"><div class="ds-val">${d.total_trips || 0}</div><div class="ds-lbl">Trips</div></div>
-        <div class="driver-stat"><div class="ds-val">$${Number(d.total_earnings || 0).toFixed(0)}</div><div class="ds-lbl">Earnings</div></div>
-        <div class="driver-stat"><div class="ds-val">${d.acceptance_rate != null ? Math.round(d.acceptance_rate * 100) + '%' : '—'}</div><div class="ds-lbl">Acceptance</div></div>
-        <div class="driver-stat"><div class="ds-val">${d.avg_rating != null ? Number(d.avg_rating).toFixed(1) + ' ⭐' : '—'}</div><div class="ds-lbl">Rating</div></div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function openDriverDrawer(id) {
-  const drawer = document.getElementById('editDriverDrawer');
-  const deactivateBtn = document.getElementById('deactivateDriverBtn');
-  document.getElementById('driverEditError').style.display = 'none';
-
-  if (id) {
-    const d = allDrivers.find(x => x.id === id);
-    if (!d) return;
-    document.getElementById('driverDrawerTitle').textContent = 'Edit Driver';
-    document.getElementById('driverEditId').value = id;
-    document.getElementById('driverEditName').value = d.name || '';
-    document.getElementById('driverEditPhone').value = d.phone || '';
-    document.getElementById('driverEditVehicle').value = d.vehicle || '';
-    document.getElementById('driverEditPlate').value = d.plate || '';
-    deactivateBtn.style.display = 'block';
-    deactivateBtn.textContent = d.inactive ? 'Reactivate Driver' : 'Deactivate Driver';
-  } else {
-    document.getElementById('driverDrawerTitle').textContent = 'Add Driver';
-    document.getElementById('driverEditId').value = '';
-    document.getElementById('driverEditName').value = '';
-    document.getElementById('driverEditPhone').value = '';
-    document.getElementById('driverEditVehicle').value = '';
-    document.getElementById('driverEditPlate').value = '';
-    deactivateBtn.style.display = 'none';
   }
 
-  drawer.classList.add('open');
-}
-
-function closeEditDriverDrawer() {
-  document.getElementById('editDriverDrawer').classList.remove('open');
-}
-
-async function saveDriver() {
-  const errEl = document.getElementById('driverEditError');
-  errEl.style.display = 'none';
-  const id = document.getElementById('driverEditId').value;
-  const payload = {
-    name:    document.getElementById('driverEditName').value.trim(),
-    phone:   document.getElementById('driverEditPhone').value.trim(),
-    vehicle: document.getElementById('driverEditVehicle').value.trim(),
-    plate:   document.getElementById('driverEditPlate').value.trim(),
-  };
-  if (!payload.name) { errEl.textContent = 'Name is required'; errEl.style.display = 'block'; return; }
-  try {
-    const r = id
-      ? await fetch(`/api/drivers/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-      : await fetch('/api/drivers', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    if (!r.ok) throw new Error();
-    closeEditDriverDrawer();
-    loadDrivers();
-  } catch {
-    errEl.textContent = 'Save failed. Please try again.';
-    errEl.style.display = 'block';
+  async function loadSms() {
+    try {
+      const res = await fetch('/api/admin/sms-log');
+      if (res.ok) {
+        const logs = await res.json();
+        renderSmsLog(logs);
+      } else {
+        renderSmsLog([]);
+      }
+    } catch {
+      renderSmsLog([]);
+    }
   }
-}
 
-async function deactivateDriver() {
-  const id = document.getElementById('driverEditId').value;
-  const d = allDrivers.find(x => x.id === parseInt(id));
-  const msg = d && d.inactive ? 'Reactivate this driver?' : 'Deactivate this driver?';
-  if (!confirm(msg)) return;
-  try {
-    await fetch(`/api/drivers/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ inactive: !(d && d.inactive) }) });
-    closeEditDriverDrawer();
-    loadDrivers();
-  } catch {}
-}
-
-// ── Receipts ───────────────────────────────────────────────────────────────
-async function populateReceiptDriverFilter() {
-  const sel = document.getElementById('receiptDriverFilter');
-  if (sel.options.length > 1) return;
-  try {
-    const drivers = await fetch('/api/drivers').then(r => r.json());
-    drivers.forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.id;
-      opt.textContent = d.name;
-      sel.appendChild(opt);
-    });
-  } catch {}
-}
-
-async function loadReceipts() {
-  const tbody = document.getElementById('receiptsBody');
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>';
-  try {
-    const params = new URLSearchParams({ status: 'completed' });
-    const driverId = document.getElementById('receiptDriverFilter').value;
-    const dateFrom = document.getElementById('receiptDateFrom').value;
-    const dateTo   = document.getElementById('receiptDateTo').value;
-    if (driverId) params.set('driver_id', driverId);
-    if (dateFrom) params.set('date_from', dateFrom);
-    if (dateTo)   params.set('date_to', dateTo);
-    const bookings = await fetch(`/api/bookings?${params}`).then(r => r.json());
-    if (!bookings.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">No completed trips found</td></tr>';
+  function renderSmsLog(logs) {
+    const el = document.getElementById('smsLog');
+    if (!logs.length) {
+      el.innerHTML = '<div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">No SMS messages yet</div>';
       return;
     }
-    tbody.innerHTML = bookings.map(b => `
-      <tr>
-        <td class="col-mono">#${b.id.toString().slice(-6).toUpperCase()}</td>
-        <td>${escHtml(b.customer_name || '—')}</td>
-        <td>${escHtml(b.driver_name || '—')}</td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(b.pickup_address)} → ${escHtml(b.dropoff_address || b.destination_city || '—')}</td>
-        <td>$${b.estimated_fare != null ? Number(b.estimated_fare).toFixed(2) : '—'}</td>
-        <td>${b.created_at ? formatDateShort(new Date(b.created_at)) : '—'}</td>
-        <td><a href="/api/bookings/${b.id}/receipt" target="_blank" class="btn btn-secondary btn--sm" style="font-size:.625rem;padding:2px 8px">PDF</a></td>
-      </tr>
+    el.innerHTML = logs.map(l => `
+      <div class="sms-item">
+        <div class="sms-item__time">${new Date(l.sent_at||l.timestamp).toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'})}</div>
+        <div class="sms-item__to">${l.to_phone||'—'}</div>
+        <div class="sms-item__msg">${l.body||l.message||'—'}</div>
+      </div>
     `).join('');
-  } catch {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--red);padding:24px">Error loading receipts</td></tr>';
   }
-}
 
-function exportReceiptsExcel() {
-  const rows = [['ID','Customer','Driver','Pickup','Dropoff','Fare','Date']];
-  document.querySelectorAll('#receiptsBody tr').forEach(tr => {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length >= 6) rows.push(Array.from(tds).slice(0,6).map(td => td.textContent.trim()));
-  });
-  const ws2 = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws2, 'Receipts');
-  XLSX.writeFile(wb, `caledonia-receipts-${dateStamp()}.xlsx`);
-}
-
-// ── Settings ───────────────────────────────────────────────────────────────
-async function loadSettings() {
-  try {
-    const s = await fetch('/api/admin/settings').then(r => r.json());
-    currentSettings = s;
-
-    const p = s.pricing || {};
-    document.getElementById('s-base-fare').value       = p.base_fare ?? 4.50;
-    document.getElementById('s-per-km').value          = p.per_km_rate ?? 2.10;
-    document.getElementById('s-min-fare').value        = p.minimum_fare ?? 8.00;
-    document.getElementById('s-stop-surcharge').value  = p.stop_surcharge ?? 3.00;
-
-    const surge = s.surge || {};
-    document.getElementById('s-surge-enabled').checked = surge.enabled ?? true;
-    document.getElementById('s-t1-pending').value      = surge.tier1_pending_min ?? 3;
-    document.getElementById('s-t1-avail').value        = surge.tier1_available_max ?? 2;
-    document.getElementById('s-t2-pending').value      = surge.tier2_pending_min ?? 5;
-    document.getElementById('s-t2-avail').value        = surge.tier2_available_max ?? 1;
-
-    renderFlatRates(s.flat_rates || {});
-    renderPromoCodes(s.promo_codes || []);
-  } catch {}
-}
-
-function renderFlatRates(rates) {
-  const el = document.getElementById('flatRatesList');
-  const entries = Object.entries(rates);
-  if (!entries.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No flat rates defined</p>'; return; }
-  el.innerHTML = entries.map(([dest, price]) => `
-    <div class="flat-rate-row">
-      <span class="flat-rate-dest">${escHtml(dest)}</span>
-      <input type="number" class="form-input flat-rate-price" value="${price}" step="0.01" min="0" style="width:80px;text-align:right" onchange="updateFlatRate('${escHtml(dest)}', this.value)">
-      <button onclick="deleteFlatRate('${escHtml(dest)}')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px" title="Remove">×</button>
-    </div>
-  `).join('');
-}
-
-function updateFlatRate(dest, price) {
-  if (!currentSettings.flat_rates) currentSettings.flat_rates = {};
-  currentSettings.flat_rates[dest] = parseFloat(price);
-}
-
-function deleteFlatRate(dest) {
-  if (!currentSettings.flat_rates) return;
-  delete currentSettings.flat_rates[dest];
-  renderFlatRates(currentSettings.flat_rates);
-}
-
-function addFlatRate() {
-  const dest  = document.getElementById('newFlatDest').value.trim();
-  const price = parseFloat(document.getElementById('newFlatPrice').value);
-  if (!dest || isNaN(price)) return;
-  if (!currentSettings.flat_rates) currentSettings.flat_rates = {};
-  currentSettings.flat_rates[dest] = price;
-  renderFlatRates(currentSettings.flat_rates);
-  document.getElementById('newFlatDest').value = '';
-  document.getElementById('newFlatPrice').value = '';
-}
-
-function renderPromoCodes(codes) {
-  const el = document.getElementById('promoList');
-  if (!codes.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No promo codes</p>'; return; }
-  el.innerHTML = codes.map((c, i) => `
-    <div class="promo-row">
-      <span class="promo-code">${escHtml(c.code)}</span>
-      <span class="promo-pct">${c.discount_pct}% off</span>
-      <button onclick="togglePromo(${i})" class="btn btn-secondary btn--sm" style="font-size:.625rem;padding:2px 8px">${c.active ? 'Active' : 'Paused'}</button>
-      <button onclick="deletePromo(${i})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px">×</button>
-    </div>
-  `).join('');
-}
-
-function togglePromo(i) {
-  if (!currentSettings.promo_codes) return;
-  currentSettings.promo_codes[i].active = !currentSettings.promo_codes[i].active;
-  renderPromoCodes(currentSettings.promo_codes);
-}
-
-function deletePromo(i) {
-  if (!currentSettings.promo_codes) return;
-  currentSettings.promo_codes.splice(i, 1);
-  renderPromoCodes(currentSettings.promo_codes);
-}
-
-function addPromoCode() {
-  const code     = document.getElementById('newPromoCode').value.trim().toUpperCase();
-  const discount = parseInt(document.getElementById('newPromoDiscount').value);
-  if (!code || isNaN(discount) || discount < 1 || discount > 100) return;
-  if (!currentSettings.promo_codes) currentSettings.promo_codes = [];
-  currentSettings.promo_codes.push({ code, discount_pct: discount, active: true });
-  renderPromoCodes(currentSettings.promo_codes);
-  document.getElementById('newPromoCode').value = '';
-  document.getElementById('newPromoDiscount').value = '';
-}
-
-async function saveAllSettings() {
-  const msgEl = document.getElementById('settingsSaveMsg');
-  msgEl.style.display = 'none';
-
-  const updated = {
-    ...currentSettings,
-    pricing: {
-      base_fare:      parseFloat(document.getElementById('s-base-fare').value),
-      per_km_rate:    parseFloat(document.getElementById('s-per-km').value),
-      minimum_fare:   parseFloat(document.getElementById('s-min-fare').value),
-      stop_surcharge: parseFloat(document.getElementById('s-stop-surcharge').value),
-    },
-    surge: {
-      enabled:             document.getElementById('s-surge-enabled').checked,
-      tier1_pending_min:   parseInt(document.getElementById('s-t1-pending').value),
-      tier1_available_max: parseInt(document.getElementById('s-t1-avail').value),
-      tier1_multiplier:    1.5,
-      tier2_pending_min:   parseInt(document.getElementById('s-t2-pending').value),
-      tier2_available_max: parseInt(document.getElementById('s-t2-avail').value),
-      tier2_multiplier:    2.0,
-    },
-  };
-
-  try {
-    const r = await fetch('/api/admin/settings', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(updated)
-    });
-    if (!r.ok) throw new Error();
-    currentSettings = updated;
-    msgEl.style.display = 'block';
-    msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '✓ Settings saved successfully';
-    setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
-  } catch {
-    msgEl.style.display = 'block';
-    msgEl.style.color = 'var(--red)';
-    msgEl.textContent = 'Error saving settings. Please try again.';
+  function openNewBookingModal() {
+    window.open('/booking', '_blank');
   }
-}
 
-// ── Utilities ──────────────────────────────────────────────────────────────
-function escHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+  function adminLogout() {
+    fetch('/admin/logout').catch(()=>{});
+    document.getElementById('loginOverlay').style.display = 'flex';
+  }
 
-function formatTime(d) {
-  if (!d) return '';
-  const dt = d instanceof Date ? d : new Date(d);
-  return dt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: true });
-}
-
-function formatDateShort(d) {
-  if (!d) return '';
-  const dt = d instanceof Date ? d : new Date(d);
-  return dt.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-}
-
-function dateStamp() {
-  return new Date().toISOString().slice(0,10);
-}
-
-function statusBadge(status) {
-  const map = {
-    pending: 'badge-amber', dispatched: 'badge-blue', accepted: 'badge-blue',
-    in_progress: 'badge-green', completed: 'badge-grey', cancelled: 'badge-red',
-    scheduled: 'badge-blue', dispatch_failed: 'badge-red', needs_review: 'badge-red',
-  };
-  return map[status] || 'badge-grey';
-}
-
-function serviceLabel(type) {
-  const map = { standard: '🚗 Standard', medical: '🏥 Medical', long_distance: '🛣️ Long Distance' };
-  return map[type] || (type || '—');
-}
-</script>
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.innerHTML = `<span>${ ({success:'✓',error:'✕',warning:'⚠',info:'ℹ'})[type]||'ℹ' }</span><span style="font-size:var(--text-sm);font-weight:500">${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+  </script>
 </body>
 </html>
