@@ -2,85 +2,115 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Caledonia Taxi — Admin</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
-    .live-badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      background: var(--success-bg); border: 1px solid var(--success-border);
-      color: var(--success); border-radius: 20px;
-      padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .section-title {
-      font-size: 1rem; font-weight: 700; color: var(--text);
-      display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;
-    }
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(4px); z-index: 999; align-items: center; justify-content: center; }
-    .modal-overlay.open { display: flex; }
-    .modal { max-width: 400px; width: 90%; }
-    .email-entry {
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: var(--radius-sm); padding: 0.875rem 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;
-    }
-    .email-entry .email-meta { display: flex; justify-content: space-between; margin-bottom: 0.3rem; }
-    .email-entry .email-to { font-weight: 600; color: var(--accent); font-size: 0.78rem; }
-    .email-entry .email-time { color: var(--text-muted); font-size: 0.72rem; }
-    .email-entry .email-sub { color: var(--text); }
-    .stat-card.accent-success .stat-value { color: var(--success); }
-    .stat-card.accent-warning .stat-value { color: var(--warning); }
-    .stat-card.accent-info    .stat-value { color: var(--info); }
-    .stat-card.accent-danger  .stat-value { color: var(--danger); }
-    .stat-card.accent-accent  .stat-value { color: var(--accent); }
-    .action-bar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-    .dispatch-event {
-      display: flex; align-items: flex-start; gap: 10px;
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;
-    }
-    .dispatch-event .de-icon { font-size: 1.2rem; flex-shrink: 0; }
-    .dispatch-event .de-time { font-size: 0.72rem; color: var(--text-muted); }
-    #activityFeed { max-height: 320px; overflow-y: auto; }
+    /* ── Admin extras ─────────────────────────────────────────── */
+    .kpi-value { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--text-primary); }
+    .kpi-label { font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin-top: 4px; }
+    .kpi-card  { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px; }
+
+    .activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-sub); }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot  { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .activity-dot.green  { background: var(--green); }
+    .activity-dot.amber  { background: var(--amber); }
+    .activity-dot.red    { background: var(--red); }
+    .activity-dot.grey   { background: #444; }
+    .activity-text { font-size: 0.8125rem; color: var(--text-primary); line-height: 1.4; }
+    .activity-time { font-size: 0.6875rem; color: var(--text-muted); margin-top: 2px; }
+
+    .dispatch-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-sub); }
+    .dispatch-row:last-child { border-bottom: none; }
+    .dispatch-info { flex: 1; min-width: 0; }
+    .dispatch-id   { font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 2px; font-family: 'SF Mono', monospace; }
+    .dispatch-route { font-size: 0.8125rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; }
+    .bar-col    { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
+    .bar-fill   { width: 100%; background: var(--text-primary); border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.4s; position: relative; cursor: default; }
+    .bar-fill:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); background: #111; color: #fff; font-size: 0.625rem; white-space: nowrap; padding: 3px 6px; border-radius: 4px; pointer-events: none; z-index: 10; border: 1px solid var(--border); }
+    .bar-lbl    { font-size: 0.5625rem; color: var(--text-muted); white-space: nowrap; }
+
+    .driver-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; }
+    .driver-card + .driver-card { margin-top: 8px; }
+    .driver-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--text-primary); color: var(--bg); font-weight: 800; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .driver-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .driver-stat  { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; }
+    .driver-stat .ds-val { font-weight: 700; color: var(--text-primary); }
+    .driver-stat .ds-lbl { color: var(--text-muted); font-size: 0.625rem; }
+
+    .period-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+    .period-pill  { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; transition: all var(--transition); }
+    .period-pill:hover  { border-color: var(--text-primary); color: var(--text-primary); }
+    .period-pill.active { background: var(--text-primary); border-color: var(--text-primary); color: var(--bg); }
+
+    .filter-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+    .filter-pill  { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; transition: all var(--transition); }
+    .filter-pill:hover  { border-color: var(--text-primary); color: var(--text-primary); }
+    .filter-pill.active { background: var(--text-primary); border-color: var(--text-primary); color: var(--bg); }
+
+    .settings-section { margin-bottom: 24px; }
+    .settings-section h3 { font-size: 0.9375rem; font-weight: 700; margin-bottom: 12px; }
+    .flat-rate-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-sub); }
+    .flat-rate-row:last-child { border-bottom: none; }
+    .flat-rate-dest { flex: 1; font-size: 0.875rem; }
+    .flat-rate-price { font-size: 0.875rem; font-weight: 700; color: var(--text-primary); width: 70px; }
+    .promo-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-sub); }
+    .promo-row:last-child { border-bottom: none; }
+    .promo-code { font-family: 'SF Mono', monospace; font-size: 0.875rem; font-weight: 700; flex: 1; }
+    .promo-pct  { font-size: 0.8125rem; color: var(--text-secondary); width: 50px; }
+
+    .oasr-card { background: var(--surface-1); border: 1px solid var(--border); border-left: 3px solid var(--amber); border-radius: var(--radius-card); padding: 14px 16px; margin-bottom: 8px; }
+    .oasr-card.needs-review { border-left-color: var(--red); }
+    .oasr-card.scheduled    { border-left-color: var(--green); }
+
+    .receipt-table-wrap { overflow-x: auto; }
+
+    .export-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+
+    #trackingMap { height: calc(100vh - 220px); min-height: 400px; border-radius: var(--radius-card); overflow: hidden; }
+    .tracking-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-secondary); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* Drawer edit form */
+    .drawer-form .form-group + .form-group { margin-top: 12px; }
   </style>
 </head>
 <body>
 <script>window.__adminAuthed = {{ 'true' if authed else 'false' }};</script>
 
-<!-- LOGIN GATE -->
-<div id="loginGate" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:9999; align-items:center; justify-content:center;">
-  <div class="card" style="max-width:360px; width:90%;">
-    <div class="card-header"><span class="icon">🔐</span> Admin Login</div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="adminPassword" placeholder="Enter admin password" autocomplete="current-password">
+<!-- ═══════════════════════════════ LOGIN GATE ═══════════════════════════════ -->
+<div id="loginGate" class="login-page" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">Caledonia<span> Taxi</span></div>
+    <h1 class="login-title">Admin</h1>
+    <p class="login-sub">Sign in to the operations dashboard</p>
+    <div class="login-form">
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="adminPassword" class="form-input" placeholder="Enter admin password"
+          autocomplete="current-password" onkeydown="if(event.key==='Enter')adminLogin()">
+      </div>
+      <div id="loginError" class="mt-2" style="color:var(--red);font-size:.8125rem;display:none"></div>
+      <button onclick="adminLogin()" class="btn btn-primary btn--full mt-4">Sign In</button>
     </div>
-    <div id="loginError" style="display:none; color:var(--danger); font-size:0.85rem; margin-bottom:0.75rem;"></div>
-    <button class="btn btn-primary btn-block" onclick="doAdminLogin()">Sign In</button>
+    <p class="login-footer">Caledonia Taxi Dispatch System</p>
   </div>
 </div>
 
 <script>
-(function() {
-  if (!window.__adminAuthed) {
-    var gate = document.getElementById('loginGate');
-    gate.style.display = 'flex';
-  }
-})();
-
-async function doAdminLogin() {
+(function(){ if(!window.__adminAuthed){ document.getElementById('loginGate').style.display='flex'; } })();
+async function adminLogin() {
   const pw = document.getElementById('adminPassword').value;
   const err = document.getElementById('loginError');
   err.style.display = 'none';
   try {
-    const r = await fetch('/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw }),
-      credentials: 'include'
-    });
-    if (!r.ok) throw new Error('Invalid password');
+    const r = await fetch('/admin/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({password: pw}), credentials: 'include' });
+    if (!r.ok) throw new Error();
     location.reload();
   } catch(e) {
     err.textContent = 'Invalid password. Try again.';
@@ -89,455 +119,1159 @@ async function doAdminLogin() {
 }
 </script>
 
-<header class="header">
-  <div class="logo"><div class="logo-icon">🚕</div><span>Admin Panel</span></div>
-  <div class="nav-links">
-    <a href="/">Book</a>
-    <a href="/driver">Driver</a>
-    <a href="/admin" class="active">Admin</a>
-    <a href="/heatmap">Heatmap</a>
-    <a href="#" onclick="fetch('/admin/logout',{credentials:'include'}).then(()=>location.reload()); return false;" style="color:var(--text-muted); text-decoration:none; font-size:0.85rem;">Logout</a>
-  </div>
-</header>
+<!-- ════════════════════════════════ ADMIN PANEL ════════════════════════════════ -->
+<div id="adminPanel" style="display:none">
+  <header class="site-header">
+    <div class="site-header__inner">
+      <div class="site-header__logo">Caledonia Taxi — Admin</div>
+      <div class="site-header__actions">
+        <a href="/admin/logout" class="btn btn-secondary btn--sm">Sign out</a>
+      </div>
+    </div>
+  </header>
 
-<div class="container-wide">
+  <div class="page-wrap--wide page-content">
 
-  <!-- ===== STATS ===== -->
-  <div class="stats-grid" style="margin-top:1.5rem;">
-    <div class="stat-card accent-accent">
-      <div class="stat-value" id="sTotal">0</div>
-      <div class="stat-label">Total Bookings</div>
+    <!-- Tab bar -->
+    <div class="tab-bar mb-4">
+      <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+      <button class="tab-btn" onclick="switchTab('orders')">Orders</button>
+      <button class="tab-btn" onclick="switchTab('tracking')">Tracking</button>
+      <button class="tab-btn" onclick="switchTab('oasr')">OASR</button>
+      <button class="tab-btn" onclick="switchTab('revenue')">Revenue</button>
+      <button class="tab-btn" onclick="switchTab('drivers')">Drivers</button>
+      <button class="tab-btn" onclick="switchTab('receipts')">Receipts</button>
+      <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
     </div>
-    <div class="stat-card accent-warning">
-      <div class="stat-value" id="sPending">0</div>
-      <div class="stat-label">Pending</div>
-    </div>
-    <div class="stat-card accent-info">
-      <div class="stat-value" id="sActive">0</div>
-      <div class="stat-label">Active Rides</div>
-    </div>
-    <div class="stat-card accent-success">
-      <div class="stat-value" id="sCompleted">0</div>
-      <div class="stat-label">Completed</div>
-    </div>
-    <div class="stat-card accent-success">
-      <div class="stat-value" id="sDAvail">0</div>
-      <div class="stat-label">Drivers Available</div>
-    </div>
-    <div class="stat-card accent-warning">
-      <div class="stat-value" id="sDBusy">0</div>
-      <div class="stat-label">Drivers Busy</div>
-    </div>
-    <div class="stat-card accent-success">
-      <div class="stat-value" id="sRevenue">$0</div>
-      <div class="stat-label">Today's Revenue</div>
-    </div>
-  </div>
 
-  <!-- ===== TABS ===== -->
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('bookings', this)">📋 Bookings</button>
-    <button class="tab-btn" onclick="switchTab('drivers', this)">👥 Drivers</button>
-    <button class="tab-btn" onclick="switchTab('sms', this)">💬 SMS Log</button>
-    <button class="tab-btn" onclick="switchTab('email', this)">📧 Email Log</button>
-    <button class="tab-btn" onclick="switchTab('activity', this)">⚡ Activity</button>
-  </div>
-
-  <!-- ===== TAB: BOOKINGS ===== -->
-  <div class="tab-panel active" id="tab-bookings">
-    <div class="card">
-      <div class="top-bar">
-        <div class="section-title">
-          <span>All Bookings</span>
-          <span class="live-badge"><span class="live-dot" style="margin-right:0;width:6px;height:6px;"></span> Live</span>
+    <!-- ──────────────────────────── DASHBOARD TAB ──────────────────────────── -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <!-- KPI grid -->
+      <div class="kpi-grid mb-4" id="kpiGrid">
+        <div class="kpi-card">
+          <div class="kpi-value" id="kpi-bookings">—</div>
+          <div class="kpi-label">Today's Bookings</div>
         </div>
-        <div class="action-bar">
-          <button class="btn btn-secondary btn-sm" onclick="loadAll()">↻ Refresh</button>
+        <div class="kpi-card">
+          <div class="kpi-value" id="kpi-revenue">—</div>
+          <div class="kpi-label">Today's Revenue</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="kpi-drivers">—</div>
+          <div class="kpi-label">Active Drivers</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" id="kpi-pending">—</div>
+          <div class="kpi-label">Pending</div>
         </div>
       </div>
 
-      <div class="filter-tabs">
-        <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
-        <button class="filter-tab" onclick="setFilter('pending',this)">Pending</button>
-        <button class="filter-tab" onclick="setFilter('dispatched',this)">Dispatched</button>
-        <button class="filter-tab" onclick="setFilter('accepted',this)">Accepted</button>
-        <button class="filter-tab" onclick="setFilter('in_progress',this)">In Progress</button>
-        <button class="filter-tab" onclick="setFilter('completed',this)">Completed</button>
-        <button class="filter-tab" onclick="setFilter('cancelled',this)">Cancelled</button>
-        <button class="filter-tab" onclick="setFilter('scheduled',this)">🕐 Scheduled</button>
+      <div class="grid-2 gap-4">
+        <!-- Activity feed -->
+        <div class="card">
+          <div class="card__header">
+            <span class="card__title">Live Activity</span>
+            <span class="badge badge-green" style="font-size:.625rem">● LIVE</span>
+          </div>
+          <div id="activityFeed" style="max-height:320px;overflow-y:auto;margin-top:12px"></div>
+        </div>
+
+        <!-- Quick dispatch -->
+        <div class="card">
+          <div class="card__header">
+            <span class="card__title">Quick Dispatch</span>
+            <button class="btn btn-secondary btn--sm" onclick="loadDashboard()">↻ Refresh</button>
+          </div>
+          <div id="dispatchList" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────────────────────────── ORDERS TAB ──────────────────────────── -->
+    <div id="tab-orders" class="tab-panel">
+      <div class="flex items-center justify-between mb-4">
+        <h2>Orders</h2>
+        <div class="export-bar">
+          <button class="btn btn-secondary btn--sm" onclick="exportOrdersExcel()">📥 Export Excel</button>
+        </div>
       </div>
 
-      <!-- Scheduled rides section -->
-      <div id="scheduledSection" style="margin-bottom:1.25rem; display:none;">
-        <div class="section-title" style="color:#8b5cf6; border-color:rgba(139,92,246,0.2);">🕐 Upcoming Scheduled Rides</div>
-        <div id="scheduledList"></div>
+      <!-- Status filter -->
+      <div class="filter-pills" id="statusFilter">
+        <button class="filter-pill active" onclick="setStatusFilter('all', this)">All</button>
+        <button class="filter-pill" onclick="setStatusFilter('pending', this)">Pending</button>
+        <button class="filter-pill" onclick="setStatusFilter('dispatched', this)">Dispatched</button>
+        <button class="filter-pill" onclick="setStatusFilter('in_progress', this)">Active</button>
+        <button class="filter-pill" onclick="setStatusFilter('completed', this)">Completed</button>
+        <button class="filter-pill" onclick="setStatusFilter('cancelled', this)">Cancelled</button>
       </div>
 
-      <div class="table-responsive">
-        <table>
-          <thead><tr>
-            <th>Time</th>
-            <th>Customer</th>
-            <th>Pickup</th>
-            <th>Drop-off</th>
-            <th>Fare</th>
-            <th>Status</th>
-            <th>Driver</th>
-            <th>Source</th>
-            <th>Actions</th>
-          </tr></thead>
-          <tbody id="bookingsTbody"></tbody>
+      <!-- Period filter -->
+      <div class="period-pills" id="periodFilter">
+        <button class="period-pill active" onclick="setPeriodFilter('today', this)">Today</button>
+        <button class="period-pill" onclick="setPeriodFilter('week', this)">Week</button>
+        <button class="period-pill" onclick="setPeriodFilter('month', this)">Month</button>
+        <button class="period-pill" onclick="setPeriodFilter('all', this)">All Time</button>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table class="data-table" id="ordersTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Customer</th>
+              <th>Route</th>
+              <th>Status</th>
+              <th>Driver</th>
+              <th>Fare</th>
+              <th>Time</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ordersBody">
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>
+          </tbody>
         </table>
       </div>
-      <div id="emptyState" class="empty-state" style="display:none;">
-        <div class="icon">📋</div><p>No bookings match this filter</p>
+    </div>
+
+    <!-- ──────────────────────────── TRACKING TAB ──────────────────────────── -->
+    <div id="tab-tracking" class="tab-panel">
+      <div class="flex items-center justify-between mb-3">
+        <h2>Live Tracking</h2>
+        <button class="btn btn-secondary btn--sm" onclick="refreshDriverLocations()">↻ Refresh</button>
+      </div>
+
+      <div class="tracking-legend mb-3">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Available</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>On a ride</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#444"></div>Offline</div>
+      </div>
+
+      <div id="trackingMap"></div>
+
+      <!-- Driver side drawer -->
+      <div class="right-drawer" id="driverDrawer">
+        <button class="drawer-close" onclick="closeDriverDrawer()">×</button>
+        <div class="drawer-body" id="driverDrawerContent"></div>
       </div>
     </div>
-  </div>
 
-  <!-- ===== TAB: DRIVERS ===== -->
-  <div class="tab-panel" id="tab-drivers">
-    <div class="card">
-      <div class="section-title"><span>Driver Fleet</span></div>
-      <div class="driver-grid" id="driverGrid">
-        <p style="color:var(--text-muted);">Loading…</p>
+    <!-- ──────────────────────────── OASR TAB ──────────────────────────── -->
+    <div id="tab-oasr" class="tab-panel">
+      <h2 class="mb-4">OASR Medical Bookings</h2>
+
+      <!-- Parse form -->
+      <div class="card mb-4">
+        <h3 class="mb-3" style="font-size:.9375rem">Parse Incoming Email</h3>
+        <div class="form-group">
+          <label class="form-label">Paste OASR email text</label>
+          <textarea id="oasrEmailText" class="form-input" rows="6" placeholder="Paste the full OASR email text here…" style="resize:vertical"></textarea>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="parseOasrEmail()" class="btn btn-primary">Parse & Create Booking</button>
+          <button onclick="clearOasrForm()" class="btn btn-secondary">Clear</button>
+        </div>
+        <div id="oasrParseResult" class="mt-3" style="font-size:.8125rem;display:none"></div>
+      </div>
+
+      <!-- OASR bookings list -->
+      <div class="flex items-center justify-between mb-3">
+        <h3 style="font-size:.9375rem">OASR Bookings</h3>
+        <button class="btn btn-secondary btn--sm" onclick="loadOasrBookings()">↻ Refresh</button>
+      </div>
+      <div id="oasrList"></div>
+    </div>
+
+    <!-- ──────────────────────────── REVENUE TAB ──────────────────────────── -->
+    <div id="tab-revenue" class="tab-panel">
+      <div class="flex items-center justify-between mb-4">
+        <h2>Revenue</h2>
+        <button class="btn btn-secondary btn--sm" onclick="exportRevenueExcel()">📥 Export Excel</button>
+      </div>
+
+      <div class="period-pills" id="revPeriodFilter">
+        <button class="period-pill active" onclick="setRevPeriod('week', this)">7 Days</button>
+        <button class="period-pill" onclick="setRevPeriod('month', this)">30 Days</button>
+        <button class="period-pill" onclick="setRevPeriod('quarter', this)">Quarter</button>
+        <button class="period-pill" onclick="setRevPeriod('year', this)">Year</button>
+      </div>
+
+      <!-- Revenue KPIs -->
+      <div class="kpi-grid mb-4" id="revKpiGrid">
+        <div class="kpi-card"><div class="kpi-value" id="rev-total">—</div><div class="kpi-label">Total Revenue</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="rev-trips">—</div><div class="kpi-label">Total Trips</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="rev-avg">—</div><div class="kpi-label">Avg Fare</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="rev-top">—</div><div class="kpi-label">Top Day</div></div>
+      </div>
+
+      <!-- Bar chart -->
+      <div class="card mb-4">
+        <div class="card__title mb-3">Daily Breakdown</div>
+        <div class="bar-chart" id="revChart"></div>
+      </div>
+
+      <!-- Service split -->
+      <div class="card mb-4">
+        <div class="card__title mb-3">By Service Type</div>
+        <div id="serviceSplit"></div>
+      </div>
+
+      <!-- Daily table -->
+      <div style="overflow-x:auto">
+        <table class="data-table" id="revTable">
+          <thead><tr><th>Date</th><th>Trips</th><th>Revenue</th><th>Avg Fare</th></tr></thead>
+          <tbody id="revBody"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr></tbody>
+        </table>
       </div>
     </div>
-  </div>
 
-  <!-- ===== TAB: SMS LOG ===== -->
-  <div class="tab-panel" id="tab-sms">
-    <div class="card">
-      <div class="top-bar">
-        <div class="section-title"><span>SMS Log</span> <span class="badge badge-phone">MOCK</span></div>
-        <button class="btn btn-secondary btn-sm" onclick="loadSmsLog()">↻ Refresh</button>
+    <!-- ──────────────────────────── DRIVERS TAB ──────────────────────────── -->
+    <div id="tab-drivers" class="tab-panel">
+      <div class="flex items-center justify-between mb-4">
+        <h2>Drivers</h2>
+        <button class="btn btn-primary btn--sm" onclick="openDriverDrawer(null)">+ Add Driver</button>
       </div>
-      <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
-        All SMS messages are mocked. No real messages are sent. See <code>MORNING_SETUP.md</code> to enable Twilio SMS.
-      </p>
-      <div id="smsLog"><p style="color:var(--text-muted); font-size:0.88rem;">No SMS messages yet. Complete a booking to see logs.</p></div>
-    </div>
-  </div>
+      <div id="driversList"></div>
 
-  <!-- ===== TAB: EMAIL LOG ===== -->
-  <div class="tab-panel" id="tab-email">
-    <div class="card">
-      <div class="top-bar">
-        <div class="section-title"><span>Email / Receipt Log</span> <span class="badge badge-phone">MOCK</span></div>
-        <button class="btn btn-secondary btn-sm" onclick="loadEmailLog()">↻ Refresh</button>
+      <!-- Driver edit drawer -->
+      <div class="right-drawer" id="editDriverDrawer">
+        <button class="drawer-close" onclick="closeEditDriverDrawer()">×</button>
+        <div class="drawer-body">
+          <h3 class="mb-4" id="driverDrawerTitle">Add Driver</h3>
+          <div class="drawer-form">
+            <input type="hidden" id="driverEditId">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="driverEditName" class="form-input" placeholder="Driver name">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              <input type="tel" id="driverEditPhone" class="form-input" placeholder="+1 905 000 0000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Vehicle</label>
+              <input type="text" id="driverEditVehicle" class="form-input" placeholder="e.g. Toyota Camry 2022">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Plate</label>
+              <input type="text" id="driverEditPlate" class="form-input" placeholder="e.g. ABCD 123">
+            </div>
+            <div class="flex gap-2 mt-4">
+              <button class="btn btn-primary flex-1" onclick="saveDriver()">Save</button>
+              <button class="btn btn-secondary" onclick="closeEditDriverDrawer()">Cancel</button>
+            </div>
+            <button id="deactivateDriverBtn" class="btn btn-secondary btn--full mt-3" style="border-color:var(--red);color:var(--red);display:none" onclick="deactivateDriver()">Deactivate Driver</button>
+          </div>
+          <div id="driverEditError" class="mt-3" style="color:var(--red);font-size:.8125rem;display:none"></div>
+        </div>
       </div>
-      <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
-        PDF receipts are generated and logged here. See <code>MORNING_SETUP.md</code> to enable Resend email sending.
-      </p>
-      <div id="emailLog"><p style="color:var(--text-muted); font-size:0.88rem;">No emails sent yet. Complete a ride to trigger a receipt.</p></div>
     </div>
-  </div>
 
-  <!-- ===== TAB: ACTIVITY FEED ===== -->
-  <div class="tab-panel" id="tab-activity">
-    <div class="card">
-      <div class="section-title"><span>Live Activity Feed</span></div>
-      <div id="activityFeed"></div>
-      <div id="emptyActivity" class="empty-state">
-        <div class="icon">⚡</div><p>Waiting for activity…</p>
+    <!-- ──────────────────────────── RECEIPTS TAB ──────────────────────────── -->
+    <div id="tab-receipts" class="tab-panel">
+      <div class="flex items-center justify-between mb-4">
+        <h2>Receipts</h2>
+        <button class="btn btn-secondary btn--sm" onclick="exportReceiptsExcel()">📥 Export Excel</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="card mb-4">
+        <div class="grid-3 gap-3">
+          <div class="form-group">
+            <label class="form-label">Driver</label>
+            <select id="receiptDriverFilter" class="form-input" onchange="loadReceipts()">
+              <option value="">All Drivers</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">From</label>
+            <input type="date" id="receiptDateFrom" class="form-input" onchange="loadReceipts()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">To</label>
+            <input type="date" id="receiptDateTo" class="form-input" onchange="loadReceipts()">
+          </div>
+        </div>
+      </div>
+
+      <div class="receipt-table-wrap">
+        <table class="data-table" id="receiptsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Customer</th>
+              <th>Driver</th>
+              <th>Route</th>
+              <th>Fare</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="receiptsBody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
-  </div>
 
-</div>
+    <!-- ──────────────────────────── SETTINGS TAB ──────────────────────────── -->
+    <div id="tab-settings" class="tab-panel">
+      <div class="flex items-center justify-between mb-4">
+        <h2>Settings</h2>
+        <button class="btn btn-primary btn--sm" onclick="saveAllSettings()">Save All</button>
+      </div>
 
-<!-- ===== ASSIGN MODAL ===== -->
-<div id="assignModal" class="modal-overlay">
-  <div class="card modal">
-    <div class="card-header"><span class="icon">📌</span> Manually Assign Driver</div>
-    <input type="hidden" id="assignBid">
-    <div class="form-group">
-      <label>Select Available Driver</label>
-      <select id="assignSelect"><option value="">Choose driver…</option></select>
+      <div class="grid-2 gap-4">
+
+        <!-- Pricing -->
+        <div class="card settings-section">
+          <h3>Pricing</h3>
+          <div class="form-group">
+            <label class="form-label">Base Fare ($)</label>
+            <input type="number" id="s-base-fare" class="form-input" step="0.01" min="0">
+          </div>
+          <div class="form-group mt-3">
+            <label class="form-label">Per KM Rate ($)</label>
+            <input type="number" id="s-per-km" class="form-input" step="0.01" min="0">
+          </div>
+          <div class="form-group mt-3">
+            <label class="form-label">Minimum Fare ($)</label>
+            <input type="number" id="s-min-fare" class="form-input" step="0.01" min="0">
+          </div>
+          <div class="form-group mt-3">
+            <label class="form-label">Stop Surcharge ($)</label>
+            <input type="number" id="s-stop-surcharge" class="form-input" step="0.01" min="0">
+          </div>
+        </div>
+
+        <!-- Surge pricing -->
+        <div class="card settings-section">
+          <h3>Surge Pricing</h3>
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="s-surge-enabled" style="width:16px;height:16px">
+              Enable Surge Pricing
+            </label>
+          </div>
+          <div class="divider mt-3 mb-3"></div>
+          <div class="label mb-2">Tier 1 (1.5×)</div>
+          <div class="grid-2 gap-3">
+            <div class="form-group">
+              <label class="form-label">Pending ≥</label>
+              <input type="number" id="s-t1-pending" class="form-input" min="1" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Available ≤</label>
+              <input type="number" id="s-t1-avail" class="form-input" min="0" step="1">
+            </div>
+          </div>
+          <div class="label mb-2 mt-3">Tier 2 (2×)</div>
+          <div class="grid-2 gap-3">
+            <div class="form-group">
+              <label class="form-label">Pending ≥</label>
+              <input type="number" id="s-t2-pending" class="form-input" min="1" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Available ≤</label>
+              <input type="number" id="s-t2-avail" class="form-input" min="0" step="1">
+            </div>
+          </div>
+        </div>
+
+        <!-- Flat rates -->
+        <div class="card settings-section">
+          <h3>Long Distance Flat Rates</h3>
+          <div id="flatRatesList"></div>
+          <div class="divider mt-3 mb-3"></div>
+          <div class="flex gap-2">
+            <input type="text" id="newFlatDest" class="form-input" placeholder="Destination" style="flex:2">
+            <input type="number" id="newFlatPrice" class="form-input" placeholder="$" step="0.01" style="flex:1">
+            <button class="btn btn-primary btn--sm" onclick="addFlatRate()">Add</button>
+          </div>
+        </div>
+
+        <!-- Promo codes -->
+        <div class="card settings-section">
+          <h3>Promo Codes</h3>
+          <div id="promoList"></div>
+          <div class="divider mt-3 mb-3"></div>
+          <div class="flex gap-2">
+            <input type="text" id="newPromoCode" class="form-input" placeholder="CODE" style="flex:2;text-transform:uppercase">
+            <input type="number" id="newPromoDiscount" class="form-input" placeholder="%" min="1" max="100" step="1" style="flex:1">
+            <button class="btn btn-primary btn--sm" onclick="addPromoCode()">Add</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="settingsSaveMsg" class="mt-4" style="font-size:.875rem;display:none"></div>
     </div>
-    <div style="display:flex; gap:0.875rem;">
-      <button class="btn btn-secondary" style="flex:1" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary"   style="flex:1" onclick="submitAssign()">Assign →</button>
-    </div>
-  </div>
-</div>
 
-<div class="toast-container" id="toasts"></div>
+  </div><!-- /page-wrap--wide -->
+</div><!-- /adminPanel -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
 <script>
-const API = '';
-let allBookings = [], allDrivers = [], filter = 'all', ws = null;
-let activityLog = [];
+/* ═══════════════════════════════════════════════════════════════════════════
+   Caledonia Taxi — Admin Panel JS
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-// ===================== TABS =====================
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  btn.classList.add('active');
-  // Lazy-load tab content
-  if (name === 'sms')   loadSmsLog();
-  if (name === 'email') loadEmailLog();
-  if (name === 'drivers') loadDrivers();
-}
-
-// ===================== LOAD ALL =====================
-async function loadAll() {
-  await Promise.all([loadStats(), loadDrivers(), loadBookings()]);
-}
-
-async function loadStats() {
-  try {
-    const d = await (await fetch(`${API}/api/admin/stats`)).json();
-    document.getElementById('sTotal').textContent     = d.total_bookings;
-    document.getElementById('sPending').textContent   = d.pending;
-    document.getElementById('sActive').textContent    = d.active;
-    document.getElementById('sCompleted').textContent = d.completed;
-    document.getElementById('sDAvail').textContent    = d.drivers_available;
-    document.getElementById('sDBusy').textContent     = d.drivers_busy;
-    // Revenue from completed bookings
-    const rev = (allBookings || [])
-      .filter(b => b.status === 'completed')
-      .reduce((s, b) => s + parseFloat(b.estimated_fare || 0), 0);
-    document.getElementById('sRevenue').textContent = `$${rev.toFixed(2)}`;
-  } catch(e) {}
-}
-
-async function loadDrivers() {
-  try {
-    const d = await (await fetch(`${API}/api/drivers`)).json();
-    allDrivers = d.drivers;
-    const vehicles = { d1:'White Honda CR-V', d2:'Black Toyota Camry', d3:'Silver Ford Escape', d4:'Blue Hyundai Sonata' };
-    document.getElementById('driverGrid').innerHTML = allDrivers.map(d => `
-      <div class="driver-card">
-        <div class="driver-avatar">${d.name.charAt(0)}</div>
-        <div class="driver-meta" style="flex:1;">
-          <div class="name">${d.name}</div>
-          <div class="phone">${d.phone}</div>
-          <div class="vehicle">${vehicles[d.id] || 'Vehicle N/A'}</div>
-        </div>
-        <span class="badge badge-${d.status}">${d.status}</span>
-      </div>`).join('');
-  } catch(e) {}
-}
-
-async function loadBookings() {
-  try {
-    const d = await (await fetch(`${API}/api/bookings`)).json();
-    allBookings = d.bookings;
-    renderBookings();
-    // Update revenue stat now that bookings are loaded
-    const rev = allBookings
-      .filter(b => b.status === 'completed')
-      .reduce((s, b) => s + parseFloat(b.estimated_fare || 0), 0);
-    document.getElementById('sRevenue').textContent = `$${rev.toFixed(2)}`;
-  } catch(e) {}
-}
-
-function renderBookings() {
-  const list = filter === 'all' ? allBookings : allBookings.filter(b => b.status === filter);
-  const tbody = document.getElementById('bookingsTbody');
-  const empty = document.getElementById('emptyState');
-
-  // Scheduled section — always show upcoming scheduled regardless of filter
-  const scheduled = allBookings.filter(b => b.status === 'scheduled');
-  const schedSection = document.getElementById('scheduledSection');
-  if (schedSection) {
-    schedSection.style.display = (scheduled.length && filter === 'all') ? 'block' : 'none';
-    document.getElementById('scheduledList').innerHTML = scheduled.map(b => {
-      const sf = b.scheduled_for ? new Date(b.scheduled_for).toLocaleString('en-CA', {dateStyle:'short', timeStyle:'short'}) : '—';
-      return `<div class="booking-row" data-status="scheduled" style="background:var(--surface-2);border-radius:var(--radius-sm);padding:0.75rem 0.875rem;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-weight:600;">${b.customer_name}</div>
-          <div style="font-size:0.8rem;color:var(--text-secondary);">${b.pickup_address} → ${b.dropoff_address}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="color:#8b5cf6;font-size:0.78rem;font-weight:700;">🕐 SCHEDULED</div>
-          <div style="font-size:0.75rem;color:var(--text-muted);">${sf}</div>
-        </div>
-      </div>`;
-    }).join('');
+// ── Bootstrap ──────────────────────────────────────────────────────────────
+(function() {
+  if (window.__adminAuthed) {
+    document.getElementById('adminPanel').style.display = 'block';
+    loadDashboard();
+    connectWs();
   }
+})();
 
-  if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  tbody.innerHTML = list.map(b => {
-    const time  = new Date(b.created_at).toLocaleString('en-CA', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-    const dName = b.assigned_driver_id ? (allDrivers.find(d=>d.id===b.assigned_driver_id)?.name||'Unknown') : '—';
-    const fare  = b.estimated_fare ? `$${parseFloat(b.estimated_fare).toFixed(2)}` : '—';
-    const trunc = (s,n) => s && s.length>n ? s.slice(0,n)+'…' : (s||'—');
-    const srcBadge = `<span class="badge badge-${b.source}">${b.source}</span>`;
-    const pmBadge = b.payment_method === 'stripe'
-      ? `<span style="color:#22c55e;font-size:0.72rem;">💳 Paid</span>`
-      : `<span style="color:var(--text-muted);font-size:0.72rem;">💵 Cash</span>`;
-    let actions = '';
-    if (b.status==='pending')
-      actions = `<button class="btn btn-primary btn-sm" onclick="openModal('${b.id}')">Assign</button> <button class="btn btn-danger btn-sm" onclick="cancelB('${b.id}')">Cancel</button>`;
-    else if (['dispatched','accepted'].includes(b.status))
-      actions = `<button class="btn btn-danger btn-sm" onclick="cancelB('${b.id}')">Cancel</button>`;
-    else if (b.status==='completed')
-      actions = `<button class="btn btn-secondary btn-sm" onclick="downloadReceipt('${b.id}')">🧾 Receipt</button>`;
-    return `<tr class="booking-row" data-status="${b.status}">
-      <td style="white-space:nowrap;">${time}</td>
-      <td><strong>${b.customer_name}</strong><br><small style="color:var(--text-secondary);">${b.customer_phone}</small></td>
-      <td style="max-width:160px;">${trunc(b.pickup_address,22)}</td>
-      <td style="max-width:160px;">${trunc(b.dropoff_address,22)}</td>
-      <td style="font-weight:700; color:var(--accent);">${fare}<br>${pmBadge}</td>
-      <td><span class="badge badge-${b.status}">${b.status.replace(/_/g,' ')}</span></td>
-      <td>${dName}</td>
-      <td>${srcBadge}</td>
-      <td style="white-space:nowrap;">${actions}</td>
-    </tr>`;
-  }).join('');
-}
+// ── Tab switching ──────────────────────────────────────────────────────────
+let activeTab = 'dashboard';
+let trackingInterval = null;
 
-function setFilter(f, el) {
-  filter = f;
-  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  renderBookings();
-}
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  const btns = document.querySelectorAll('.tab-btn');
+  btns.forEach(b => { if (b.textContent.toLowerCase().includes(name.split('')[0].toLowerCase()) &&
+    b.getAttribute('onclick') && b.getAttribute('onclick').includes(name)) b.classList.add('active'); });
 
-async function cancelB(id) {
-  if (!confirm('Cancel this booking?')) return;
-  await fetch(`${API}/api/bookings/${id}/cancel`, { method: 'PATCH' });
-  toast('Booking cancelled', 'warning');
-  loadAll();
-}
-
-async function downloadReceipt(id) {
-  try {
-    const r = await fetch(`${API}/api/bookings/${id}/receipt`);
-    if (!r.ok) { toast('Receipt not ready yet', 'warning'); return; }
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `receipt_${id.slice(0,8)}.pdf`;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
-  } catch(e) { toast('Could not download receipt', 'error'); }
-}
-
-// ===== ASSIGN MODAL =====
-function openModal(id) {
-  document.getElementById('assignBid').value = id;
-  const sel = document.getElementById('assignSelect');
-  sel.innerHTML = '<option value="">Choose driver…</option>' +
-    allDrivers.filter(d=>d.status==='available').map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
-  document.getElementById('assignModal').classList.add('open');
-}
-function closeModal() { document.getElementById('assignModal').classList.remove('open'); }
-
-async function submitAssign() {
-  const bid = document.getElementById('assignBid').value;
-  const did = document.getElementById('assignSelect').value;
-  if (!did) { toast('Please select a driver', 'warning'); return; }
-  await fetch(`${API}/api/admin/assign`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ booking_id: bid, driver_id: did })
+  // Find button by onclick attribute
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.getAttribute('onclick') === `switchTab('${name}')`) b.classList.add('active');
   });
-  closeModal(); toast('Driver assigned!', 'success'); loadAll();
+
+  activeTab = name;
+
+  if (trackingInterval) { clearInterval(trackingInterval); trackingInterval = null; }
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'orders')    loadOrders();
+  if (name === 'tracking')  { initTrackingMap(); refreshDriverLocations(); trackingInterval = setInterval(refreshDriverLocations, 10000); }
+  if (name === 'oasr')      loadOasrBookings();
+  if (name === 'revenue')   loadRevenue('week');
+  if (name === 'drivers')   loadDrivers();
+  if (name === 'receipts')  { populateReceiptDriverFilter(); loadReceipts(); }
+  if (name === 'settings')  loadSettings();
 }
 
-// ===== SMS LOG =====
-async function loadSmsLog() {
+// ── WebSocket ──────────────────────────────────────────────────────────────
+let ws = null;
+function connectWs() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/admin`);
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      pushActivity(msg.text || JSON.stringify(msg), msg.type || 'grey');
+      if (activeTab === 'dashboard') refreshKpis();
+    } catch {}
+  };
+  ws.onclose = () => setTimeout(connectWs, 5000);
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  refreshKpis();
+  loadDispatchQueue();
+}
+
+async function refreshKpis() {
   try {
-    const d = await (await fetch(`${API}/api/admin/sms-log`)).json();
-    const el = document.getElementById('smsLog');
-    if (!d.sms_log || !d.sms_log.length) {
-      el.innerHTML = '<p style="color:var(--text-muted); font-size:0.88rem;">No SMS messages yet.</p>';
+    const s = await fetch('/api/admin/stats').then(r => r.json());
+    document.getElementById('kpi-bookings').textContent = s.bookings_today ?? '—';
+    document.getElementById('kpi-revenue').textContent = s.revenue_today != null ? `$${Number(s.revenue_today).toFixed(0)}` : '—';
+    document.getElementById('kpi-drivers').textContent = s.active_drivers ?? '—';
+    document.getElementById('kpi-pending').textContent = s.pending ?? '—';
+  } catch {}
+}
+
+async function loadDispatchQueue() {
+  const el = document.getElementById('dispatchList');
+  try {
+    const bookings = await fetch('/api/bookings?status=pending').then(r => r.json());
+    const drivers  = await fetch('/api/drivers').then(r => r.json());
+    if (!bookings.length) {
+      el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No pending bookings</p>';
       return;
     }
-    el.innerHTML = [...d.sms_log].reverse().map(s => `
-      <div class="sms-entry">
-        <div class="sms-meta">
-          <span class="sms-to">${s.to}</span>
-          <span class="sms-time">${new Date(s.sent_at).toLocaleTimeString()}</span>
+    const driverOpts = drivers.map(d => `<option value="${d.id}">${escHtml(d.name)}</option>`).join('');
+    el.innerHTML = bookings.slice(0, 10).map(b => `
+      <div class="dispatch-row">
+        <div class="dispatch-info">
+          <div class="dispatch-id">#${b.id.toString().slice(-6).toUpperCase()}</div>
+          <div class="dispatch-route">${escHtml(b.pickup_address)} → ${escHtml(b.dropoff_address || b.destination_city || '')}</div>
         </div>
-        <div class="sms-msg">${s.message}</div>
-      </div>`).join('');
-  } catch(e) {}
+        <select class="form-input" style="font-size:.75rem;padding:4px 8px;height:auto;width:120px" id="dd-${b.id}">
+          <option value="">Driver…</option>${driverOpts}
+        </select>
+        <button class="btn btn-primary btn--sm" style="font-size:.75rem;padding:4px 10px" onclick="assignDriver(${b.id})">Assign</button>
+      </div>
+    `).join('');
+  } catch {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">Could not load queue</p>';
+  }
 }
 
-// ===== EMAIL LOG =====
-async function loadEmailLog() {
+async function assignDriver(bookingId) {
+  const driverId = document.getElementById('dd-' + bookingId).value;
+  if (!driverId) return;
   try {
-    const d = await (await fetch(`${API}/api/admin/email-log`)).json();
-    const el = document.getElementById('emailLog');
-    if (!d.email_log || !d.email_log.length) {
-      el.innerHTML = '<p style="color:var(--text-muted); font-size:0.88rem;">No emails sent yet.</p>';
-      return;
-    }
-    el.innerHTML = [...d.email_log].reverse().map(e => `
-      <div class="email-entry">
-        <div class="email-meta">
-          <span class="email-to">${e.to}</span>
-          <span class="email-time">${new Date(e.sent_at).toLocaleTimeString()}</span>
-        </div>
-        <div class="email-sub">${e.subject}</div>
-        <div style="color:var(--text-muted); font-size:0.78rem; margin-top:3px;">
-          ${e.has_attachment ? '📎 PDF receipt attached' : ''} · ${e.status}
-        </div>
-      </div>`).join('');
-  } catch(e) {}
+    await fetch(`/api/bookings/${bookingId}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ driver_id: parseInt(driverId), status: 'dispatched' }) });
+    loadDispatchQueue();
+    refreshKpis();
+    pushActivity(`Booking #${bookingId.toString().slice(-6).toUpperCase()} dispatched`, 'green');
+  } catch {}
 }
 
-// ===== ACTIVITY FEED =====
-function addActivity(msg, type='info') {
-  activityLog.unshift({ msg, type, time: new Date().toLocaleTimeString() });
-  if (activityLog.length > 50) activityLog.pop();
+const activityItems = [];
+function pushActivity(text, type = 'grey') {
+  activityItems.unshift({ text, type, time: new Date() });
+  if (activityItems.length > 50) activityItems.pop();
   renderActivity();
 }
-
 function renderActivity() {
-  const feed = document.getElementById('activityFeed');
-  const empty = document.getElementById('emptyActivity');
-  if (!activityLog.length) { empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  const icons = { info:'ℹ️', success:'✅', warning:'⚠️', error:'❌' };
-  feed.innerHTML = activityLog.map(a => `
-    <div class="dispatch-event">
-      <span class="de-icon">${icons[a.type]||'•'}</span>
+  const el = document.getElementById('activityFeed');
+  if (!el) return;
+  el.innerHTML = activityItems.slice(0, 20).map(a => `
+    <div class="activity-item">
+      <div class="activity-dot ${a.type}"></div>
       <div>
-        <div>${a.msg}</div>
-        <div class="de-time">${a.time}</div>
+        <div class="activity-text">${escHtml(a.text)}</div>
+        <div class="activity-time">${formatTime(a.time)}</div>
       </div>
-    </div>`).join('');
+    </div>
+  `).join('') || '<p style="color:var(--text-muted);font-size:.8125rem">No activity yet</p>';
 }
 
-// ===== WEBSOCKET =====
-function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}/ws/admin`);
-  ws.onmessage = e => {
-    const msg = JSON.parse(e.data);
-    loadAll();
-    const toastMap = {
-      new_booking:     { text: '🆕 New booking received!',         type: 'info' },
-      dispatched:      { text: '📡 Driver dispatched',              type: 'info' },
-      ride_accepted:   { text: '✅ Ride accepted by driver',        type: 'success' },
-      ride_started:    { text: '🚗 Ride in progress',               type: 'info' },
-      ride_completed:  { text: '🏁 Ride completed — receipt sent',  type: 'success' },
-      dispatch_failed: { text: '⚠️ Dispatch failed!',              type: 'warning' },
-      booking_cancelled: { text: '❌ Booking cancelled',            type: 'warning' },
-    };
-    const t = toastMap[msg.type];
-    if (t) { toast(t.text, t.type); addActivity(t.text, t.type); }
+// ── Orders ─────────────────────────────────────────────────────────────────
+let ordersStatusFilter = 'all';
+let ordersPeriodFilter = 'today';
+
+function setStatusFilter(v, btn) {
+  ordersStatusFilter = v;
+  document.querySelectorAll('#statusFilter .filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadOrders();
+}
+function setPeriodFilter(v, btn) {
+  ordersPeriodFilter = v;
+  document.querySelectorAll('#periodFilter .period-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadOrders();
+}
+
+async function loadOrders() {
+  const tbody = document.getElementById('ordersBody');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>';
+  try {
+    const params = new URLSearchParams();
+    if (ordersStatusFilter !== 'all') params.set('status', ordersStatusFilter);
+    if (ordersPeriodFilter !== 'all') params.set('period', ordersPeriodFilter);
+    const bookings = await fetch(`/api/bookings?${params}`).then(r => r.json());
+    if (!bookings.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">No bookings found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = bookings.map(b => `
+      <tr>
+        <td class="col-mono">#${b.id.toString().slice(-6).toUpperCase()}</td>
+        <td>${serviceLabel(b.service_type)}</td>
+        <td>${escHtml(b.customer_name || '—')}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(b.pickup_address)} → ${escHtml(b.dropoff_address || b.destination_city || '—')}</td>
+        <td><span class="badge ${statusBadge(b.status)}">${b.status}</span></td>
+        <td>${escHtml(b.driver_name || '—')}</td>
+        <td>$${b.estimated_fare != null ? Number(b.estimated_fare).toFixed(2) : '—'}</td>
+        <td>${b.created_at ? formatDateShort(new Date(b.created_at)) : '—'}</td>
+        <td>
+          <a href="/api/bookings/${b.id}/receipt" target="_blank" class="btn btn-secondary btn--sm" style="font-size:.625rem;padding:2px 6px">PDF</a>
+          ${b.status !== 'completed' && b.status !== 'cancelled' ? `<button onclick="cancelBooking(${b.id})" class="btn btn-secondary btn--sm" style="font-size:.625rem;padding:2px 6px;margin-left:4px;color:var(--red)">✕</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--red);padding:24px">Error loading orders</td></tr>';
+  }
+}
+
+async function cancelBooking(id) {
+  if (!confirm('Cancel this booking?')) return;
+  try {
+    await fetch(`/api/bookings/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status: 'cancelled' }) });
+    loadOrders();
+  } catch {}
+}
+
+function exportOrdersExcel() {
+  const rows = [['ID','Type','Customer','Pickup','Dropoff','Status','Driver','Fare','Time']];
+  document.querySelectorAll('#ordersBody tr').forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length > 4) rows.push(Array.from(tds).slice(0,8).map(td => td.textContent.trim()));
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws2, 'Orders');
+  XLSX.writeFile(wb, `caledonia-orders-${dateStamp()}.xlsx`);
+}
+
+// ── Tracking ───────────────────────────────────────────────────────────────
+let trackingMap = null;
+let driverMarkers = {};
+
+function initTrackingMap() {
+  if (trackingMap) return;
+  const el = document.getElementById('trackingMap');
+  if (!el) return;
+  trackingMap = L.map('trackingMap').setView([43.0773, -79.9408], 11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© CartoDB', maxZoom: 19
+  }).addTo(trackingMap);
+}
+
+async function refreshDriverLocations() {
+  if (!trackingMap) return;
+  try {
+    const drivers = await fetch('/api/admin/driver-locations').then(r => r.json());
+    drivers.forEach(d => {
+      if (!d.lat || !d.lng) return;
+      const color = d.status === 'available' ? '#22C55E' : d.status === 'busy' ? '#F59E0B' : '#444';
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #000;box-shadow:0 0 8px ${color}66;cursor:pointer"></div>`,
+        iconSize: [14, 14], iconAnchor: [7, 7]
+      });
+      if (driverMarkers[d.id]) {
+        driverMarkers[d.id].setLatLng([d.lat, d.lng]).setIcon(icon);
+      } else {
+        driverMarkers[d.id] = L.marker([d.lat, d.lng], { icon })
+          .addTo(trackingMap)
+          .on('click', () => showDriverDrawer(d));
+      }
+    });
+    // Remove stale markers
+    const ids = new Set(drivers.map(d => d.id));
+    Object.keys(driverMarkers).forEach(id => {
+      if (!ids.has(parseInt(id))) { driverMarkers[id].remove(); delete driverMarkers[id]; }
+    });
+  } catch {}
+}
+
+function showDriverDrawer(d) {
+  const el = document.getElementById('driverDrawerContent');
+  el.innerHTML = `
+    <h3 style="margin-bottom:4px">${escHtml(d.name)}</h3>
+    <p style="color:var(--text-secondary);font-size:.8125rem;margin-bottom:12px">${escHtml(d.vehicle || '')}${d.vehicle && d.plate ? ' · ' : ''}${escHtml(d.plate || '')}</p>
+    <span class="badge ${d.status === 'available' ? 'badge-green' : d.status === 'busy' ? 'badge-amber' : 'badge-grey'}">${d.status}</span>
+    ${d.active_booking ? `
+      <div class="divider mt-3 mb-3"></div>
+      <div class="label mb-2">Active Ride</div>
+      <p style="font-size:.875rem">${escHtml(d.active_booking.customer_name || '')}</p>
+      <p style="color:var(--text-secondary);font-size:.75rem;margin-top:4px">${escHtml(d.active_booking.pickup_address || '')} → ${escHtml(d.active_booking.dropoff_address || '')}</p>
+      <p style="margin-top:8px;font-size:.875rem">Fare: $${Number(d.active_booking.estimated_fare || 0).toFixed(2)}</p>
+    ` : '<p style="color:var(--text-secondary);font-size:.8125rem;margin-top:12px">No active ride</p>'}
+    <div class="divider mt-3 mb-3"></div>
+    <a href="tel:${escHtml(d.phone || '')}" class="btn btn-secondary btn--full btn--sm">📞 Call Driver</a>
+  `;
+  document.getElementById('driverDrawer').classList.add('open');
+}
+
+function closeDriverDrawer() {
+  document.getElementById('driverDrawer').classList.remove('open');
+}
+
+// ── OASR ──────────────────────────────────────────────────────────────────
+async function parseOasrEmail() {
+  const text = document.getElementById('oasrEmailText').value.trim();
+  const resultEl = document.getElementById('oasrParseResult');
+  if (!text) return;
+  resultEl.style.display = 'none';
+  try {
+    const r = await fetch('/api/oasr/inbound', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ raw_text: text })
+    });
+    const data = await r.json();
+    if (r.ok) {
+      resultEl.style.display = 'block';
+      resultEl.style.color = 'var(--green)';
+      resultEl.textContent = `✓ Booking created — ${escHtml(data.customer_name || '')} on ${escHtml(data.pickup_datetime || '')}`;
+      loadOasrBookings();
+    } else {
+      resultEl.style.display = 'block';
+      resultEl.style.color = 'var(--red)';
+      resultEl.textContent = `Error: ${escHtml(data.detail || 'Could not parse email')}`;
+    }
+  } catch {
+    resultEl.style.display = 'block';
+    resultEl.style.color = 'var(--red)';
+    resultEl.textContent = 'Network error. Please try again.';
+  }
+}
+
+function clearOasrForm() {
+  document.getElementById('oasrEmailText').value = '';
+  document.getElementById('oasrParseResult').style.display = 'none';
+}
+
+async function loadOasrBookings() {
+  const el = document.getElementById('oasrList');
+  el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">Loading…</p>';
+  try {
+    const bookings = await fetch('/api/admin/oasr').then(r => r.json());
+    if (!bookings.length) {
+      el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No OASR bookings found</p>';
+      return;
+    }
+    el.innerHTML = bookings.map(b => {
+      const cls = b.needs_review ? 'needs-review' : b.status === 'scheduled' ? 'scheduled' : '';
+      return `
+        <div class="oasr-card ${cls}">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="mono" style="font-size:.75rem;color:var(--text-secondary)">#${b.id.toString().slice(-6).toUpperCase()}</span>
+              <span class="badge ${statusBadge(b.status)}">${b.status}</span>
+              ${b.needs_review ? '<span class="badge badge-red">Review Needed</span>' : ''}
+            </div>
+            <span style="font-size:.75rem;color:var(--text-muted)">${b.created_at ? formatDateShort(new Date(b.created_at)) : ''}</span>
+          </div>
+          <div style="font-size:.875rem;font-weight:600">${escHtml(b.customer_name || '—')}</div>
+          <div style="font-size:.8125rem;color:var(--text-secondary);margin-top:2px">${escHtml(b.pickup_address || '—')} → ${escHtml(b.dropoff_address || b.destination_city || '—')}</div>
+          ${b.pickup_datetime ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">📅 ${escHtml(b.pickup_datetime)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch {
+    el.innerHTML = '<p style="color:var(--red);font-size:.8125rem">Error loading OASR bookings</p>';
+  }
+}
+
+// ── Revenue ────────────────────────────────────────────────────────────────
+let revPeriod = 'week';
+
+function setRevPeriod(period, btn) {
+  revPeriod = period;
+  document.querySelectorAll('#revPeriodFilter .period-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadRevenue(period);
+}
+
+async function loadRevenue(period) {
+  try {
+    const data = await fetch(`/api/admin/revenue?period=${period}`).then(r => r.json());
+
+    // KPIs
+    document.getElementById('rev-total').textContent = `$${Number(data.total || 0).toFixed(0)}`;
+    document.getElementById('rev-trips').textContent = data.trips || 0;
+    document.getElementById('rev-avg').textContent   = data.avg_fare != null ? `$${Number(data.avg_fare).toFixed(2)}` : '—';
+    document.getElementById('rev-top').textContent   = data.top_day_revenue != null ? `$${Number(data.top_day_revenue).toFixed(0)}` : '—';
+
+    // Bar chart
+    const chartEl = document.getElementById('revChart');
+    const days = data.daily || [];
+    if (days.length) {
+      const maxRev = Math.max(...days.map(d => d.revenue || 0), 1);
+      chartEl.innerHTML = days.map(d => {
+        const pct = Math.round(((d.revenue || 0) / maxRev) * 100);
+        return `
+          <div class="bar-col">
+            <div class="bar-fill" style="height:${pct}%" data-tip="$${Number(d.revenue || 0).toFixed(0)}"></div>
+            <div class="bar-lbl">${escHtml(d.date || '')}</div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      chartEl.innerHTML = '<p style="color:var(--text-muted);font-size:.75rem">No data</p>';
+    }
+
+    // Service split
+    const splitEl = document.getElementById('serviceSplit');
+    const split = data.by_service || {};
+    splitEl.innerHTML = Object.entries(split).map(([type, info]) => `
+      <div class="flex items-center justify-between" style="padding:6px 0;border-bottom:1px solid var(--border-sub)">
+        <span style="font-size:.875rem">${serviceLabel(type)}</span>
+        <span style="font-size:.875rem;font-weight:700">$${Number(info.revenue || 0).toFixed(0)} <span style="color:var(--text-muted);font-weight:400">(${info.trips} trips)</span></span>
+      </div>
+    `).join('') || '<p style="color:var(--text-muted);font-size:.75rem">No data</p>';
+
+    // Daily table
+    const tbody = document.getElementById('revBody');
+    tbody.innerHTML = days.map(d => `
+      <tr>
+        <td>${escHtml(d.date || '')}</td>
+        <td>${d.trips || 0}</td>
+        <td>$${Number(d.revenue || 0).toFixed(2)}</td>
+        <td>$${d.trips ? Number((d.revenue || 0) / d.trips).toFixed(2) : '—'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px">No data</td></tr>';
+
+  } catch {
+    document.getElementById('revChart').innerHTML = '<p style="color:var(--red);font-size:.75rem">Error loading revenue data</p>';
+  }
+}
+
+function exportRevenueExcel() {
+  const rows = [['Date','Trips','Revenue','Avg Fare']];
+  document.querySelectorAll('#revBody tr').forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length >= 4) rows.push(Array.from(tds).map(td => td.textContent.trim()));
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws2, 'Revenue');
+  XLSX.writeFile(wb, `caledonia-revenue-${dateStamp()}.xlsx`);
+}
+
+// ── Drivers ────────────────────────────────────────────────────────────────
+let allDrivers = [];
+
+async function loadDrivers() {
+  const el = document.getElementById('driversList');
+  el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">Loading…</p>';
+  try {
+    allDrivers = await fetch('/api/drivers').then(r => r.json());
+    renderDrivers();
+  } catch {
+    el.innerHTML = '<p style="color:var(--red);font-size:.8125rem">Error loading drivers</p>';
+  }
+}
+
+function renderDrivers() {
+  const el = document.getElementById('driversList');
+  if (!allDrivers.length) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No drivers yet</p>';
+    return;
+  }
+  el.innerHTML = allDrivers.map(d => `
+    <div class="driver-card">
+      <div class="flex items-center gap-3">
+        <div class="driver-avatar">${(d.name || '?').charAt(0).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="flex items-center gap-2">
+            <span style="font-weight:700;font-size:.9375rem">${escHtml(d.name)}</span>
+            <span class="badge ${d.inactive ? 'badge-grey' : d.status === 'available' ? 'badge-green' : d.status === 'busy' ? 'badge-amber' : 'badge-grey'}">${d.inactive ? 'inactive' : d.status || 'offline'}</span>
+          </div>
+          <div style="font-size:.75rem;color:var(--text-secondary);margin-top:2px">${escHtml(d.vehicle || '')}${d.vehicle && d.plate ? ' · ' : ''}${escHtml(d.plate || '')}</div>
+        </div>
+        <button class="btn btn-secondary btn--sm" onclick="openDriverDrawer(${d.id})">Edit</button>
+      </div>
+      <div class="driver-stats">
+        <div class="driver-stat"><div class="ds-val">${d.total_trips || 0}</div><div class="ds-lbl">Trips</div></div>
+        <div class="driver-stat"><div class="ds-val">$${Number(d.total_earnings || 0).toFixed(0)}</div><div class="ds-lbl">Earnings</div></div>
+        <div class="driver-stat"><div class="ds-val">${d.acceptance_rate != null ? Math.round(d.acceptance_rate * 100) + '%' : '—'}</div><div class="ds-lbl">Acceptance</div></div>
+        <div class="driver-stat"><div class="ds-val">${d.avg_rating != null ? Number(d.avg_rating).toFixed(1) + ' ⭐' : '—'}</div><div class="ds-lbl">Rating</div></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openDriverDrawer(id) {
+  const drawer = document.getElementById('editDriverDrawer');
+  const deactivateBtn = document.getElementById('deactivateDriverBtn');
+  document.getElementById('driverEditError').style.display = 'none';
+
+  if (id) {
+    const d = allDrivers.find(x => x.id === id);
+    if (!d) return;
+    document.getElementById('driverDrawerTitle').textContent = 'Edit Driver';
+    document.getElementById('driverEditId').value = id;
+    document.getElementById('driverEditName').value = d.name || '';
+    document.getElementById('driverEditPhone').value = d.phone || '';
+    document.getElementById('driverEditVehicle').value = d.vehicle || '';
+    document.getElementById('driverEditPlate').value = d.plate || '';
+    deactivateBtn.style.display = 'block';
+    deactivateBtn.textContent = d.inactive ? 'Reactivate Driver' : 'Deactivate Driver';
+  } else {
+    document.getElementById('driverDrawerTitle').textContent = 'Add Driver';
+    document.getElementById('driverEditId').value = '';
+    document.getElementById('driverEditName').value = '';
+    document.getElementById('driverEditPhone').value = '';
+    document.getElementById('driverEditVehicle').value = '';
+    document.getElementById('driverEditPlate').value = '';
+    deactivateBtn.style.display = 'none';
+  }
+
+  drawer.classList.add('open');
+}
+
+function closeEditDriverDrawer() {
+  document.getElementById('editDriverDrawer').classList.remove('open');
+}
+
+async function saveDriver() {
+  const errEl = document.getElementById('driverEditError');
+  errEl.style.display = 'none';
+  const id = document.getElementById('driverEditId').value;
+  const payload = {
+    name:    document.getElementById('driverEditName').value.trim(),
+    phone:   document.getElementById('driverEditPhone').value.trim(),
+    vehicle: document.getElementById('driverEditVehicle').value.trim(),
+    plate:   document.getElementById('driverEditPlate').value.trim(),
   };
-  ws.onclose = () => setTimeout(connectWS, 3000);
-  setInterval(() => { if (ws && ws.readyState===1) ws.send(JSON.stringify({type:'ping'})); }, 25000);
+  if (!payload.name) { errEl.textContent = 'Name is required'; errEl.style.display = 'block'; return; }
+  try {
+    const r = id
+      ? await fetch(`/api/drivers/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      : await fetch('/api/drivers', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!r.ok) throw new Error();
+    closeEditDriverDrawer();
+    loadDrivers();
+  } catch {
+    errEl.textContent = 'Save failed. Please try again.';
+    errEl.style.display = 'block';
+  }
 }
 
-function toast(msg, type='info') {
-  const d = document.createElement('div');
-  d.className = `toast toast-${type}`; d.textContent = msg;
-  document.getElementById('toasts').appendChild(d);
-  setTimeout(() => d.remove(), 4500);
+async function deactivateDriver() {
+  const id = document.getElementById('driverEditId').value;
+  const d = allDrivers.find(x => x.id === parseInt(id));
+  const msg = d && d.inactive ? 'Reactivate this driver?' : 'Deactivate this driver?';
+  if (!confirm(msg)) return;
+  try {
+    await fetch(`/api/drivers/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ inactive: !(d && d.inactive) }) });
+    closeEditDriverDrawer();
+    loadDrivers();
+  } catch {}
 }
 
-loadAll();
-connectWS();
-setInterval(loadAll, 10000);
+// ── Receipts ───────────────────────────────────────────────────────────────
+async function populateReceiptDriverFilter() {
+  const sel = document.getElementById('receiptDriverFilter');
+  if (sel.options.length > 1) return;
+  try {
+    const drivers = await fetch('/api/drivers').then(r => r.json());
+    drivers.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.name;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+async function loadReceipts() {
+  const tbody = document.getElementById('receiptsBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Loading…</td></tr>';
+  try {
+    const params = new URLSearchParams({ status: 'completed' });
+    const driverId = document.getElementById('receiptDriverFilter').value;
+    const dateFrom = document.getElementById('receiptDateFrom').value;
+    const dateTo   = document.getElementById('receiptDateTo').value;
+    if (driverId) params.set('driver_id', driverId);
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo)   params.set('date_to', dateTo);
+    const bookings = await fetch(`/api/bookings?${params}`).then(r => r.json());
+    if (!bookings.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">No completed trips found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = bookings.map(b => `
+      <tr>
+        <td class="col-mono">#${b.id.toString().slice(-6).toUpperCase()}</td>
+        <td>${escHtml(b.customer_name || '—')}</td>
+        <td>${escHtml(b.driver_name || '—')}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(b.pickup_address)} → ${escHtml(b.dropoff_address || b.destination_city || '—')}</td>
+        <td>$${b.estimated_fare != null ? Number(b.estimated_fare).toFixed(2) : '—'}</td>
+        <td>${b.created_at ? formatDateShort(new Date(b.created_at)) : '—'}</td>
+        <td><a href="/api/bookings/${b.id}/receipt" target="_blank" class="btn btn-secondary btn--sm" style="font-size:.625rem;padding:2px 8px">PDF</a></td>
+      </tr>
+    `).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--red);padding:24px">Error loading receipts</td></tr>';
+  }
+}
+
+function exportReceiptsExcel() {
+  const rows = [['ID','Customer','Driver','Pickup','Dropoff','Fare','Date']];
+  document.querySelectorAll('#receiptsBody tr').forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length >= 6) rows.push(Array.from(tds).slice(0,6).map(td => td.textContent.trim()));
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws2, 'Receipts');
+  XLSX.writeFile(wb, `caledonia-receipts-${dateStamp()}.xlsx`);
+}
+
+// ── Settings ───────────────────────────────────────────────────────────────
+let currentSettings = {};
+
+async function loadSettings() {
+  try {
+    const s = await fetch('/api/admin/settings').then(r => r.json());
+    currentSettings = s;
+
+    const p = s.pricing || {};
+    document.getElementById('s-base-fare').value       = p.base_fare ?? 4.50;
+    document.getElementById('s-per-km').value          = p.per_km_rate ?? 2.10;
+    document.getElementById('s-min-fare').value        = p.minimum_fare ?? 8.00;
+    document.getElementById('s-stop-surcharge').value  = p.stop_surcharge ?? 3.00;
+
+    const surge = s.surge || {};
+    document.getElementById('s-surge-enabled').checked = surge.enabled ?? true;
+    document.getElementById('s-t1-pending').value      = surge.tier1_pending_min ?? 3;
+    document.getElementById('s-t1-avail').value        = surge.tier1_available_max ?? 2;
+    document.getElementById('s-t2-pending').value      = surge.tier2_pending_min ?? 5;
+    document.getElementById('s-t2-avail').value        = surge.tier2_available_max ?? 1;
+
+    renderFlatRates(s.flat_rates || {});
+    renderPromoCodes(s.promo_codes || []);
+  } catch {}
+}
+
+function renderFlatRates(rates) {
+  const el = document.getElementById('flatRatesList');
+  const entries = Object.entries(rates);
+  if (!entries.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No flat rates defined</p>'; return; }
+  el.innerHTML = entries.map(([dest, price]) => `
+    <div class="flat-rate-row">
+      <span class="flat-rate-dest">${escHtml(dest)}</span>
+      <input type="number" class="form-input flat-rate-price" value="${price}" step="0.01" min="0" style="width:80px;text-align:right" onchange="updateFlatRate('${escHtml(dest)}', this.value)">
+      <button onclick="deleteFlatRate('${escHtml(dest)}')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px" title="Remove">×</button>
+    </div>
+  `).join('');
+}
+
+function updateFlatRate(dest, price) {
+  if (!currentSettings.flat_rates) currentSettings.flat_rates = {};
+  currentSettings.flat_rates[dest] = parseFloat(price);
+}
+
+function deleteFlatRate(dest) {
+  if (!currentSettings.flat_rates) return;
+  delete currentSettings.flat_rates[dest];
+  renderFlatRates(currentSettings.flat_rates);
+}
+
+function addFlatRate() {
+  const dest  = document.getElementById('newFlatDest').value.trim();
+  const price = parseFloat(document.getElementById('newFlatPrice').value);
+  if (!dest || isNaN(price)) return;
+  if (!currentSettings.flat_rates) currentSettings.flat_rates = {};
+  currentSettings.flat_rates[dest] = price;
+  renderFlatRates(currentSettings.flat_rates);
+  document.getElementById('newFlatDest').value = '';
+  document.getElementById('newFlatPrice').value = '';
+}
+
+function renderPromoCodes(codes) {
+  const el = document.getElementById('promoList');
+  if (!codes.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">No promo codes</p>'; return; }
+  el.innerHTML = codes.map((c, i) => `
+    <div class="promo-row">
+      <span class="promo-code">${escHtml(c.code)}</span>
+      <span class="promo-pct">${c.discount_pct}% off</span>
+      <button onclick="togglePromo(${i})" class="btn btn-secondary btn--sm" style="font-size:.625rem;padding:2px 8px">${c.active ? 'Active' : 'Paused'}</button>
+      <button onclick="deletePromo(${i})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px">×</button>
+    </div>
+  `).join('');
+}
+
+function togglePromo(i) {
+  if (!currentSettings.promo_codes) return;
+  currentSettings.promo_codes[i].active = !currentSettings.promo_codes[i].active;
+  renderPromoCodes(currentSettings.promo_codes);
+}
+
+function deletePromo(i) {
+  if (!currentSettings.promo_codes) return;
+  currentSettings.promo_codes.splice(i, 1);
+  renderPromoCodes(currentSettings.promo_codes);
+}
+
+function addPromoCode() {
+  const code     = document.getElementById('newPromoCode').value.trim().toUpperCase();
+  const discount = parseInt(document.getElementById('newPromoDiscount').value);
+  if (!code || isNaN(discount) || discount < 1 || discount > 100) return;
+  if (!currentSettings.promo_codes) currentSettings.promo_codes = [];
+  currentSettings.promo_codes.push({ code, discount_pct: discount, active: true });
+  renderPromoCodes(currentSettings.promo_codes);
+  document.getElementById('newPromoCode').value = '';
+  document.getElementById('newPromoDiscount').value = '';
+}
+
+async function saveAllSettings() {
+  const msgEl = document.getElementById('settingsSaveMsg');
+  msgEl.style.display = 'none';
+
+  const updated = {
+    ...currentSettings,
+    pricing: {
+      base_fare:      parseFloat(document.getElementById('s-base-fare').value),
+      per_km_rate:    parseFloat(document.getElementById('s-per-km').value),
+      minimum_fare:   parseFloat(document.getElementById('s-min-fare').value),
+      stop_surcharge: parseFloat(document.getElementById('s-stop-surcharge').value),
+    },
+    surge: {
+      enabled:             document.getElementById('s-surge-enabled').checked,
+      tier1_pending_min:   parseInt(document.getElementById('s-t1-pending').value),
+      tier1_available_max: parseInt(document.getElementById('s-t1-avail').value),
+      tier1_multiplier:    1.5,
+      tier2_pending_min:   parseInt(document.getElementById('s-t2-pending').value),
+      tier2_available_max: parseInt(document.getElementById('s-t2-avail').value),
+      tier2_multiplier:    2.0,
+    },
+  };
+
+  try {
+    const r = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(updated)
+    });
+    if (!r.ok) throw new Error();
+    currentSettings = updated;
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = '✓ Settings saved successfully';
+    setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
+  } catch {
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Error saving settings. Please try again.';
+  }
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatTime(d) {
+  if (!d) return '';
+  const dt = d instanceof Date ? d : new Date(d);
+  return dt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function formatDateShort(d) {
+  if (!d) return '';
+  const dt = d instanceof Date ? d : new Date(d);
+  return dt.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function dateStamp() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function statusBadge(status) {
+  const map = {
+    pending: 'badge-amber', dispatched: 'badge-blue', accepted: 'badge-blue',
+    in_progress: 'badge-green', completed: 'badge-grey', cancelled: 'badge-red',
+    scheduled: 'badge-blue', dispatch_failed: 'badge-red', needs_review: 'badge-red',
+  };
+  return map[status] || 'badge-grey';
+}
+
+function serviceLabel(type) {
+  const map = { standard: '🚗 Standard', medical: '🏥 Medical', long_distance: '🛣️ Long Distance' };
+  return map[type] || (type || '—');
+}
 </script>
 </body>
 </html>
