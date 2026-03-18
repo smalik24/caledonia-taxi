@@ -520,6 +520,17 @@ async function adminLogin() {
    Caledonia Taxi — Admin Panel JS
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// ── State (declared before IIFE to avoid temporal dead zone) ───────────────
+let ws = null;
+let activeTab = 'dashboard';
+let trackingInterval = null;
+let allDrivers = [];
+let currentSettings = {};
+let revPeriod = 'week';
+let ordersStatusFilter = 'all';
+let ordersPeriodFilter = 'today';
+let activityItems = [];
+
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 (function() {
   if (window.__adminAuthed) {
@@ -528,10 +539,6 @@ async function adminLogin() {
     connectWs();
   }
 })();
-
-// ── Tab switching ──────────────────────────────────────────────────────────
-let activeTab = 'dashboard';
-let trackingInterval = null;
 
 function switchTab(name) {
   document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
@@ -562,7 +569,6 @@ function switchTab(name) {
 }
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
-let ws = null;
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/admin`);
@@ -630,7 +636,6 @@ async function assignDriver(bookingId) {
   } catch {}
 }
 
-const activityItems = [];
 function pushActivity(text, type = 'grey') {
   activityItems.unshift({ text, type, time: new Date() });
   if (activityItems.length > 50) activityItems.pop();
@@ -651,9 +656,6 @@ function renderActivity() {
 }
 
 // ── Orders ─────────────────────────────────────────────────────────────────
-let ordersStatusFilter = 'all';
-let ordersPeriodFilter = 'today';
-
 function setStatusFilter(v, btn) {
   ordersStatusFilter = v;
   document.querySelectorAll('#statusFilter .filter-pill').forEach(b => b.classList.remove('active'));
@@ -795,7 +797,7 @@ async function parseOasrEmail() {
     const r = await fetch('/api/oasr/inbound', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ raw_text: text })
+      body: JSON.stringify({ raw_email: text })
     });
     const data = await r.json();
     if (r.ok) {
@@ -853,8 +855,6 @@ async function loadOasrBookings() {
 }
 
 // ── Revenue ────────────────────────────────────────────────────────────────
-let revPeriod = 'week';
-
 function setRevPeriod(period, btn) {
   revPeriod = period;
   document.querySelectorAll('#revPeriodFilter .period-pill').forEach(b => b.classList.remove('active'));
@@ -929,8 +929,6 @@ function exportRevenueExcel() {
 }
 
 // ── Drivers ────────────────────────────────────────────────────────────────
-let allDrivers = [];
-
 async function loadDrivers() {
   const el = document.getElementById('driversList');
   el.innerHTML = '<p style="color:var(--text-muted);font-size:.8125rem">Loading…</p>';
@@ -1100,8 +1098,6 @@ function exportReceiptsExcel() {
 }
 
 // ── Settings ───────────────────────────────────────────────────────────────
-let currentSettings = {};
-
 async function loadSettings() {
   try {
     const s = await fetch('/api/admin/settings').then(r => r.json());
