@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from itsdangerous import TimestampSigner, BadSignature, SignatureExpired
-from jose import jwt, JWTError
+from jose import jwt, JWTError, ExpiredSignatureError
 from passlib.context import CryptContext
 from fastapi import HTTPException, Request, Cookie
 
@@ -106,9 +106,12 @@ def verify_driver_token(
         if payload.get("type") != "driver":
             raise HTTPException(status_code=401, detail="Invalid token type")
         return payload
+    except ExpiredSignatureError:
+        logger.warning("[Auth] Driver token expired")
+        raise HTTPException(status_code=401, detail="Driver token expired. Please log in again.")
     except JWTError as exc:
         logger.warning(f"[Auth] Invalid driver token: {exc}")
-        raise HTTPException(status_code=401, detail="Driver token invalid or expired")
+        raise HTTPException(status_code=401, detail="Driver token invalid")
 
 
 # ── FastAPI Dependencies ───────────────────────────────────────────────────────
