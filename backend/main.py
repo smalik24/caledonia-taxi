@@ -846,7 +846,10 @@ async def driver_login(req: DriverLoginRequest):
             raise HTTPException(401, "Invalid credentials")
         driver["status"] = "available"
 
-    return {"success": True, "driver": {
+    from auth_service import create_driver_token
+    from config import settings, COOKIE_SECURE
+    jwt_token = create_driver_token(driver["id"], req.phone)
+    response = JSONResponse({"success": True, "driver": {
         "id":       driver["id"],
         "name":     driver["name"],
         "phone":    driver["phone"],
@@ -854,7 +857,14 @@ async def driver_login(req: DriverLoginRequest):
         "vehicle":  driver.get("vehicle", ""),
         "plate":    driver.get("plate", ""),
         "rating":   driver.get("rating", 5.0),
-    }}
+    }})
+    response.set_cookie(
+        "driver_token", jwt_token,
+        httponly=True, samesite="lax",
+        max_age=settings.jwt_expire_minutes * 60,
+        secure=COOKIE_SECURE
+    )
+    return response
 
 
 @app.get("/api/drivers")
