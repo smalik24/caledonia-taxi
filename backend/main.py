@@ -315,6 +315,25 @@ manager = ConnectionManager()
 
 
 # ============================================================
+# WEBSOCKET ENVELOPE HELPER
+# ============================================================
+
+def ws_envelope(msg_type: str, payload: dict) -> dict:
+    """
+    Wrap a WebSocket message in the standardized envelope.
+    Schema: { type, payload, timestamp, message_id }
+    Frontend JS still works because it checks data.type.
+    payload is additive — existing flat fields are moved inside it.
+    """
+    return {
+        "type":       msg_type,
+        "payload":    payload,
+        "timestamp":  datetime.now(timezone.utc).isoformat(),
+        "message_id": str(uuid.uuid4()),
+    }
+
+
+# ============================================================
 # ADMIN AUTH
 # ============================================================
 
@@ -703,12 +722,11 @@ async def dispatch_booking(booking: dict, excluded_drivers: list[str] = None):
         )
         eta_mins = max(1, int((dist_to_pickup / 30) * 60))
 
-        ride_msg = {
-            "type": "new_ride",
+        ride_msg = ws_envelope("new_ride", {
             "booking": booking,
             "timeout_seconds": DISPATCH_TIMEOUT_SECONDS,
             "eta_mins": eta_mins
-        }
+        })
         await manager.send_to_driver(did, ride_msg)
 
         # Web Push — fires even when the driver app tab is closed
@@ -982,11 +1000,10 @@ async def ride_action(booking_id: str, driver_id: str, req: RideActionRequest):
                 if d["id"] == driver_id:
                     d["status"] = "busy"
 
-        await manager.broadcast("admin", {
-            "type": "ride_accepted",
+        await manager.broadcast("admin", ws_envelope("ride_accepted", {
             "booking_id": booking_id,
             "driver_id": driver_id
-        })
+        }))
     elif req.action == "decline":
         # Set driver back to available
         if db:
@@ -1027,11 +1044,10 @@ async def ride_action(booking_id: str, driver_id: str, req: RideActionRequest):
         return {"success": True, "message": "declined, re-dispatching"}
     else:
         # legacy fallback
-        await manager.broadcast("admin", {
-            "type": "ride_declined",
+        await manager.broadcast("admin", ws_envelope("ride_declined", {
             "booking_id": booking_id,
             "driver_id": driver_id
-        })
+        }))
 
     return {"success": True}
 
@@ -1132,16 +1148,14 @@ async def admin_assign(req: AdminAssignRequest):
         if b["id"] == req.booking_id:
             booking = b
 
-    await manager.send_to_driver(req.driver_id, {
-        "type": "new_ride",
+    await manager.send_to_driver(req.driver_id, ws_envelope("new_ride", {
         "booking": booking or {"id": req.booking_id},
         "timeout_seconds": DISPATCH_TIMEOUT_SECONDS
-    })
-    await manager.broadcast("admin", {
-        "type": "manually_assigned",
+    }))
+    await manager.broadcast("admin", ws_envelope("manually_assigned", {
         "booking_id": req.booking_id,
         "driver_id": req.driver_id
-    })
+    }))
     return {"success": True}
 
 
@@ -2416,12 +2430,7 @@ async def driver_sos(request: Request):
     sos_log.append(entry)
     logger.warning(f"[SOS] Driver {driver_name} ({driver_id}) at {lat},{lng} booking={booking_id}")
 
-    await manager.broadcast("admin", {
-        "type": "sos_alert",
-        "payload": entry,
-        "timestamp": now,
-        "message_id": entry["id"]
-    })
+    await manager.broadcast("admin", ws_envelope("sos_alert", entry))
     return {"ok": True, "sos_id": entry["id"]}
 
 
