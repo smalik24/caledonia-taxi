@@ -13,6 +13,7 @@ reportlab==4.2.0
 itsdangerous==2.2.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
 stripe==10.5.0
 apscheduler==3.10.4
 pywebpush==2.0.0
