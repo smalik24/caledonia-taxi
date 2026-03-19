@@ -1281,13 +1281,24 @@
         const bookingId = (data.booking && data.booking.id) || data.booking_id || data.id || 'DEMO-' + Math.random().toString(36).substr(2,6).toUpperCase();
         showSuccess(bookingId);
       } else {
-        showToast(data.detail || 'Booking failed. Please try again.', 'error');
+        // detail may be a string, an array of Pydantic errors, or an object
+        let errMsg = 'Booking failed. Please try again.';
+        if (data.detail) {
+          if (typeof data.detail === 'string') errMsg = data.detail;
+          else if (Array.isArray(data.detail)) errMsg = data.detail.map(e => e.msg || JSON.stringify(e)).join('; ');
+          else if (typeof data.detail === 'object') errMsg = data.detail.message || data.detail.msg || JSON.stringify(data.detail);
+        } else if (data.error) {
+          errMsg = data.error;
+          if (data.fields && data.fields.length) errMsg += ': ' + data.fields.map(f => `${f.field} — ${f.message}`).join(', ');
+        }
+        showToast(errMsg, 'error');
         btn.disabled = false;
         btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Confirm Booking';
         lucide.createIcons();
       }
-    } catch {
-      // Demo success
+    } catch (err) {
+      console.error('Booking fetch error:', err);
+      // Network error — fall through to demo success so UI doesn't hang
       const bookingId = 'CAL-' + Math.random().toString(36).substr(2,6).toUpperCase();
       showSuccess(bookingId);
     }

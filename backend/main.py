@@ -141,15 +141,21 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def not_found_handler(request: Request, exc):
     return JSONResponse(status_code=404, content={"error": "Not found", "path": str(request.url.path)})
 
-@app.exception_handler(422)
-async def validation_handler(request: Request, exc):
-    from fastapi.exceptions import RequestValidationError
+# Must use RequestValidationError (not status code 422) to intercept Pydantic errors
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def validation_handler(request: Request, exc: RequestValidationError):
     errors = []
-    if hasattr(exc, "errors"):
-        for e in exc.errors():
-            field = ".".join(str(x) for x in e.get("loc", [])[1:])
-            errors.append({"field": field, "message": e.get("msg", "Invalid value")})
-    return JSONResponse(status_code=422, content={"error": "Validation failed", "fields": errors})
+    for e in exc.errors():
+        field = ".".join(str(x) for x in e.get("loc", [])[1:])
+        errors.append({"field": field, "message": e.get("msg", "Invalid value")})
+    # Build a readable detail string for API consumers
+    detail = "; ".join(f"{e['field']}: {e['message']}" for e in errors) if errors else "Invalid request"
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation failed", "detail": detail, "fields": errors}
+    )
 
 
 # ── Simple in-memory rate limiter for auth endpoints ────────────────────────
