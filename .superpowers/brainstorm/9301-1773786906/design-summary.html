@@ -1,0 +1,101 @@
+<h2>Caledonia Taxi — Full Overhaul Plan</h2>
+<p class="subtitle">Design directions confirmed. Here's what we're building.</p>
+
+<div class="section">
+  <h3>🎨 Design Changes</h3>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;">
+    <div style="background:#1a1a2e;border-radius:8px;padding:12px;border-top:3px solid #f5c518;">
+      <div style="color:#f5c518;font-size:11px;font-weight:700;margin-bottom:6px;">📱 Booking Page</div>
+      <ul style="color:#aaa;font-size:10px;line-height:1.8;margin:0;padding-left:14px;">
+        <li>Route map strip at top</li>
+        <li>Fare shown inline</li>
+        <li>Now / Schedule toggle</li>
+        <li>Tighter form layout</li>
+      </ul>
+    </div>
+    <div style="background:#1a1a2e;border-radius:8px;padding:12px;border-top:3px solid #22c55e;">
+      <div style="color:#22c55e;font-size:11px;font-weight:700;margin-bottom:6px;">🚕 Driver App</div>
+      <ul style="color:#aaa;font-size:10px;line-height:1.8;margin:0;padding-left:14px;">
+        <li>Cleaner spacing</li>
+        <li>Better countdown ring</li>
+        <li>Improved status colours</li>
+        <li>GPS indicator badge</li>
+      </ul>
+    </div>
+    <div style="background:#1a1a2e;border-radius:8px;padding:12px;border-top:3px solid #3b82f6;">
+      <div style="color:#3b82f6;font-size:11px;font-weight:700;margin-bottom:6px;">⚙️ Admin Panel</div>
+      <ul style="color:#aaa;font-size:10px;line-height:1.8;margin:0;padding-left:14px;">
+        <li>Revenue stat card</li>
+        <li>Colour-coded statuses</li>
+        <li>Cleaner booking rows</li>
+        <li>Auth login gate</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>⚡ New Features</h3>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px;">
+    <div style="background:#1a1a2e;border-radius:8px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:18px;">🔐</span>
+        <div>
+          <div style="color:#fff;font-size:11px;font-weight:700;">Admin Auth</div>
+          <div style="color:#555;font-size:9px;">Password gate on /admin</div>
+        </div>
+      </div>
+      <div style="color:#aaa;font-size:9px;line-height:1.6;">PIN/password login screen before admin panel. Session cookie — stays logged in until logout.</div>
+    </div>
+    <div style="background:#1a1a2e;border-radius:8px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:18px;">📍</span>
+        <div>
+          <div style="color:#fff;font-size:11px;font-weight:700;">Real GPS Tracking</div>
+          <div style="color:#555;font-size:9px;">Browser geolocation → WebSocket</div>
+        </div>
+      </div>
+      <div style="color:#aaa;font-size:9px;line-height:1.6;">Driver app uses navigator.geolocation.watchPosition. Coordinates sent via existing WebSocket. Customer tracking page shows real location.</div>
+    </div>
+    <div style="background:#1a1a2e;border-radius:8px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:18px;">💳</span>
+        <div>
+          <div style="color:#fff;font-size:11px;font-weight:700;">Stripe Payments</div>
+          <div style="color:#555;font-size:9px;">Card payment on booking</div>
+        </div>
+      </div>
+      <div style="color:#aaa;font-size:9px;line-height:1.6;">Step 2.5 added between fare estimate and confirmation. Stripe Elements card input. Cash option still available.</div>
+    </div>
+    <div style="background:#1a1a2e;border-radius:8px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:18px;">🕐</span>
+        <div>
+          <div style="color:#fff;font-size:11px;font-weight:700;">Advance Booking</div>
+          <div style="color:#555;font-size:9px;">Schedule rides up to 7 days ahead</div>
+        </div>
+      </div>
+      <div style="color:#aaa;font-size:9px;line-height:1.6;">Now / Schedule toggle on booking form. Date + time picker. Scheduled rides held in DB, dispatched 10 min before pickup time.</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🏗️ Tech Approach</h3>
+  <div style="background:#1a1a2e;border-radius:8px;padding:12px;margin-top:10px;">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+      <div style="font-size:10px;color:#aaa;line-height:1.8;">
+        <div>✅ Keep FastAPI backend</div>
+        <div>✅ Keep vanilla JS frontend</div>
+        <div>✅ Keep WebSocket dispatch</div>
+        <div>✅ Keep dark theme CSS</div>
+      </div>
+      <div style="font-size:10px;color:#aaa;line-height:1.8;">
+        <div>➕ Add Stripe (Python SDK)</div>
+        <div>➕ Add admin session auth</div>
+        <div>➕ Add GPS WebSocket messages</div>
+        <div>➕ Add scheduled job (APScheduler)</div>
+      </div>
+    </div>
+  </div>
+</div>

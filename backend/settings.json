@@ -1,0 +1,30 @@
+{
+  "pricing": {
+    "base_fare": 4.50,
+    "per_km_rate": 2.10,
+    "minimum_fare": 8.00,
+    "stop_surcharge": 3.00
+  },
+  "flat_rates": {
+    "Hamilton": 35.00,
+    "Burlington": 55.00,
+    "Oakville": 65.00,
+    "Mississauga": 85.00,
+    "Toronto": 120.00,
+    "Pearson Airport": 140.00,
+    "Billy Bishop Airport": 130.00
+  },
+  "surge": {
+    "enabled": true,
+    "tier1_pending_min": 3,
+    "tier1_available_max": 2,
+    "tier1_multiplier": 1.5,
+    "tier2_pending_min": 5,
+    "tier2_available_max": 1,
+    "tier2_multiplier": 2.0
+  },
+  "promo_codes": [
+    {"code": "FIRST10",     "discount_pct": 10, "active": true},
+    {"code": "CALEDONIA20", "discount_pct": 20, "active": true}
+  ]
+}

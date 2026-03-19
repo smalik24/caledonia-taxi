@@ -1,0 +1,138 @@
+<h2>Driver App — Design Direction</h2>
+<p class="subtitle">Drivers use this all day on their phones. Which layout works best for them?</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d0d1a;padding:14px;font-family:system-ui;border-radius:8px 8px 0 0;">
+      <!-- Current style, polished -->
+      <div style="background:#1a1a2e;border-radius:8px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="color:#fff;font-size:10px;font-weight:700;">Saqib · <span style="color:#22c55e;">● Online</span></div>
+          <div style="background:#22c55e22;border:1px solid #22c55e;border-radius:10px;padding:2px 8px;color:#22c55e;font-size:7px;font-weight:700;">AVAILABLE</div>
+        </div>
+        <!-- Earnings bar -->
+        <div style="display:flex;justify-content:space-between;background:#0d0d1a;border-radius:6px;padding:8px;margin-bottom:8px;">
+          <div style="text-align:center;">
+            <div style="color:#f5c518;font-size:12px;font-weight:800;">$87.50</div>
+            <div style="color:#555;font-size:7px;text-transform:uppercase;">Today</div>
+          </div>
+          <div style="width:1px;background:#222;"></div>
+          <div style="text-align:center;">
+            <div style="color:#fff;font-size:12px;font-weight:800;">6</div>
+            <div style="color:#555;font-size:7px;text-transform:uppercase;">Rides</div>
+          </div>
+          <div style="width:1px;background:#222;"></div>
+          <div style="text-align:center;">
+            <div style="color:#fff;font-size:12px;font-weight:800;">4.9★</div>
+            <div style="color:#555;font-size:7px;text-transform:uppercase;">Rating</div>
+          </div>
+        </div>
+        <!-- Waiting state -->
+        <div style="text-align:center;padding:12px 0;">
+          <div style="width:50px;height:50px;border-radius:50%;border:3px solid #f5c51844;border-top-color:#f5c518;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:18px;">🚕</span>
+          </div>
+          <div style="color:#888;font-size:9px;">Waiting for next ride...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Polished Current</h3>
+      <p>Keep the card layout + earnings bar. Clean up spacing, improve the countdown ring, better status indicators.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#050510;padding:0;font-family:system-ui;border-radius:8px 8px 0 0;overflow:hidden;">
+      <!-- Full-screen app feel -->
+      <!-- Status bar -->
+      <div style="background:#0d0d1a;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1a1a2e;">
+        <div style="color:#fff;font-size:9px;font-weight:700;">Saqib Ahmed</div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div style="width:6px;height:6px;background:#22c55e;border-radius:50%;"></div>
+          <span style="color:#22c55e;font-size:8px;font-weight:700;">ONLINE</span>
+        </div>
+      </div>
+      <!-- Big earnings hero -->
+      <div style="background:linear-gradient(135deg,#0d1f0d,#0a1a0a);padding:12px;text-align:center;border-bottom:1px solid #1a2e1a;">
+        <div style="color:#22c55e;font-size:22px;font-weight:900;line-height:1;">$87.50</div>
+        <div style="color:#4a7a4a;font-size:8px;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">Today's Earnings</div>
+        <div style="display:flex;justify-content:center;gap:12px;margin-top:8px;">
+          <div style="text-align:center;"><div style="color:#fff;font-size:10px;font-weight:700;">6</div><div style="color:#4a7a4a;font-size:7px;">rides</div></div>
+          <div style="text-align:center;"><div style="color:#fff;font-size:10px;font-weight:700;">4.9★</div><div style="color:#4a7a4a;font-size:7px;">rating</div></div>
+          <div style="text-align:center;"><div style="color:#fff;font-size:10px;font-weight:700;">4.2h</div><div style="color:#4a7a4a;font-size:7px;">online</div></div>
+        </div>
+      </div>
+      <!-- Incoming ride card -->
+      <div style="margin:8px;background:#1a1a2e;border-radius:8px;padding:10px;border:1px solid #f5c51844;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="color:#f5c518;font-size:9px;font-weight:700;">🔔 NEW RIDE REQUEST</div>
+          <div style="color:#f5c518;font-size:11px;font-weight:800;">$14.50</div>
+        </div>
+        <div style="color:#ccc;font-size:8px;margin-bottom:3px;">🟢 Hamilton GO Station</div>
+        <div style="color:#ccc;font-size:8px;margin-bottom:6px;">🔴 McMaster University · 6.2km</div>
+        <div style="display:flex;gap:4px;">
+          <div style="flex:1;background:#ef444422;border:1px solid #ef4444;border-radius:5px;padding:5px;text-align:center;color:#ef4444;font-size:8px;font-weight:700;">Decline</div>
+          <div style="flex:2;background:#22c55e;border-radius:5px;padding:5px;text-align:center;color:#000;font-size:8px;font-weight:700;">Accept Ride</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Earnings-First Native Feel</h3>
+      <p>Big earnings hero at top (motivating). Incoming ride requests are prominent cards. Feels like a real driver app.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#050510;padding:0;font-family:system-ui;border-radius:8px 8px 0 0;overflow:hidden;">
+      <!-- Map background -->
+      <div style="position:relative;height:90px;background:linear-gradient(180deg,#0a1628,#0d1f3c);">
+        <div style="position:absolute;inset:0;opacity:0.2;background-image:repeating-linear-gradient(0deg,#1e3a5f 0,#1e3a5f 1px,transparent 1px,transparent 20px),repeating-linear-gradient(90deg,#1e3a5f 0,#1e3a5f 1px,transparent 1px,transparent 20px);"></div>
+        <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 200 90">
+          <circle cx="100" cy="45" r="12" fill="#f5c518" opacity="0.2"/>
+          <circle cx="100" cy="45" r="6" fill="#f5c518" opacity="0.5"/>
+          <text x="96" y="49" font-size="8">🚕</text>
+        </svg>
+        <!-- Overlaid stats -->
+        <div style="position:absolute;bottom:8px;left:8px;right:8px;display:flex;gap:4px;">
+          <div style="flex:1;background:rgba(0,0,0,.7);border-radius:6px;padding:5px;text-align:center;">
+            <div style="color:#22c55e;font-size:11px;font-weight:800;">$87.50</div>
+            <div style="color:#4a7a4a;font-size:6px;">TODAY</div>
+          </div>
+          <div style="flex:1;background:rgba(0,0,0,.7);border-radius:6px;padding:5px;text-align:center;">
+            <div style="color:#fff;font-size:11px;font-weight:800;">6</div>
+            <div style="color:#666;font-size:6px;">RIDES</div>
+          </div>
+          <div style="flex:1;background:rgba(0,0,0,.7);border-radius:6px;padding:5px;text-align:center;">
+            <div style="color:#fff;font-size:11px;font-weight:800;">4.9★</div>
+            <div style="color:#666;font-size:6px;">RATING</div>
+          </div>
+        </div>
+      </div>
+      <!-- Bottom panel -->
+      <div style="background:#0d0d1a;padding:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="color:#fff;font-size:9px;font-weight:700;">Saqib</div>
+          <div style="background:#22c55e;border-radius:10px;padding:3px 10px;color:#000;font-size:7px;font-weight:700;">● ONLINE</div>
+        </div>
+        <div style="background:#1a1a2e;border-radius:6px;padding:8px;border-left:3px solid #f5c518;">
+          <div style="color:#f5c518;font-size:8px;font-weight:700;margin-bottom:4px;">Incoming Ride · $14.50</div>
+          <div style="color:#aaa;font-size:7px;margin-bottom:4px;">Hamilton GO → McMaster · 6.2km</div>
+          <div style="display:flex;gap:4px;">
+            <div style="flex:1;background:#22c55e;border-radius:4px;padding:4px;text-align:center;color:#000;font-size:7px;font-weight:700;">Accept</div>
+            <div style="flex:1;background:#1a1a2e;border:1px solid #333;border-radius:4px;padding:4px;text-align:center;color:#666;font-size:7px;">Skip</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Map-Centric</h3>
+      <p>Map fills top half showing driver location. Stats and ride requests overlay the bottom. Best for GPS-aware driving.</p>
+    </div>
+  </div>
+
+</div>

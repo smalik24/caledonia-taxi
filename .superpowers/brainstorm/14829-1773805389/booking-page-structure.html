@@ -1,0 +1,116 @@
+<h2>Customer booking page — what does the visitor see first?</h2>
+<p class="subtitle">Two different structural approaches for the main public-facing page at caledoniataxi.ca</p>
+
+<div class="split" style="gap:24px; align-items:flex-start;">
+
+  <!-- Option A: App-first -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)" style="cursor:pointer; border-radius:10px; overflow:hidden; border: 2px solid transparent;">
+    <div class="card-image" style="padding:0; background:#000; height:420px; overflow:hidden; position:relative;">
+
+      <!-- Phone chrome -->
+      <div style="background:#000; padding: 10px 14px 0;">
+        <div style="background:#111; border-radius:8px; overflow:hidden;">
+          <!-- Header -->
+          <div style="background:#000; padding: 10px 14px; border-bottom:1px solid #1a1a1a; display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#fff; font-weight:700; font-size:13px; letter-spacing:1px;">CALEDONIA TAXI</span>
+            <span style="color:#555; font-size:10px;">Hamilton · Caledonia</span>
+          </div>
+          <!-- Booking form immediately -->
+          <div style="padding:14px;">
+            <div style="color:#fff; font-size:16px; font-weight:700; margin-bottom:10px;">Where to?</div>
+            <div style="background:#111; border:1px solid #1e1e1e; border-radius:7px; padding:8px 10px; margin-bottom:6px;">
+              <div style="color:#444; font-size:8px; margin-bottom:1px;">PICKUP</div>
+              <div style="color:#fff; font-size:11px;">📍 Caledonia, ON</div>
+            </div>
+            <div style="background:#111; border:1px solid #1e1e1e; border-radius:7px; padding:8px 10px; margin-bottom:6px;">
+              <div style="color:#444; font-size:8px; margin-bottom:1px;">DROPOFF</div>
+              <div style="color:#444; font-size:11px;">Enter destination...</div>
+            </div>
+            <div style="background:#111; border:1px solid #1e1e1e; border-radius:7px; padding:8px 10px; margin-bottom:10px;">
+              <div style="color:#444; font-size:8px; margin-bottom:1px;">+ ADD STOP</div>
+            </div>
+            <div style="background:#fff; border-radius:7px; padding:9px; text-align:center; margin-bottom:6px;">
+              <div style="color:#000; font-size:12px; font-weight:700;">Book Now</div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <div style="flex:1; background:#111; border:1px solid #222; border-radius:7px; padding:7px; text-align:center;">
+                <div style="color:#666; font-size:10px;">Schedule</div>
+              </div>
+              <div style="flex:1; background:#111; border:1px solid #222; border-radius:7px; padding:7px; text-align:center;">
+                <div style="color:#666; font-size:10px;">Call Us</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="card-body" style="background:#0d0d0d; padding:14px 16px;">
+      <h3 style="color:#fff; margin:0 0 4px; font-size:15px;">A — App First (Uber-style)</h3>
+      <p style="color:#555; font-size:12px; margin:0;">Booking form is the entire page. No marketing fluff — customers who land here want a ride. Fastest path to booking.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Landing + Booking -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)" style="cursor:pointer; border-radius:10px; overflow:hidden; border: 2px solid transparent;">
+    <div class="card-image" style="padding:0; background:#000; height:420px; overflow:hidden;">
+
+      <div style="background:#000; padding: 10px 14px 0;">
+        <div style="background:#111; border-radius:8px; overflow:hidden;">
+          <!-- Nav -->
+          <div style="background:#000; padding: 8px 12px; border-bottom:1px solid #1a1a1a; display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#fff; font-weight:700; font-size:12px; letter-spacing:1px;">CALEDONIA TAXI</span>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <span style="color:#666; font-size:9px;">About</span>
+              <span style="color:#666; font-size:9px;">Rates</span>
+              <span style="background:#fff; color:#000; font-size:9px; font-weight:700; padding:3px 7px; border-radius:4px;">Book</span>
+            </div>
+          </div>
+          <!-- Hero section -->
+          <div style="padding:16px 14px 12px; background: linear-gradient(180deg,#0a0a0a 0%, #050505 100%); border-bottom:1px solid #1a1a1a;">
+            <div style="color:#fff; font-size:19px; font-weight:800; line-height:1.2; margin-bottom:4px;">Caledonia's Most<br>Trusted Taxi</div>
+            <div style="color:#555; font-size:10px; margin-bottom:10px;">Serving Hamilton · Caledonia · Haldimand County</div>
+            <div style="display:flex; gap:8px;">
+              <div style="text-align:center;">
+                <div style="color:#fff; font-size:14px; font-weight:700;">24/7</div>
+                <div style="color:#555; font-size:8px;">Available</div>
+              </div>
+              <div style="color:#222; font-size:16px;">|</div>
+              <div style="text-align:center;">
+                <div style="color:#fff; font-size:14px; font-weight:700;">4.9★</div>
+                <div style="color:#555; font-size:8px;">Rating</div>
+              </div>
+              <div style="color:#222; font-size:16px;">|</div>
+              <div style="text-align:center;">
+                <div style="color:#fff; font-size:14px; font-weight:700;">$8+</div>
+                <div style="color:#555; font-size:8px;">Starting</div>
+              </div>
+            </div>
+          </div>
+          <!-- Booking widget -->
+          <div style="padding:10px 12px; background:#0a0a0a;">
+            <div style="background:#111; border:1px solid #1e1e1e; border-radius:7px; padding:7px 9px; margin-bottom:5px;">
+              <div style="color:#444; font-size:8px; margin-bottom:1px;">PICKUP</div>
+              <div style="color:#fff; font-size:10px;">📍 Caledonia, ON</div>
+            </div>
+            <div style="background:#111; border:1px solid #1e1e1e; border-radius:7px; padding:7px 9px; margin-bottom:7px;">
+              <div style="color:#444; font-size:8px; margin-bottom:1px;">DROPOFF</div>
+              <div style="color:#444; font-size:10px;">Enter destination...</div>
+            </div>
+            <div style="background:#fff; border-radius:7px; padding:8px; text-align:center;">
+              <div style="color:#000; font-size:11px; font-weight:700;">Get a Quote → Book</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="card-body" style="background:#0d0d0d; padding:14px 16px;">
+      <h3 style="color:#fff; margin:0 0 4px; font-size:15px;">B — Landing + Booking</h3>
+      <p style="color:#555; font-size:12px; margin:0;">Small hero with trust signals (rating, 24/7, prices), then booking form below. Good for new visitors who don't know the brand yet.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="text-align:center; margin-top:16px;">A = straight to booking (Uber approach) &nbsp;·&nbsp; B = brief hero first (local business approach)</p>

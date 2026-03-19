@@ -6,38 +6,56 @@ Includes: bookings, dispatch, SMS, PDF invoicing, heatmap, Voice AI hooks.
 """
 
 import os
+import uuid
 import json
 import asyncio
 import hashlib
-from datetime import datetime, timezone
-from typing import Optional
+import logging
+from datetime import datetime, timezone, timedelta
+from typing import Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
+# Structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+)
+logger = logging.getLogger("caledonia")
+
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Cookie, Depends, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+
+import stripe as stripe_lib
 
 from config import (
     SUPABASE_URL, SUPABASE_KEY,
-    DISPATCH_TIMEOUT_SECONDS, MAX_DISPATCH_ATTEMPTS
+    DISPATCH_TIMEOUT_SECONDS, MAX_DISPATCH_ATTEMPTS,
+    ADMIN_PASSWORD, APP_SECRET_KEY, COOKIE_SECURE, ALLOWED_ORIGINS,
+    STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY,
+    VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT,
+    PROMO_CODES
 )
+from auth_service import create_session_token, verify_session_token, safe_compare, SESSION_DURATION_SECONDS
 from models import (
     BookingRequest, FareEstimateRequest, DriverLoginRequest,
     DriverLocationUpdate, DriverStatusUpdate, RideActionRequest,
     AdminAssignRequest, FareEstimate, VoiceAIBookingRequest
 )
 from services import (
-    geocode_address, get_route_distance, calculate_fare, find_nearest_driver,
-    haversine_distance
+    geocode_address, get_route_distance, calculate_fare, fare_from_distance,
+    find_nearest_driver, haversine_distance, geocode_route, get_current_surge_multiplier
 )
+from oasr_parser import parse_oasr_email
 from sms_service import (
     sms_booking_confirmed, sms_driver_assigned, sms_driver_arrived,
     sms_ride_started, sms_ride_completed, sms_dispatch_failed,
     sms_booking_cancelled, sms_voice_ai_booking, get_sms_log
 )
 from invoice_service import send_receipt_email, generate_invoice_pdf, get_email_log
+from scheduler import setup_scheduler
 
 
 # ============================================================
@@ -46,9 +64,24 @@ from invoice_service import send_receipt_email, generate_invoice_pdf, get_email_
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚕  Caledonia Taxi API starting — Hamilton, ON")
+    # ── Startup security warnings ────────────────────────────────────────────
+    if APP_SECRET_KEY in ("dev-secret-key", "caledonia-taxi-secret-change-me"):
+        logger.warning("⚠️  APP_SECRET_KEY is using an insecure default. Set a strong random value in production!")
+    if ADMIN_PASSWORD in ("admin1234", "admin", "password", ""):
+        logger.warning("⚠️  ADMIN_PASSWORD is weak or default. Change it before going to production!")
+    if not COOKIE_SECURE:
+        logger.warning("⚠️  COOKIE_SECURE=false — cookies are not HTTPS-only. Set COOKIE_SECURE=true in production!")
+    if not SUPABASE_URL:
+        logger.info("ℹ️  Running in demo mode (no Supabase) — data is in-memory only")
+    if not VAPID_PRIVATE_KEY:
+        logger.warning("⚠️  VAPID_PRIVATE_KEY not set — push notifications disabled")
+
+    logger.info("🚕  Caledonia Taxi API starting — Hamilton, ON")
+    sched = setup_scheduler(bookings_db, dispatch_booking, sms_fn=None)
+    sched.start()
     yield
-    print("🚕  Caledonia Taxi API stopped.")
+    sched.shutdown(wait=False)
+    logger.info("🚕  Caledonia Taxi API stopped.")
 
 
 app = FastAPI(
@@ -60,11 +93,126 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Security headers middleware ──────────────────────────────────────────────
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"]  = "nosniff"
+        response.headers["X-Frame-Options"]          = "DENY"
+        response.headers["X-XSS-Protection"]         = "1; mode=block"
+        response.headers["Referrer-Policy"]           = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"]        = "geolocation=(), camera=(), microphone=()"
+        # Only set HSTS in production (when COOKIE_SECURE is true)
+        if COOKIE_SECURE:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Never cache HTML pages — ensures browsers always fetch the latest template
+        content_type = response.headers.get("content-type", "")
+        if "text/html" in content_type:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+# ── Global exception handler ─────────────────────────────────────────────────
+import traceback, uuid as _uuid
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    ref_id = str(_uuid.uuid4())[:8].upper()
+    print(f"[ERROR {ref_id}] {type(exc).__name__}: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "reference": ref_id,
+                 "message": "Something went wrong. Please try again or contact support."}
+    )
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    return JSONResponse(status_code=404, content={"error": "Not found", "path": str(request.url.path)})
+
+# Must use RequestValidationError (not status code 422) to intercept Pydantic errors
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def validation_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for e in exc.errors():
+        field = ".".join(str(x) for x in e.get("loc", [])[1:])
+        errors.append({"field": field, "message": e.get("msg", "Invalid value")})
+    # Build a readable detail string for API consumers
+    detail = "; ".join(f"{e['field']}: {e['message']}" for e in errors) if errors else "Invalid request"
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation failed", "detail": detail, "fields": errors}
+    )
+
+
+# ── Simple in-memory rate limiter for auth endpoints ────────────────────────
+import time as _time
+_auth_attempts: dict[str, list] = {}  # ip -> [timestamp, ...]
+_RATE_LIMIT_WINDOW = 60   # seconds
+_RATE_LIMIT_MAX    = 10   # attempts per window
+
+# ── Admin login brute-force protection ────────────────────────────────────────
+_login_attempts: dict[str, list] = {}   # ip → [timestamps of failed attempts]
+_login_lockouts: dict[str, float] = {}  # ip → lockout_until unix timestamp
+
+_MAX_LOGIN_ATTEMPTS = 5
+_LOCKOUT_SECONDS    = 15 * 60   # 15 minutes
+_ATTEMPT_WINDOW     = 15 * 60   # count attempts within 15 min window
+
+
+def _check_login_allowed(ip: str) -> tuple[bool, int]:
+    """Returns (allowed, seconds_remaining). If locked: (False, N). Else: (True, 0)."""
+    now = _time.time()
+    lockout_until = _login_lockouts.get(ip, 0)
+    if now < lockout_until:
+        return False, int(lockout_until - now)
+    # Clean up old attempts outside window
+    attempts = [t for t in _login_attempts.get(ip, []) if now - t < _ATTEMPT_WINDOW]
+    _login_attempts[ip] = attempts
+    return True, 0
+
+
+def _record_failed_login(ip: str) -> int:
+    """Record a failed attempt. Returns remaining attempts before lockout."""
+    now = _time.time()
+    attempts = _login_attempts.get(ip, [])
+    attempts.append(now)
+    _login_attempts[ip] = attempts
+    remaining = _MAX_LOGIN_ATTEMPTS - len(attempts)
+    if remaining <= 0:
+        _login_lockouts[ip] = now + _LOCKOUT_SECONDS
+        logger.warning(f"[Auth] IP {ip} locked out after {_MAX_LOGIN_ATTEMPTS} failed attempts")
+        return 0
+    return remaining
+
+
+def _clear_login_attempts(ip: str) -> None:
+    """Clear attempts on successful login."""
+    _login_attempts.pop(ip, None)
+    _login_lockouts.pop(ip, None)
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if the IP is within rate limit, False if exceeded."""
+    now  = _time.time()
+    hits = _auth_attempts.get(ip, [])
+    hits = [t for t in hits if now - t < _RATE_LIMIT_WINDOW]
+    hits.append(now)
+    _auth_attempts[ip] = hits
+    return len(hits) <= _RATE_LIMIT_MAX
 
 BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "frontend", "templates"))
@@ -116,6 +264,62 @@ demo_drivers = [
 demo_bookings: list[dict] = []
 _booking_counter = 0
 
+# Dict view of demo_drivers keyed by driver ID (for WebSocket handler and tests)
+drivers_db: dict[str, dict] = {d["id"]: d for d in demo_drivers}
+
+# Dict view of bookings keyed by booking ID (used by scheduler for advance dispatch)
+bookings_db: dict[str, dict] = {}
+
+# Push notification subscriptions keyed by driver_id
+push_subscriptions: dict[str, dict] = {}
+
+# Ratings: list of {booking_id, driver_id, rating, comment, created_at}
+ratings_db: list[dict] = []
+
+# Dispatch log: list of {booking_id, driver_id, action, timestamp}
+dispatch_log: list[dict] = []
+
+# Idempotency store: {key: {created_at: iso, booking_id: str}} — 24h TTL
+_idempotency_store: dict[str, dict] = {}
+
+# ── Payment State Machine ──────────────────────────────────────────────────
+PAYMENT_STATES = frozenset({
+    "unpaid", "payment_initiated", "authorized",
+    "captured", "refunded", "failed", "abandoned"
+})
+
+_VALID_TRANSITIONS: dict[str, set] = {
+    "unpaid":             {"payment_initiated"},
+    "payment_initiated":  {"authorized", "failed"},
+    "authorized":         {"captured", "failed"},
+    "captured":           {"refunded"},
+    "failed":             {"payment_initiated"},   # allow retry
+    "refunded":           set(),                   # terminal
+    "abandoned":          set(),                   # terminal
+}
+
+
+def is_valid_payment_transition(current: str, next_state: str) -> bool:
+    """Return True if the payment state transition is allowed."""
+    return next_state in _VALID_TRANSITIONS.get(current, set())
+
+
+def advance_payment_state(booking: dict, next_state: str) -> bool:
+    """
+    Attempt to advance booking payment state.
+    Returns True on success, False if transition is invalid.
+    """
+    current = booking.get("payment_status", "unpaid")
+    if not is_valid_payment_transition(current, next_state):
+        logger.warning(
+            f"[Payment] Invalid transition {current!r} → {next_state!r} "
+            f"for booking {booking.get('id', '?')}"
+        )
+        return False
+    booking["payment_status"] = next_state
+    logger.info(f"[Payment] {booking.get('id','?')} {current} → {next_state}")
+    return True
+
 
 # ============================================================
 # WEBSOCKET MANAGER
@@ -152,10 +356,43 @@ manager = ConnectionManager()
 
 
 # ============================================================
+# WEBSOCKET ENVELOPE HELPER
+# ============================================================
+
+def ws_envelope(msg_type: str, payload: dict) -> dict:
+    """
+    Wrap a WebSocket message in the standardized envelope.
+    Schema: { type, payload, timestamp, message_id }
+    Frontend JS still works because it checks data.type.
+    payload is additive — existing flat fields are moved inside it.
+    """
+    return {
+        "type":       msg_type,
+        "payload":    payload,
+        "timestamp":  datetime.now(timezone.utc).isoformat(),
+        "message_id": str(uuid.uuid4()),
+    }
+
+
+# ============================================================
+# ADMIN AUTH
+# ============================================================
+
+def require_admin(admin_session: str = Cookie(default=None)):
+    if not admin_session or not verify_session_token(admin_session, APP_SECRET_KEY):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+# ============================================================
 # PAGE ROUTES
 # ============================================================
 
 @app.get("/", response_class=HTMLResponse)
+async def home_page(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/booking", response_class=HTMLResponse)
 async def booking_page(request: Request):
     return templates.TemplateResponse("booking.html", {"request": request})
 
@@ -165,8 +402,20 @@ async def driver_page(request: Request):
     return templates.TemplateResponse("driver.html", {"request": request})
 
 
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(request: Request):
+    """Dedicated admin login page. Redirects to /admin if already authenticated."""
+    session_cookie = request.cookies.get("admin_session")
+    if session_cookie and verify_session_token(session_cookie, APP_SECRET_KEY):
+        return RedirectResponse(url="/admin", status_code=302)
+    return templates.TemplateResponse("admin_login.html", {"request": request})
+
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
+    session_cookie = request.cookies.get("admin_session")
+    if not session_cookie or not verify_session_token(session_cookie, APP_SECRET_KEY):
+        return RedirectResponse(url="/admin/login?next=/admin", status_code=302)
     return templates.TemplateResponse("admin.html", {"request": request})
 
 
@@ -178,6 +427,56 @@ async def heatmap_page(request: Request):
 @app.get("/track/{booking_id}", response_class=HTMLResponse)
 async def track_page(request: Request, booking_id: str):
     return templates.TemplateResponse("track.html", {"request": request, "booking_id": booking_id})
+
+
+@app.post("/admin/login")
+async def admin_login(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Check brute-force lockout
+    allowed, secs_remaining = _check_login_allowed(client_ip)
+    if not allowed:
+        mins, secs = secs_remaining // 60, secs_remaining % 60
+        raise HTTPException(
+            status_code=423,
+            detail=f"Too many failed attempts. Try again in {mins}m {secs}s."
+        )
+
+    # Basic rate limit
+    if not _check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Wait 60 seconds.")
+
+    data = await request.json()
+    password = data.get("password", "")
+
+    if not safe_compare(password, ADMIN_PASSWORD):
+        remaining = _record_failed_login(client_ip)
+        logger.warning(f"[Auth] Failed admin login from {client_ip} ({remaining} attempts left)")
+        if remaining == 0:
+            raise HTTPException(status_code=423, detail="Account locked for 15 minutes.")
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid password. {remaining} attempt{'s' if remaining != 1 else ''} remaining."
+        )
+
+    _clear_login_attempts(client_ip)
+    token = create_session_token(APP_SECRET_KEY)
+    response = JSONResponse({"ok": True})
+    response.set_cookie(
+        "admin_session", token,
+        httponly=True, samesite="lax",
+        max_age=SESSION_DURATION_SECONDS,
+        secure=COOKIE_SECURE
+    )
+    logger.info(f"[Auth] Admin login successful from {client_ip}")
+    return response
+
+
+@app.get("/admin/logout")
+async def admin_logout():
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("admin_session")
+    return response
 
 
 # ============================================================
@@ -241,21 +540,68 @@ async def get_tracking_data(booking_id: str):
 # FARE ESTIMATE
 # ============================================================
 
-@app.post("/api/estimate-fare", response_model=FareEstimate)
-async def estimate_fare(req: FareEstimateRequest):
-    pickup  = await geocode_address(req.pickup_address)
-    dropoff = await geocode_address(req.dropoff_address)
-    if not pickup or not dropoff:
-        raise HTTPException(400, "Could not geocode one or both addresses")
-    distance = await get_route_distance(
-        pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"]
+@app.post("/api/estimate-fare")
+async def estimate_fare(request: FareEstimateRequest):
+    # Build full address list: pickup + intermediate stops + dropoff
+    addresses = [request.pickup_address] + list(request.stops or []) + [request.dropoff_address]
+
+    # Geocode all addresses and compute legs
+    legs = await geocode_route(addresses)
+
+    # Get current surge
+    surge_mult = get_current_surge_multiplier(bookings_db, drivers_db)
+
+    # Get promo discount
+    promo_disc = 0.0
+    if request.promo_code:
+        try:
+            from config import get_active_promo_codes
+        except ImportError:
+            from backend.config import get_active_promo_codes
+        for pc in get_active_promo_codes():
+            if pc["code"].upper() == request.promo_code.upper():
+                promo_disc = pc["discount_pct"] / 100.0
+                break
+
+    breakdown = calculate_fare(legs, request.service_type or "standard", surge_mult, promo_disc)
+    return {**breakdown, "legs_geocoded": legs, "surge_multiplier": surge_mult}
+
+
+# ============================================================
+# STRIPE PAYMENTS
+# ============================================================
+
+@app.post("/api/payments/create-intent")
+async def create_payment_intent(req: FareEstimateRequest):
+    """Create a Stripe PaymentIntent for the given trip. Amount is always calculated server-side."""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Stripe not configured")
+    stripe_lib.api_key = STRIPE_SECRET_KEY
+
+    # Geocode and calculate fare server-side (never trust client amounts)
+    pc = await geocode_address(req.pickup_address)
+    dc = await geocode_address(req.dropoff_address)
+    if not pc or not dc:
+        raise HTTPException(status_code=400, detail="Could not geocode addresses")
+    legs = await geocode_route([req.pickup_address] + list(req.stops or []) + [req.dropoff_address])
+    fare_breakdown = calculate_fare(legs, req.service_type or "standard")
+    fare = fare_breakdown["total"]
+    amount_cents = max(int(fare * 100), 50)  # Stripe minimum 50 cents
+
+    intent = stripe_lib.PaymentIntent.create(
+        amount=amount_cents,
+        currency="cad",
+        automatic_payment_methods={"enabled": True},
+        metadata={
+            "pickup": req.pickup_address,
+            "dropoff": req.dropoff_address
+        }
     )
-    return FareEstimate(
-        distance_km=distance,
-        estimated_fare=calculate_fare(distance),
-        pickup_coords=pickup,
-        dropoff_coords=dropoff
-    )
+    return {
+        "client_secret": intent.client_secret,
+        "amount": fare,
+        "publishable_key": STRIPE_PUBLISHABLE_KEY
+    }
 
 
 # ============================================================
@@ -263,21 +609,59 @@ async def estimate_fare(req: FareEstimateRequest):
 # ============================================================
 
 @app.post("/api/bookings")
-async def create_booking(req: BookingRequest):
+async def create_booking(request: Request, req: BookingRequest):
     global _booking_counter
+
+    # Idempotency key deduplication (24h)
+    idem_key = request.headers.get("X-Idempotency-Key")
+    if idem_key:
+        now_ts = datetime.now(timezone.utc)
+        existing = _idempotency_store.get(idem_key)
+        if existing:
+            # Check if within 24h
+            created = datetime.fromisoformat(existing["created_at"])
+            if (now_ts - created).total_seconds() < 86400:
+                # Return cached response
+                cached_booking = next((b for b in demo_bookings if b["id"] == existing["booking_id"]), None)
+                if cached_booking:
+                    return {"success": True, "booking": cached_booking, "idempotent": True}
+        # Register key (booking_id filled in after creation)
+        _idempotency_store[idem_key] = {"created_at": now_ts.isoformat(), "booking_id": None}
+
     pickup  = await geocode_address(req.pickup_address)
     dropoff = await geocode_address(req.dropoff_address)
     if not pickup or not dropoff:
         raise HTTPException(400, "Could not geocode addresses")
 
-    distance = await get_route_distance(
-        pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"]
-    )
-    fare = calculate_fare(distance)
+    addresses = [req.pickup_address] + list(req.stops or []) + [req.dropoff_address]
+    legs = await geocode_route(addresses)
+    surge_mult = get_current_surge_multiplier(bookings_db, drivers_db)
+    fare_breakdown = calculate_fare(legs, req.service_type or "standard", surge_mult)
+    fare = fare_breakdown["total"]
+    distance = sum(l.get("km", 0.0) for l in legs)
     db   = get_db()
 
+    # ── Advance booking validation ──────────────────────────────
+    scheduled_for_iso: Optional[str] = None
+    is_scheduled = False
+    if req.scheduled_for is not None:
+        now_utc = datetime.now(timezone.utc)
+        sf = req.scheduled_for
+        if sf.tzinfo is None:
+            sf = sf.replace(tzinfo=timezone.utc)
+        lead_minutes = (sf - now_utc).total_seconds() / 60
+        if lead_minutes < 30:
+            raise HTTPException(
+                status_code=400,
+                detail="Scheduled pickup must be at least 30 minutes from now"
+            )
+        is_scheduled = True
+        scheduled_for_iso = sf.isoformat()
+
+    initial_status = "scheduled" if is_scheduled else "pending"
+
     if db:
-        result = db.table("bookings").insert({
+        insert_payload = {
             "customer_name":           req.customer_name,
             "customer_phone":          req.customer_phone,
             "pickup_address":          req.pickup_address,
@@ -288,9 +672,12 @@ async def create_booking(req: BookingRequest):
             "dropoff_lng":             dropoff["lng"],
             "estimated_distance_km":   distance,
             "estimated_fare":          fare,
-            "status":                  "pending",
+            "status":                  initial_status,
             "source":                  req.source.value
-        }).execute()
+        }
+        if scheduled_for_iso is not None:
+            insert_payload["scheduled_for"] = scheduled_for_iso
+        result = db.table("bookings").insert(insert_payload).execute()
         booking = result.data[0]
     else:
         _booking_counter += 1
@@ -306,14 +693,22 @@ async def create_booking(req: BookingRequest):
             "dropoff_lng":             dropoff["lng"],
             "estimated_distance_km":   distance,
             "estimated_fare":          fare,
-            "status":                  "pending",
+            "status":                  initial_status,
             "assigned_driver_id":      None,
             "source":                  req.source.value,
             "dispatch_attempts":       0,
+            "scheduled_for":           scheduled_for_iso,
             "created_at":              datetime.now(timezone.utc).isoformat(),
             "updated_at":              datetime.now(timezone.utc).isoformat()
         }
         demo_bookings.append(booking)
+
+    booking["payment_method"] = req.payment_method if hasattr(req, 'payment_method') else "cash"
+    # Payment state machine: stripe → payment_initiated, cash → unpaid
+    if booking.get("payment_method") == "stripe":
+        booking["payment_status"] = "payment_initiated"
+    else:
+        booking["payment_status"] = "unpaid"  # cash/COD
 
     await manager.broadcast("admin", {"type": "new_booking", "booking": booking})
 
@@ -326,14 +721,23 @@ async def create_booking(req: BookingRequest):
     except Exception as e:
         print(f"[SMS] booking_confirmed error: {e}")
 
-    asyncio.create_task(dispatch_booking(booking))
+    # Store idempotency result
+    if idem_key:
+        _idempotency_store[idem_key]["booking_id"] = booking["id"]
+
+    if is_scheduled:
+        # Do NOT dispatch now — APScheduler will handle this in Task 10
+        pass
+    else:
+        asyncio.create_task(dispatch_booking(booking))
+
     return {"success": True, "booking": booking}
 
 
-async def dispatch_booking(booking: dict):
+async def dispatch_booking(booking: dict, excluded_drivers: list[str] = None):
     """Auto-dispatch to nearest driver. Escalate on timeout/decline."""
     db       = get_db()
-    excluded: list[str] = []
+    excluded: list[str] = list(excluded_drivers or [])
     bid      = booking["id"]
     plat     = booking.get("pickup_lat",  43.2557)
     plng     = booking.get("pickup_lng", -79.8711)
@@ -383,12 +787,20 @@ async def dispatch_booking(booking: dict):
         )
         eta_mins = max(1, int((dist_to_pickup / 30) * 60))
 
-        await manager.send_to_driver(did, {
-            "type": "new_ride",
+        ride_msg = ws_envelope("new_ride", {
             "booking": booking,
             "timeout_seconds": DISPATCH_TIMEOUT_SECONDS,
             "eta_mins": eta_mins
         })
+        await manager.send_to_driver(did, ride_msg)
+
+        # Web Push — fires even when the driver app tab is closed
+        push_payload = {
+            "title":      "🚕 New Ride Request!",
+            "body":       f"{booking.get('pickup_address','Pickup')} → {booking.get('dropoff_address','Drop-off')}  •  ${float(booking.get('estimated_fare',0)):.2f}",
+            "booking_id": bid,
+        }
+        asyncio.create_task(send_push_to_driver(did, push_payload))
         await manager.broadcast("admin", {
             "type": "dispatched",
             "booking_id": bid,
@@ -484,6 +896,20 @@ async def cancel_booking(booking_id: str):
 
     await manager.broadcast("admin", {"type": "booking_cancelled", "booking_id": booking_id})
 
+    # Notify assigned driver
+    if booking and booking.get("assigned_driver_id"):
+        await manager.send_to_driver(booking["assigned_driver_id"], {
+            "type": "ride_cancelled",
+            "booking_id": booking_id
+        })
+        # Reset driver status
+        if db:
+            db.table("drivers").update({"status": "available"}).eq("id", booking["assigned_driver_id"]).execute()
+        else:
+            for d in demo_drivers:
+                if d["id"] == booking["assigned_driver_id"]:
+                    d["status"] = "available"
+
     # SMS: cancellation
     if booking:
         try:
@@ -545,7 +971,10 @@ async def driver_login(req: DriverLoginRequest):
             raise HTTPException(401, "Invalid credentials")
         driver["status"] = "available"
 
-    return {"success": True, "driver": {
+    from auth_service import create_driver_token
+    from config import settings, COOKIE_SECURE
+    jwt_token = create_driver_token(driver["id"], req.phone)
+    response = JSONResponse({"success": True, "driver": {
         "id":       driver["id"],
         "name":     driver["name"],
         "phone":    driver["phone"],
@@ -553,7 +982,14 @@ async def driver_login(req: DriverLoginRequest):
         "vehicle":  driver.get("vehicle", ""),
         "plate":    driver.get("plate", ""),
         "rating":   driver.get("rating", 5.0),
-    }}
+    }})
+    response.set_cookie(
+        "driver_token", jwt_token,
+        httponly=True, samesite="lax",
+        max_age=settings.jwt_expire_minutes * 60,
+        secure=COOKIE_SECURE
+    )
+    return response
 
 
 @app.get("/api/drivers")
@@ -629,21 +1065,54 @@ async def ride_action(booking_id: str, driver_id: str, req: RideActionRequest):
                 if d["id"] == driver_id:
                     d["status"] = "busy"
 
-        await manager.broadcast("admin", {
-            "type": "ride_accepted",
+        await manager.broadcast("admin", ws_envelope("ride_accepted", {
             "booking_id": booking_id,
             "driver_id": driver_id
-        })
-    else:
+        }))
+    elif req.action == "decline":
+        # Set driver back to available
         if db:
+            db.table("drivers").update({"status": "available"}).eq("id", driver_id).execute()
             db.table("dispatch_log").update({
                 "status": "declined", "responded_at": now
             }).eq("booking_id", booking_id).eq("driver_id", driver_id).execute()
+        else:
+            for d in demo_drivers:
+                if d["id"] == driver_id:
+                    d["status"] = "available"
+
+        dispatch_log.append({
+            "booking_id": booking_id, "driver_id": driver_id,
+            "action": "decline", "timestamp": now
+        })
+
         await manager.broadcast("admin", {
-            "type": "ride_declined",
+            "type": "driver_declined",
             "booking_id": booking_id,
             "driver_id": driver_id
         })
+
+        # Re-dispatch excluding this driver
+        booking = None
+        if db:
+            r = db.table("bookings").select("*").eq("id", booking_id).execute()
+            if r.data: booking = r.data[0]
+        else:
+            for b in demo_bookings:
+                if b["id"] == booking_id:
+                    booking = b
+                    break
+
+        if booking and booking.get("status") not in ("accepted", "completed", "cancelled"):
+            asyncio.create_task(dispatch_booking(booking, excluded_drivers=[driver_id]))
+
+        return {"success": True, "message": "declined, re-dispatching"}
+    else:
+        # legacy fallback
+        await manager.broadcast("admin", ws_envelope("ride_declined", {
+            "booking_id": booking_id,
+            "driver_id": driver_id
+        }))
 
     return {"success": True}
 
@@ -725,7 +1194,7 @@ async def complete_ride(booking_id: str, driver_id: str):
 # ADMIN
 # ============================================================
 
-@app.post("/api/admin/assign")
+@app.post("/api/admin/assign", dependencies=[Depends(require_admin)])
 async def admin_assign(req: AdminAssignRequest):
     db = get_db()
     if db:
@@ -744,20 +1213,39 @@ async def admin_assign(req: AdminAssignRequest):
         if b["id"] == req.booking_id:
             booking = b
 
-    await manager.send_to_driver(req.driver_id, {
-        "type": "new_ride",
+    await manager.send_to_driver(req.driver_id, ws_envelope("new_ride", {
         "booking": booking or {"id": req.booking_id},
         "timeout_seconds": DISPATCH_TIMEOUT_SECONDS
-    })
-    await manager.broadcast("admin", {
-        "type": "manually_assigned",
+    }))
+    await manager.broadcast("admin", ws_envelope("manually_assigned", {
         "booking_id": req.booking_id,
         "driver_id": req.driver_id
-    })
+    }))
     return {"success": True}
 
 
-@app.get("/api/admin/stats")
+@app.post("/api/admin/dispatch", dependencies=[Depends(require_admin)])
+async def admin_dispatch(body: dict = Body(...)):
+    """Re-trigger auto-dispatch for a pending/failed booking."""
+    booking_id = body.get("booking_id")
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data:
+            booking = r.data[0]
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+                break
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    asyncio.create_task(dispatch_booking(booking))
+    return {"success": True}
+
+
+@app.get("/api/admin/stats", dependencies=[Depends(require_admin)])
 async def admin_stats():
     db       = get_db()
     bookings = db.table("bookings").select("status").execute().data if db else demo_bookings
@@ -774,17 +1262,17 @@ async def admin_stats():
     }
 
 
-@app.get("/api/admin/sms-log")
+@app.get("/api/admin/sms-log", dependencies=[Depends(require_admin)])
 async def sms_log():
     return {"sms_log": get_sms_log()}
 
 
-@app.get("/api/admin/email-log")
+@app.get("/api/admin/email-log", dependencies=[Depends(require_admin)])
 async def email_log():
     return {"email_log": get_email_log()}
 
 
-@app.get("/api/admin/heatmap-data")
+@app.get("/api/admin/heatmap-data", dependencies=[Depends(require_admin)])
 async def heatmap_data():
     """
     Returns booking pickup coordinates for the heatmap.
@@ -868,7 +1356,7 @@ async def voice_ai_booking(req: VoiceAIBookingRequest):
     distance = await get_route_distance(
         pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"]
     )
-    fare = calculate_fare(distance)
+    fare = fare_from_distance(distance)
     db   = get_db()
 
     if db:
@@ -994,7 +1482,7 @@ async def voice_ai_fare_estimate(req: FareEstimateRequest):
     distance = await get_route_distance(
         pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"]
     )
-    fare = calculate_fare(distance)
+    fare = fare_from_distance(distance)
     return {
         "distance_km": distance,
         "estimated_fare": fare,
@@ -1030,6 +1518,21 @@ async def ws_driver(ws: WebSocket, driver_id: str):
             msg = json.loads(await ws.receive_text())
             if msg.get("type") == "ping":
                 await ws.send_json({"type": "pong"})
+            elif msg.get("type") == "location_update":
+                lat = msg.get("lat")
+                lng = msg.get("lng")
+                if lat is not None and lng is not None and driver_id in drivers_db:
+                    drivers_db[driver_id]["latitude"] = lat
+                    drivers_db[driver_id]["longitude"] = lng
+                    drivers_db[driver_id]["last_location_update"] = datetime.now(timezone.utc).isoformat()
+                    await manager.broadcast(f"track_{driver_id}", {
+                        "type": "location_update",
+                        "driver_id": driver_id,
+                        "lat": lat,
+                        "lng": lng,
+                        "accuracy": msg.get("accuracy"),
+                        "timestamp": drivers_db[driver_id]["last_location_update"],
+                    })
     except WebSocketDisconnect:
         manager.disconnect(ws, f"driver_{driver_id}")
 
@@ -1086,7 +1589,7 @@ async def twilio_dropoff(request: Request):
     if pc and dc:
         d = await get_route_distance(pc["lat"], pc["lng"], dc["lat"], dc["lng"])
         if d: dist = d
-    fare = calculate_fare(dist)
+    fare = fare_from_distance(dist)
     resp   = VoiceResponse()
     gather = Gather(
         input="speech",
@@ -1186,7 +1689,7 @@ async def _dispatch_vapi_tool(name: str, args: dict) -> dict:
         if not pickup or not dropoff:
             return {"error": "Could not locate one of those addresses. Please try again."}
         dist = await get_route_distance(pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"])
-        fare = calculate_fare(dist)
+        fare = fare_from_distance(dist)
         return {
             "distance_km": dist,
             "estimated_fare": fare,
@@ -1204,7 +1707,7 @@ async def _dispatch_vapi_tool(name: str, args: dict) -> dict:
         if not pickup or not dropoff:
             return {"error": "Could not geocode addresses."}
         dist = await get_route_distance(pickup["lat"], pickup["lng"], dropoff["lat"], dropoff["lng"])
-        fare = calculate_fare(dist)
+        fare = fare_from_distance(dist)
         _booking_counter += 1
         booking = {
             "id": f"b{_booking_counter}",
@@ -1263,6 +1766,897 @@ async def _dispatch_vapi_tool(name: str, args: dict) -> dict:
 
     else:
         return {"error": f"Unknown tool: {name}"}
+
+
+# ============================================================
+# PUSH NOTIFICATIONS (Web Push / VAPID)
+# ============================================================
+
+@app.get("/api/push/vapid-public-key")
+async def get_vapid_public_key():
+    """Return the VAPID public key so the driver app can subscribe."""
+    if not VAPID_PUBLIC_KEY:
+        raise HTTPException(503, "Push notifications not configured")
+    return {"public_key": VAPID_PUBLIC_KEY}
+
+
+@app.post("/api/drivers/{driver_id}/push-subscribe")
+async def push_subscribe(driver_id: str, request: Request):
+    """Save a browser push subscription for a driver."""
+    data = await request.json()
+    sub = data.get("subscription")
+    if not sub or "endpoint" not in sub:
+        raise HTTPException(400, "Invalid subscription object")
+    push_subscriptions[driver_id] = sub
+    logger.info(f"[Push] Driver {driver_id} subscribed — {sub['endpoint'][:60]}…")
+    return {"success": True}
+
+
+@app.delete("/api/drivers/{driver_id}/push-subscribe")
+async def push_unsubscribe(driver_id: str):
+    push_subscriptions.pop(driver_id, None)
+    return {"success": True}
+
+
+async def send_push_to_driver(driver_id: str, payload: dict):
+    """Send a Web Push message to a driver's browser even when the tab is closed."""
+    sub = push_subscriptions.get(driver_id)
+    if not sub:
+        return  # driver hasn't subscribed
+
+    if not VAPID_PRIVATE_KEY:
+        logger.warning("[Push] VAPID not configured — skipping push")
+        return
+
+    try:
+        from pywebpush import webpush, WebPushException
+        webpush(
+            subscription_info=sub,
+            data=json.dumps(payload),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": VAPID_SUBJECT},
+        )
+        logger.info(f"[Push] Sent to driver {driver_id}")
+    except Exception as e:
+        logger.error(f"[Push] Failed for driver {driver_id}: {e}")
+
+
+# ============================================================
+# PROMO CODES
+# ============================================================
+
+@app.post("/api/promo/validate")
+async def validate_promo(request: Request):
+    """Validate a promo code and return the discount percentage."""
+    data = await request.json()
+    code = str(data.get("code", "")).strip().upper()
+    if not code:
+        raise HTTPException(400, "No code provided")
+    discount = PROMO_CODES.get(code)
+    if discount is None:
+        raise HTTPException(404, "Invalid or expired promo code")
+    return {"code": code, "discount_percent": discount, "valid": True}
+
+
+# ============================================================
+# DRIVER RATINGS
+# ============================================================
+
+@app.post("/api/bookings/{booking_id}/rate")
+async def rate_driver(booking_id: str, request: Request):
+    """Customer rates their driver after a completed ride (1–5 stars)."""
+    data = await request.json()
+    rating  = int(data.get("rating", 0))
+    comment = str(data.get("comment", "")).strip()[:280]
+
+    if not 1 <= rating <= 5:
+        raise HTTPException(400, "Rating must be between 1 and 5")
+
+    # Check booking exists and is completed
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data:
+            booking = r.data[0]
+    else:
+        booking = next((b for b in demo_bookings if b["id"] == booking_id), None)
+
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    if booking["status"] != "completed":
+        raise HTTPException(400, "Can only rate a completed ride")
+
+    # Prevent duplicate ratings
+    if any(r["booking_id"] == booking_id for r in ratings_db):
+        raise HTTPException(409, "This ride has already been rated")
+
+    driver_id = booking.get("assigned_driver_id")
+    entry = {
+        "booking_id": booking_id,
+        "driver_id":  driver_id,
+        "rating":     rating,
+        "comment":    comment,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    ratings_db.append(entry)
+
+    # Update driver's running average
+    if driver_id:
+        driver_ratings = [r["rating"] for r in ratings_db if r["driver_id"] == driver_id]
+        avg = sum(driver_ratings) / len(driver_ratings)
+        for d in demo_drivers:
+            if d["id"] == driver_id:
+                d["rating"] = round(avg, 2)
+        if db:
+            db.table("drivers").update({"rating": round(avg, 2)}).eq("id", driver_id).execute()
+
+    return {"success": True, "average_rating": round(avg, 2) if driver_id else None}
+
+
+@app.get("/api/drivers/{driver_id}/ratings")
+async def get_driver_ratings(driver_id: str):
+    """Return all ratings for a driver."""
+    driver_ratings = [r for r in ratings_db if r["driver_id"] == driver_id]
+    avg = (sum(r["rating"] for r in driver_ratings) / len(driver_ratings)) if driver_ratings else None
+    return {
+        "driver_id":      driver_id,
+        "ratings":        driver_ratings,
+        "average_rating": round(avg, 2) if avg else None,
+        "total_ratings":  len(driver_ratings),
+    }
+
+
+# ============================================================
+# SURGE PRICING CHECK
+# ============================================================
+
+@app.get("/api/surge")
+async def get_surge_status():
+    """
+    Returns current surge multiplier based on live demand (config-driven thresholds).
+    """
+    multiplier = get_current_surge_multiplier(bookings_db, drivers_db)
+    pending   = sum(1 for b in bookings_db.values() if b.get("status") == "pending")
+    available = sum(1 for d in drivers_db.values()  if d.get("status") == "available")
+    return {
+        "multiplier":        multiplier,
+        "active":            multiplier > 1.0,
+        "pending_count":     pending,
+        "available_drivers": available,
+    }
+
+
+# ============================================================
+# ADMIN — EXTENDED DATA ENDPOINTS
+# ============================================================
+
+@app.get("/api/admin/driver-history", dependencies=[Depends(require_admin)])
+async def admin_driver_history():
+    """Return per-driver trip history with totals for the admin centre."""
+    db = get_db()
+    if db:
+        all_bookings = db.table("bookings").select("*").order("created_at", desc=True).execute().data
+        all_drivers_data = db.table("drivers").select("*").execute().data
+    else:
+        all_bookings    = sorted(demo_bookings, key=lambda b: b["created_at"], reverse=True)
+        all_drivers_data = demo_drivers
+
+    result = []
+    for d in all_drivers_data:
+        did   = d["id"]
+        rides = [b for b in all_bookings if b.get("assigned_driver_id") == did]
+        completed = [b for b in rides if b["status"] == "completed"]
+        total_earnings = sum(float(b.get("actual_fare") or b.get("estimated_fare") or 0) for b in completed)
+        driver_rts = [r for r in ratings_db if r["driver_id"] == did]
+        avg_rating = round(sum(r["rating"] for r in driver_rts) / len(driver_rts), 2) if driver_rts else d.get("rating", 5.0)
+        dispatched_to_driver = [e for e in dispatch_log if e.get("driver_id") == did]
+        accepted_by_driver   = [e for e in dispatched_to_driver if e.get("action") == "accept"]
+        acceptance_rate = round(len(accepted_by_driver) / len(dispatched_to_driver) * 100) if dispatched_to_driver else 100
+        result.append({
+            "id":              did,
+            "name":            d["name"],
+            "phone":           d["phone"],
+            "status":          d["status"],
+            "vehicle":         d.get("vehicle", ""),
+            "plate":           d.get("plate", ""),
+            "rating":          avg_rating,
+            "total_rides":     len(rides),
+            "completed_rides": len(completed),
+            "total_earnings":  round(total_earnings, 2),
+            "acceptance_rate": acceptance_rate,
+            "bookings":        rides[:50],  # cap at 50 per driver
+        })
+    return {"drivers": result}
+
+
+@app.get("/api/admin/revenue", dependencies=[Depends(require_admin)])
+async def admin_revenue(period: str = "day"):
+    """
+    Return revenue grouped by period.
+    period: "day" (last 30 days), "week" (last 12 weeks), "month" (last 12 months)
+    """
+    db = get_db()
+    if db:
+        bookings = db.table("bookings").select("*").eq("status", "completed").execute().data
+    else:
+        bookings = [b for b in demo_bookings if b["status"] == "completed"]
+
+    buckets: dict[str, float] = {}
+    now = datetime.now(timezone.utc)
+
+    for b in bookings:
+        try:
+            created = datetime.fromisoformat(b["created_at"].replace("Z", "+00:00"))
+        except Exception:
+            continue
+        fare = float(b.get("actual_fare") or b.get("estimated_fare") or 0)
+
+        if period == "day":
+            if (now - created).days > 30:
+                continue
+            key = created.strftime("%Y-%m-%d")
+        elif period == "week":
+            if (now - created).days > 84:
+                continue
+            # ISO week key
+            key = f"{created.isocalendar()[0]}-W{created.isocalendar()[1]:02d}"
+        else:  # month
+            if (now - created).days > 365:
+                continue
+            key = created.strftime("%Y-%m")
+
+        buckets[key] = buckets.get(key, 0.0) + fare
+
+    # Sort chronologically
+    sorted_buckets = sorted(buckets.items())
+    total = sum(v for _, v in sorted_buckets)
+    completed_count = len(bookings)
+
+    return {
+        "period":    period,
+        "buckets":   [{"label": k, "revenue": round(v, 2)} for k, v in sorted_buckets],
+        "total":     round(total, 2),
+        "completed": completed_count,
+    }
+
+
+@app.get("/api/admin/receipts", dependencies=[Depends(require_admin)])
+async def admin_receipts(
+    period: str = "all",
+    driver_id: Optional[str] = None,
+):
+    """Return completed bookings (receipts) with optional period and driver filters."""
+    db = get_db()
+    if db:
+        bookings = db.table("bookings").select("*").eq("status", "completed").order("created_at", desc=True).execute().data
+    else:
+        bookings = sorted(
+            [b for b in demo_bookings if b["status"] == "completed"],
+            key=lambda b: b["created_at"], reverse=True
+        )
+
+    now = datetime.now(timezone.utc)
+
+    def _cutoff(days: int) -> datetime:
+        return now - timedelta(days=days)
+
+    if period == "today":
+        cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        cutoff = _cutoff(7)
+    elif period == "month":
+        cutoff = _cutoff(30)
+    else:
+        cutoff = None
+
+    result = []
+    for b in bookings:
+        if driver_id and b.get("assigned_driver_id") != driver_id:
+            continue
+        if cutoff:
+            try:
+                created = datetime.fromisoformat(b["created_at"].replace("Z", "+00:00"))
+                if created < cutoff:
+                    continue
+            except Exception:
+                pass
+        # Attach driver name
+        driver = next((d for d in demo_drivers if d["id"] == b.get("assigned_driver_id")), None)
+        row = dict(b)
+        row["driver_name"] = driver["name"] if driver else "—"
+        result.append(row)
+
+    total_revenue = sum(float(b.get("actual_fare") or b.get("estimated_fare") or 0) for b in result)
+    return {
+        "receipts": result,
+        "count":    len(result),
+        "total_revenue": round(total_revenue, 2),
+    }
+
+
+# ============================================================
+# BOOKING STOPS (add a stop to an in-progress ride)
+# ============================================================
+
+@app.post("/api/bookings/{booking_id}/stops")
+async def add_stop_to_ride(booking_id: str, body: dict = Body(...)):
+    booking = bookings_db.get(booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.get("status") != "in_progress":
+        raise HTTPException(status_code=400, detail="Can only add stops to in-progress rides")
+
+    new_addr = body.get("address", "")
+    lat = body.get("lat")
+    lng = body.get("lng")
+
+    if not lat or not lng:
+        coords = await geocode_address(new_addr)
+        if coords:
+            lat, lng = coords["lat"], coords["lng"]
+
+    stops = list(booking.get("stops", []))
+    stops.append(new_addr)
+    booking["stops"] = stops
+    booking["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Recalculate fare with full updated route
+    all_addresses = [booking["pickup_address"]] + stops + [booking["dropoff_address"]]
+    legs = await geocode_route(all_addresses)
+    breakdown = calculate_fare(legs, booking.get("service_type", "standard"))
+    booking["actual_fare"] = breakdown["total"]
+    booking["fare_breakdown"] = breakdown
+
+    # Broadcast fare update to tracking page
+    await manager.broadcast("admin", {"type": "fare_updated", "booking_id": booking_id,
+                     "fare": breakdown["total"], "breakdown": breakdown})
+
+    return {"booking_id": booking_id, "actual_fare": breakdown["total"], "fare_breakdown": breakdown}
+
+
+# ============================================================
+# FLAT RATES
+# ============================================================
+
+@app.get("/api/flat-rates")
+async def get_flat_rates_endpoint():
+    try:
+        from config import get_flat_rates
+    except ImportError:
+        from backend.config import get_flat_rates
+    return get_flat_rates()
+
+
+@app.post("/api/flat-rates")
+async def set_flat_rate(body: dict = Body(...), _=Depends(require_admin)):
+    try:
+        from config import load_settings, save_settings
+    except ImportError:
+        from backend.config import load_settings, save_settings
+    s = load_settings()
+    s.setdefault("flat_rates", {})[body["city"]] = float(body["price"])
+    save_settings(s)
+    return {"ok": True}
+
+
+@app.delete("/api/flat-rates/{city}")
+async def delete_flat_rate(city: str, _=Depends(require_admin)):
+    try:
+        from config import load_settings, save_settings
+    except ImportError:
+        from backend.config import load_settings, save_settings
+    s = load_settings()
+    s.get("flat_rates", {}).pop(city, None)
+    save_settings(s)
+    return {"ok": True}
+
+
+# ============================================================
+# OASR (Online Advance Service Requests)
+# ============================================================
+
+@app.post("/api/oasr/inbound")
+async def oasr_inbound(request: Request):
+    """Receive OASR email (JSON or SendGrid Inbound Parse form) and create a booking."""
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        data = await request.json()
+        raw = data.get("raw_email", "")
+    else:
+        form = await request.form()
+        raw = form.get("text", "") or form.get("html", "") or ""
+
+    if not raw:
+        raise HTTPException(status_code=400, detail="No email content provided")
+
+    parsed = parse_oasr_email(raw)
+
+    scheduled_for = None
+    if parsed.get("ride_date") and parsed.get("ride_time"):
+        try:
+            scheduled_for = f"{parsed['ride_date']}T{parsed['ride_time']}:00+00:00"
+        except Exception:
+            pass
+
+    booking_id = str(uuid.uuid4())[:8].upper()
+    now = datetime.now(timezone.utc).isoformat()
+    booking = {
+        "id": booking_id,
+        "customer_name": parsed.get("patient_name") or "OASR Patient",
+        "customer_phone": "",
+        "pickup_address": parsed.get("pickup_address") or "",
+        "dropoff_address": parsed.get("dropoff_address") or "",
+        "stops": [],
+        "service_type": "medical",
+        "estimated_fare": 0.0,
+        "actual_fare": 0.0,
+        "status": "needs_review" if parsed.get("needs_review") else "scheduled",
+        "source": "oasr",
+        "oasr_source": True,
+        "needs_review": parsed.get("needs_review", False),
+        "scheduled_for": scheduled_for,
+        "notes": parsed.get("notes"),
+        "created_at": now,
+        "updated_at": now,
+        "assigned_driver_id": None,
+        "payment_method": "cash",
+        "dispatch_attempts": 0,
+        "payment_intent_id": None,
+    }
+    bookings_db[booking_id] = booking
+    logger.info(f"[OASR] Created booking {booking_id} confidence={parsed['confidence']} needs_review={parsed['needs_review']}")
+    return {"booking_id": booking_id, "parsed": parsed, "needs_review": parsed.get("needs_review")}
+
+
+@app.post("/api/bookings/{booking_id}/send-receipt", dependencies=[Depends(require_admin)])
+async def send_receipt_endpoint(booking_id: str):
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data: booking = r.data[0]
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    try:
+        result = send_receipt_email(booking)
+        return {"success": True, "email_log": result}
+    except Exception as e:
+        raise HTTPException(500, f"Receipt email failed: {e}")
+
+
+@app.post("/api/admin/force-complete/{booking_id}", dependencies=[Depends(require_admin)])
+async def force_complete_booking(booking_id: str):
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data: booking = r.data[0]
+        db.table("bookings").update({"status": "completed"}).eq("id", booking_id).execute()
+        if booking and booking.get("assigned_driver_id"):
+            db.table("drivers").update({"status": "available"}).eq("id", booking["assigned_driver_id"]).execute()
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+                b["status"] = "completed"
+        if booking and booking.get("assigned_driver_id"):
+            for d in demo_drivers:
+                if d["id"] == booking["assigned_driver_id"]:
+                    d["status"] = "available"
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    await manager.broadcast("admin", {
+        "type": "ride_completed",
+        "booking_id": booking_id,
+        "fare": booking.get("estimated_fare", 0)
+    })
+    try:
+        send_receipt_email(booking)
+    except Exception:
+        pass
+    try:
+        sms_ride_completed(
+            booking.get("customer_phone", ""), booking.get("customer_name", ""),
+            float(booking.get("estimated_fare", 0)), booking_id
+        )
+    except Exception:
+        pass
+    return {"success": True}
+
+
+@app.post("/api/admin/redispatch/{booking_id}", dependencies=[Depends(require_admin)])
+async def redispatch_booking(booking_id: str):
+    db = get_db()
+    booking = None
+    if db:
+        r = db.table("bookings").select("*").eq("id", booking_id).execute()
+        if r.data: booking = r.data[0]
+        db.table("bookings").update({"status": "pending", "dispatch_attempts": 0}).eq("id", booking_id).execute()
+    else:
+        for b in demo_bookings:
+            if b["id"] == booking_id:
+                booking = b
+                b["status"] = "pending"
+                b["dispatch_attempts"] = 0
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    asyncio.create_task(dispatch_booking(booking))
+    return {"success": True}
+
+
+@app.post("/api/oasr/parse")
+async def oasr_parse(request: Request):
+    """Parse raw OASR email text and create a booking."""
+    data = await request.json()
+    raw_text = data.get("raw_email_text", "")
+    if not raw_text:
+        raise HTTPException(400, "raw_email_text is required")
+
+    parsed = parse_oasr_email(raw_text)
+
+    scheduled_for = None
+    if parsed.get("ride_date") and parsed.get("ride_time"):
+        try:
+            scheduled_for = f"{parsed['ride_date']}T{parsed['ride_time']}:00+00:00"
+        except Exception:
+            pass
+
+    confidence = parsed.get("confidence", 0)
+    needs_review = parsed.get("needs_review", True) or confidence < 3
+
+    booking_id = str(uuid.uuid4())[:8].upper()
+    now = datetime.now(timezone.utc).isoformat()
+    booking = {
+        "id": booking_id,
+        "customer_name": parsed.get("patient_name") or "OASR Patient",
+        "customer_phone": parsed.get("phone") or "",
+        "pickup_address": parsed.get("pickup_address") or "",
+        "dropoff_address": parsed.get("dropoff_address") or "",
+        "estimated_fare": 0.0,
+        "status": "needs_review" if needs_review else "pending_assignment",
+        "source": "oasr",
+        "needs_review": needs_review,
+        "scheduled_for": scheduled_for,
+        "notes": parsed.get("notes"),
+        "dispatch_attempts": 0,
+        "assigned_driver_id": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+    bookings_db[booking_id] = booking
+    demo_bookings.append(booking)
+    await manager.broadcast("admin", {"type": "new_oasr_booking", "booking": booking})
+    return {"booking_id": booking_id, "parsed": parsed, "needs_review": needs_review, "booking": booking}
+
+
+@app.get("/api/admin/oasr")
+async def admin_oasr(_=Depends(require_admin)):
+    oasr_bookings = [b for b in bookings_db.values() if b.get("source") == "oasr"]
+    # Also include from demo_bookings that may not be in bookings_db
+    demo_oasr_ids = {b["id"] for b in oasr_bookings}
+    for b in demo_bookings:
+        if b.get("source") == "oasr" and b["id"] not in demo_oasr_ids:
+            oasr_bookings.append(b)
+    oasr_bookings.sort(key=lambda b: b.get("created_at", ""), reverse=True)
+    return oasr_bookings
+
+
+# ============================================================
+# DRIVER CRUD (admin)
+# ============================================================
+
+@app.post("/api/drivers")
+async def create_driver_admin(body: dict = Body(...), _=Depends(require_admin)):
+    driver_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    driver = {
+        "id": driver_id,
+        "name": body["name"],
+        "phone": body["phone"],
+        "pin": body["pin"],
+        "vehicle": body.get("vehicle", ""),
+        "plate": body.get("plate", ""),
+        "status": "offline",
+        "latitude": 43.0773,
+        "longitude": -79.9408,
+        "last_location_update": None,
+        "inactive": False,
+        "push_subscriptions": [],
+        "ratings": [],
+        "created_at": now,
+        "updated_at": now,
+    }
+    drivers_db[driver_id] = driver
+    logger.info(f"[Admin] Created driver {driver_id}: {body['name']}")
+    return driver
+
+
+@app.put("/api/drivers/{driver_id}")
+async def update_driver_admin(driver_id: str, body: dict = Body(...), _=Depends(require_admin)):
+    driver = drivers_db.get(driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    for field in ["name", "phone", "pin", "vehicle", "plate"]:
+        if field in body:
+            driver[field] = body[field]
+    driver["updated_at"] = datetime.now(timezone.utc).isoformat()
+    return driver
+
+
+@app.patch("/api/drivers/{driver_id}/deactivate")
+async def deactivate_driver(driver_id: str, _=Depends(require_admin)):
+    driver = drivers_db.get(driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    driver["inactive"] = True
+    driver["status"] = "offline"
+    driver["updated_at"] = datetime.now(timezone.utc).isoformat()
+    logger.info(f"[Admin] Deactivated driver {driver_id}")
+    return {"ok": True}
+
+
+# ============================================================
+# ADMIN — DRIVER LOCATIONS MAP
+# ============================================================
+
+@app.get("/api/admin/driver-locations")
+async def admin_driver_locations(_=Depends(require_admin)):
+    result = []
+    for d in drivers_db.values():
+        if d.get("inactive"):
+            continue
+        active_booking = None
+        for b in bookings_db.values():
+            if b.get("assigned_driver_id") == d["id"] and b.get("status") in ("accepted", "in_progress"):
+                all_stops = [b["pickup_address"]] + list(b.get("stops", [])) + [b["dropoff_address"]]
+                active_booking = {
+                    "id": b["id"],
+                    "customer_name": b.get("customer_name", ""),
+                    "pickup_address": b.get("pickup_address", ""),
+                    "dropoff_address": b.get("dropoff_address", ""),
+                    "stops": list(b.get("stops", [])),
+                    "current_leg": b.get("current_leg", 0),
+                    "total_legs": max(1, len(all_stops) - 1),
+                    "estimated_fare": b.get("estimated_fare", 0),
+                    "waypoints": b.get("waypoints", []),
+                }
+                break
+        result.append({
+            "id": d["id"],
+            "name": d.get("name", ""),
+            "phone": d.get("phone", ""),
+            "vehicle": d.get("vehicle", ""),
+            "plate": d.get("plate", ""),
+            "status": d.get("status", "offline"),
+            "lat": d.get("latitude"),
+            "lng": d.get("longitude"),
+            "last_update": d.get("last_location_update"),
+            "active_booking": active_booking,
+        })
+    return result
+
+
+# ============================================================
+# ADMIN — SETTINGS
+# ============================================================
+
+@app.get("/api/admin/settings")
+async def admin_get_settings(_=Depends(require_admin)):
+    try:
+        from config import load_settings
+    except ImportError:
+        from backend.config import load_settings
+    return load_settings()
+
+
+@app.post("/api/admin/settings")
+async def admin_save_settings(body: dict = Body(...), _=Depends(require_admin)):
+    try:
+        from config import save_settings
+    except ImportError:
+        from backend.config import save_settings
+    save_settings(body)
+    return {"ok": True}
+
+
+# ============================================================
+# SOS
+# ============================================================
+
+# In-memory SOS log (also broadcast to admin WebSocket)
+sos_log: list[dict] = []
+
+@app.post("/api/sos")
+async def driver_sos(request: Request):
+    """Driver SOS alert — broadcasts to admin with GPS coords."""
+    data = await request.json()
+    driver_id = data.get("driver_id")
+    driver_name = data.get("driver_name", "Unknown")
+    lat = data.get("lat")
+    lng = data.get("lng")
+    booking_id = data.get("booking_id")
+    now = datetime.now(timezone.utc).isoformat()
+
+    entry = {
+        "id": str(uuid.uuid4()),
+        "driver_id": driver_id,
+        "driver_name": driver_name,
+        "booking_id": booking_id,
+        "lat": lat,
+        "lng": lng,
+        "resolved": False,
+        "created_at": now,
+    }
+    sos_log.append(entry)
+    logger.warning(f"[SOS] Driver {driver_name} ({driver_id}) at {lat},{lng} booking={booking_id}")
+
+    await manager.broadcast("admin", ws_envelope("sos_alert", entry))
+    return {"ok": True, "sos_id": entry["id"]}
+
+
+@app.get("/api/admin/sos", dependencies=[Depends(require_admin)])
+async def get_sos_log():
+    return {"sos_events": sos_log}
+
+
+@app.patch("/api/admin/sos/{sos_id}/resolve", dependencies=[Depends(require_admin)])
+async def resolve_sos(sos_id: str):
+    for entry in sos_log:
+        if entry["id"] == sos_id:
+            entry["resolved"] = True
+            entry["resolved_at"] = datetime.now(timezone.utc).isoformat()
+            return {"ok": True}
+    raise HTTPException(404, "SOS event not found")
+
+
+# ============================================================
+# Twilio Inbound SMS Webhook
+# ============================================================
+
+@app.post("/sms/inbound")
+async def sms_inbound(request: Request):
+    """
+    Twilio inbound SMS webhook.
+    Handles:
+      CANCEL → cancel latest active booking for that phone number
+      STATUS → reply with current booking status
+      Other  → reply with help message
+    Returns TwiML XML.
+    """
+    from fastapi.responses import Response as _XMLResponse
+
+    form = await request.form()
+    from_phone = str(form.get("From", "")).strip()
+    body_raw   = str(form.get("Body", "")).strip()
+    body       = body_raw.upper().strip()
+
+    logger.info(f"[SMS Inbound] From: {from_phone} | Body: {body_raw!r}")
+
+    def twiml(message: str):
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            f'<Response><Message>{message}</Message></Response>'
+        )
+        return _XMLResponse(content=xml, media_type="text/xml")
+
+    # Normalize phone for comparison (strip spaces, dashes, parens)
+    def _norm(p: str) -> str:
+        return p.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+
+    phone_norm = _norm(from_phone)
+
+    # Find most recent active booking for this phone number
+    matching = [
+        b for b in bookings_db.values()
+        if _norm(b.get("customer_phone", "")) == phone_norm
+        and b.get("status") not in ("completed", "cancelled", "dispatch_failed")
+    ]
+    matching.sort(key=lambda b: b.get("created_at", ""), reverse=True)
+    latest = matching[0] if matching else None
+
+    if body == "CANCEL":
+        if not latest:
+            return twiml(
+                "No active bookings found for your number. "
+                "Reply STATUS to check. Call (289) 555-1001 for help."
+            )
+        bid = latest["id"]
+        short_id = bid[:8].upper()
+        latest["status"] = "cancelled"
+        latest["cancelled_at"] = datetime.now(timezone.utc).isoformat()
+        latest["cancel_reason"] = "Customer SMS cancellation (CANCEL reply)"
+        await manager.broadcast("admin", {
+            "type": "booking_cancelled",
+            "booking_id": bid,
+            "reason": "Customer replied CANCEL via SMS",
+        })
+        logger.info(f"[SMS Inbound] Booking {bid} cancelled by SMS CANCEL from {from_phone}")
+        return twiml(
+            f"Your booking #{short_id} has been cancelled. "
+            "No charge applies. Safe travels! — Caledonia Taxi"
+        )
+
+    elif body == "STATUS":
+        if not latest:
+            return twiml(
+                "No active bookings found for your number. "
+                "To book a ride visit our website or call (289) 555-1001."
+            )
+        status_map = {
+            "pending":    "Pending — searching for a driver",
+            "dispatched": "Dispatched — waiting for driver to accept",
+            "accepted":   "Accepted — driver is on the way",
+            "in_progress":"In progress — you're on your way!",
+        }
+        status_str = status_map.get(latest.get("status", ""), latest.get("status", "unknown"))
+        short_id = latest["id"][:8].upper()
+        driver_part = ""
+        if latest.get("assigned_driver_id"):
+            drv = drivers_db.get(latest["assigned_driver_id"], {})
+            if drv.get("name"):
+                driver_part = f" | Driver: {drv['name']}"
+        return twiml(
+            f"Booking #{short_id}: {status_str}{driver_part}. "
+            "Reply CANCEL to cancel your ride."
+        )
+
+    else:
+        return twiml(
+            "Caledonia Taxi: Reply CANCEL to cancel your ride, "
+            "STATUS to check your booking. "
+            "For help call (289) 555-1001."
+        )
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+_start_time = datetime.now(timezone.utc)
+
+@app.get("/health")
+async def health():
+    db = get_db()
+    db_status = "demo"
+    if db:
+        try:
+            db.table("bookings").select("id").limit(1).execute()
+            db_status = "ok"
+        except Exception:
+            db_status = "error"
+
+    stripe_status = "ok" if STRIPE_SECRET_KEY else "demo"
+    twilio_status = "ok" if (
+        __import__('config').TWILIO_ACCOUNT_SID and
+        __import__('config').TWILIO_AUTH_TOKEN
+    ) else "demo"
+
+    uptime_seconds = int((datetime.now(timezone.utc) - _start_time).total_seconds())
+    active_bookings = sum(
+        1 for b in demo_bookings
+        if b.get("status") in ("pending", "dispatched", "accepted", "in_progress")
+    )
+    active_drivers = sum(1 for d in demo_drivers if d.get("status") == "available")
+
+    return {
+        "status": "ok",
+        "version": "2.0.0",
+        "demo_mode": not bool(SUPABASE_URL),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "uptime_seconds": uptime_seconds,
+        "services": {
+            "database": db_status,
+            "stripe": stripe_status,
+            "twilio": twilio_status,
+        },
+        "active_drivers": active_drivers,
+        "active_bookings": active_bookings,
+    }
 
 
 # ============================================================

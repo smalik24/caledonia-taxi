@@ -2,509 +2,1620 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Caledonia Taxi — Driver</title>
-  <link rel="stylesheet" href="/static/css/style.css">
-  <style>
-    /* Driver-specific */
-    .driver-header-badge {
-      display: flex; align-items: center; gap: 8px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 0.3rem 0.75rem;
-      font-size: 0.82rem;
-      font-weight: 600;
-    }
-    .driver-header-badge .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--success);
-      animation: livePulse 2s infinite;
-    }
-    .earnings-bar {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 0.875rem 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-    .earnings-item { text-align: center; }
-    .earnings-item .val { font-size: 1.25rem; font-weight: 800; color: var(--accent); }
-    .earnings-item .lbl { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .earnings-divider { width: 1px; background: var(--border); height: 36px; }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver App — Caledonia Taxi</title>
 
-    .vehicle-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: var(--radius-xs);
-      padding: 0.3rem 0.65rem;
-      font-size: 0.8rem; color: var(--text-secondary);
-      margin-top: 0.5rem;
-    }
-    .call-link {
-      display: inline-flex; align-items: center; gap: 5px;
-      background: var(--success-bg); border: 1px solid var(--success-border);
-      color: var(--success); border-radius: var(--radius-xs);
-      padding: 0.3rem 0.65rem; font-size: 0.82rem; font-weight: 600;
-    }
-    .ride-distance-badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      background: var(--accent-soft); border: 1px solid var(--border-accent);
-      color: var(--accent); border-radius: var(--radius-xs);
-      padding: 0.2rem 0.55rem; font-size: 0.75rem; font-weight: 600;
-    }
-    .step-actions { display: flex; flex-direction: column; gap: 0.75rem; }
-    .nav-links-driver { display: flex; gap: 0.5rem; align-items: center; }
+  <!-- Fonts -->
+  <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800,900&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <style>
+  /* DRIVER APP — Mobile-first full screen layout */
+  body { overflow: hidden; }
+
+  .driver-app {
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg);
+  }
+
+  /* LOGIN SCREEN */
+  .login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100svh;
+    padding: var(--space-6);
+    text-align: center;
+  }
+
+  .login-screen.hidden { display: none; }
+
+  .login-logo {
+    margin-bottom: var(--space-8);
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-8);
+    box-shadow: var(--shadow-xl);
+    text-align: left;
+  }
+
+  .login-title {
+    font-size: var(--text-xl);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: var(--space-2);
+  }
+
+  .login-sub {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-6);
+  }
+
+  /* DRIVER DASHBOARD */
+  .driver-dashboard {
+    display: none;
+    flex-direction: column;
+    height: 100svh;
+    overflow: hidden;
+  }
+
+  .driver-dashboard.active {
+    display: flex;
+  }
+
+  /* Top bar */
+  .driver-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  .driver-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .driver-avatar-lg {
+    width: 40px;
+    height: 40px;
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-accent-text);
+    flex-shrink: 0;
+  }
+
+  .driver-name { font-weight: 700; font-size: var(--text-sm); }
+  .driver-phone { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .driver-status-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    cursor: pointer;
+    border: 2px solid;
+    transition: all var(--transition-interactive);
+  }
+
+  .driver-status-toggle.available {
+    background: var(--color-success-highlight);
+    color: var(--color-success);
+    border-color: var(--color-success);
+  }
+
+  .driver-status-toggle.offline {
+    background: var(--color-surface-offset);
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
+  }
+
+  .driver-status-toggle.busy {
+    background: var(--color-warning-highlight);
+    color: var(--color-warning);
+    border-color: var(--color-warning);
+  }
+
+  /* Stats bar */
+  .driver-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  .driver-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-3);
+    border-right: 1px solid var(--color-border);
+    text-align: center;
+  }
+
+  .driver-stat:last-child { border-right: none; }
+
+  .driver-stat__val {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 800;
+    color: var(--color-text);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .driver-stat__label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  /* Main content area */
+  .driver-main {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  /* Incoming ride notification */
+  .ride-alert {
+    background: var(--color-surface);
+    border: 2px solid var(--color-accent);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: 0 0 0 4px var(--color-accent-highlight), var(--shadow-lg);
+    animation: pulse-border 1.5s ease-in-out infinite;
+    display: none;
+  }
+
+  .ride-alert.active { display: block; }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 4px var(--color-accent-highlight), var(--shadow-lg); }
+    50% { box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-accent) 10%, transparent), var(--shadow-lg); }
+  }
+
+  .ride-alert__header {
+    background: var(--color-accent);
+    padding: var(--space-3) var(--space-5);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-accent-text);
+    font-weight: 700;
+    font-size: var(--text-sm);
+  }
+
+  .ride-alert__body {
+    padding: var(--space-5);
+  }
+
+  .ride-alert__route {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .route-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .route-item__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .route-item__address {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .route-item__label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .ride-alert__meta {
+    display: flex;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+    flex-wrap: wrap;
+  }
+
+  .ride-meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .ride-alert__timer {
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 800;
+    color: var(--color-error);
+    margin-bottom: var(--space-4);
+    letter-spacing: -0.02em;
+  }
+
+  .ride-alert__actions {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: var(--space-3);
+  }
+
+  /* Current ride card */
+  .current-ride {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    display: none;
+  }
+
+  .current-ride.active { display: block; }
+
+  .current-ride__header {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    padding: var(--space-4) var(--space-5);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  [data-theme="dark"] .current-ride__header {
+    background: var(--color-surface-offset-2);
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .current-ride__body {
+    padding: var(--space-5);
+  }
+
+  .current-ride__passenger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-4);
+  }
+
+  .pax-avatar {
+    width: 44px;
+    height: 44px;
+    background: var(--color-accent-highlight);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+
+  .pax-name { font-weight: 700; font-size: var(--text-base); }
+  .pax-phone { font-size: var(--text-sm); color: var(--color-text-muted); }
+
+  .current-ride__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  .action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    transition: all var(--transition-interactive);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .action-btn:hover {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    border-color: var(--color-accent);
+    transform: scale(1.02);
+  }
+
+  /* Ride status flow */
+  .status-flow {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+    margin-bottom: var(--space-4);
+    scrollbar-width: none;
+  }
+  .status-flow::-webkit-scrollbar { display: none; }
+
+  .status-flow-btn {
+    flex-shrink: 0;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    cursor: pointer;
+    border: 2px solid var(--color-border);
+    background: var(--color-surface-offset);
+    color: var(--color-text-muted);
+    transition: all var(--transition-interactive);
+    white-space: nowrap;
+  }
+
+  .status-flow-btn.active {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+  }
+
+  [data-theme="dark"] .status-flow-btn.active {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    border-color: var(--color-accent);
+  }
+
+  /* Idle state */
+  .driver-idle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    text-align: center;
+    padding: var(--space-8);
+    gap: var(--space-4);
+  }
+
+  .idle-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-2xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-faint);
+    margin-bottom: var(--space-2);
+  }
+
+  /* Location update */
+  .location-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .location-dot-live {
+    width: 8px;
+    height: 8px;
+    background: var(--color-success);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  /* Bottom nav */
+  .driver-bottom-nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2);
+    gap: 4px;
+    cursor: pointer;
+    color: var(--color-text-faint);
+    border: none;
+    background: none;
+    transition: color var(--transition-interactive);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .bottom-nav-item.active { color: var(--color-accent); }
+  .bottom-nav-item:hover { color: var(--color-text); }
+
+  /* Earnings panel */
+  .earnings-panel {
+    display: none;
+  }
+
+  .earnings-panel.active { display: flex; flex-direction: column; gap: var(--space-4); }
+
+  .earnings-hero {
+    background: var(--color-primary);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    text-align: center;
+    color: var(--color-text-inverse);
+  }
+
+  [data-theme="dark"] .earnings-hero {
+    background: var(--color-surface-offset-2);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+
+  .earnings-amount {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    line-height: 1;
+    margin-bottom: var(--space-2);
+  }
+
+  .earnings-label { font-size: var(--text-sm); opacity: 0.7; }
+
+  .earnings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  .earnings-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    text-align: center;
+  }
+
+  .earnings-card__val {
+    font-size: var(--text-lg);
+    font-weight: 800;
+    color: var(--color-text);
+    letter-spacing: -0.02em;
+  }
+
+  .earnings-card__label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  /* History */
+  .ride-history-list { display: flex; flex-direction: column; gap: var(--space-2); }
+
+  .history-item {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .history-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--color-success-highlight);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-success);
+    flex-shrink: 0;
+  }
+
+  .history-main { flex: 1; min-width: 0; }
+  .history-addr { font-weight: 600; font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-time { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .history-fare { font-weight: 800; font-size: var(--text-base); color: var(--color-success); flex-shrink: 0; }
+
+  @keyframes pulse-banner {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .dispatch-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .dispatch-booking-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+  }
+  .dispatch-booking-card.my-ride {
+    border-color: var(--color-accent);
+    border-width: 2px;
+  }
+
+/* SOS Button */
+.sos-btn {
+  position: fixed;
+  bottom: 90px;
+  right: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--color-error, #ef4444);
+  color: white;
+  border: 3px solid white;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(239,68,68,0.4);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s;
+}
+.sos-btn:active { transform: scale(0.92); }
+.sos-btn.holding {
+  animation: sos-pulse 0.5s ease-in-out infinite;
+}
+@keyframes sos-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(239,68,68,0.4); }
+  50% { box-shadow: 0 4px 32px rgba(239,68,68,0.8); transform: scale(1.05); }
+}
+
+/* Cancellation reason modal */
+.cancel-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.cancel-modal-overlay.hidden { display: none; }
+.cancel-modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  padding: var(--space-6);
+  width: 100%;
+  max-width: 480px;
+}
+.cancel-modal h3 {
+  font-size: var(--text-base);
+  font-weight: 800;
+  margin-bottom: var(--space-4);
+}
+.cancel-reason-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  margin-bottom: var(--space-2);
+  transition: background 0.15s;
+}
+.cancel-reason-btn:hover { background: var(--color-surface-offset); }
+
+/* Support modal */
+.support-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+.support-modal-overlay.hidden { display: none; }
+.support-modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-6);
+  width: 100%;
+  max-width: 360px;
+}
   </style>
 </head>
 <body>
-
-<header class="header">
-  <div class="logo">
-    <div class="logo-icon">🚕</div>
-    <span>Driver</span>
-  </div>
-  <div id="headerRight" class="nav-links-driver"></div>
-</header>
-
-<!-- ===================== LOGIN ===================== -->
-<div id="loginScreen" class="login-container">
-  <div class="card login-card">
-    <div class="login-logo">🚕</div>
-    <h2 style="margin-bottom:0.25rem; font-size:1.5rem;">Welcome Back</h2>
-    <p style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:1.75rem;">Sign in with your phone &amp; PIN</p>
-
-    <form id="loginForm">
-      <div class="form-group">
-        <label>Phone Number</label>
-        <div class="input-icon-wrapper">
-          <span class="icon-prefix">📱</span>
-          <input type="tel" id="lPhone" placeholder="+12895551001" required autocomplete="tel">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>PIN</label>
-        <div class="input-icon-wrapper">
-          <span class="icon-prefix">🔒</span>
-          <input type="password" id="lPin" placeholder="••••" maxlength="6" required inputmode="numeric">
-        </div>
-      </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">Sign In</button>
-    </form>
-
-    <div style="margin-top:1.5rem; background:var(--surface-2); border-radius:var(--radius-sm); padding:0.875rem; font-size:0.8rem; color:var(--text-secondary); text-align:left;">
-      <div style="font-weight:700; color:var(--accent); margin-bottom:0.35rem;">Demo Credentials</div>
-      <div>Saqib · <code style="color:var(--text);">+12895551001</code> / PIN <code style="color:var(--text);">1234</code></div>
-      <div style="margin-top:0.2rem;">Driver 2 · <code style="color:var(--text);">+12895551002</code> / PIN <code style="color:var(--text);">2345</code></div>
+  <!-- LOGIN SCREEN -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-logo">
+      <svg width="56" height="56" viewBox="0 0 36 36" fill="none">
+        <rect width="36" height="36" rx="10" fill="#F0A500"/>
+        <path d="M7 23L11 13H25L29 23" stroke="#111110" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M5 23H31" stroke="#111110" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="10" cy="25.5" r="2.5" fill="#111110"/>
+        <circle cx="26" cy="25.5" r="2.5" fill="#111110"/>
+        <path d="M16 13V9H20V13" stroke="#111110" stroke-width="2" stroke-linecap="round"/>
+      </svg>
     </div>
-  </div>
-</div>
-
-<!-- ===================== DASHBOARD ===================== -->
-<div id="dashboard" style="display:none;">
-  <div class="container">
-
-    <!-- Earnings Bar -->
-    <div class="earnings-bar" id="earningsBar">
-      <div class="earnings-item"><div class="val" id="eTrips">0</div><div class="lbl">Trips Today</div></div>
-      <div class="earnings-divider"></div>
-      <div class="earnings-item"><div class="val" id="eEarnings">$0</div><div class="lbl">Earnings</div></div>
-      <div class="earnings-divider"></div>
-      <div class="earnings-item"><div class="val" id="eRating">⭐ 4.9</div><div class="lbl">Rating</div></div>
-    </div>
-
-    <!-- Status Card -->
-    <div class="card" style="margin-bottom:1rem;">
-      <div class="card-header" style="margin-bottom:1rem;"><span class="icon">📡</span> Your Status</div>
-      <div class="status-toggle">
-        <button class="btn btn-success active" id="btnAvailable" onclick="setStatus('available')">✅ Available</button>
-        <button class="btn btn-secondary"      id="btnBusy"      onclick="setStatus('busy')">⏸ Busy</button>
-        <button class="btn btn-danger"         id="btnOffline"   onclick="setStatus('offline')">⛔ Offline</button>
-      </div>
-      <p id="statusText" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:0.75rem;">
-        <span class="live-dot"></span> You're available for rides
+    <div class="login-card">
+      <h1 class="login-title">Driver Login</h1>
+      <p class="login-sub">Sign in to start accepting rides</p>
+      <form id="loginForm" style="display:flex;flex-direction:column;gap:var(--space-4)">
+        <div class="form-group">
+          <label class="form-label" for="driverPhone">Phone Number</label>
+          <div style="position:relative">
+            <div style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--color-text-faint)"><i data-lucide="phone" width="16" height="16"></i></div>
+            <input type="tel" id="driverPhone" class="form-input" placeholder="+1 (289) 555-0000" style="padding-left:var(--space-10)" value="+12895551001">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="driverPin">PIN</label>
+          <div style="position:relative">
+            <div style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--color-text-faint)"><i data-lucide="lock" width="16" height="16"></i></div>
+            <input type="password" id="driverPin" class="form-input" placeholder="Enter your 4-6 digit PIN" style="padding-left:var(--space-10)" value="1234" maxlength="6">
+          </div>
+        </div>
+        <button type="submit" class="btn btn--accent btn--lg" style="justify-content:center;font-weight:700">
+          Sign In
+          <i data-lucide="arrow-right" width="18" height="18"></i>
+        </button>
+        <div id="loginError" style="display:none;color:var(--color-error);font-size:var(--text-sm);text-align:center;padding:var(--space-3);background:var(--color-error-highlight);border-radius:var(--radius-md)"></div>
+      </form>
+      <p style="font-size:var(--text-xs);color:var(--color-text-muted);text-align:center;margin-top:var(--space-5)">
+        Contact dispatch for PIN assistance: <a href="tel:+12895551001" style="color:var(--color-accent)">(289) 555-1001</a>
       </p>
-      <div id="vehicleBadge" class="vehicle-badge" style="justify-content:center; width:fit-content; margin:0.5rem auto 0;">
-        🚗 <span id="vehicleText">Loading vehicle info…</span>
-      </div>
-    </div>
-
-    <!-- ===== INCOMING RIDE REQUEST ===== -->
-    <div id="rideRequestSection" style="display:none;">
-      <div class="ride-request-card">
-        <div class="request-label">🔔 New Ride Request</div>
-
-        <!-- SVG Countdown Ring -->
-        <div class="countdown-wrapper">
-          <div class="countdown-ring">
-            <svg width="80" height="80" viewBox="0 0 80 80">
-              <circle class="track"    cx="40" cy="40" r="34"/>
-              <circle class="progress" cx="40" cy="40" r="34"
-                stroke-dasharray="213.6"
-                stroke-dashoffset="0"
-                id="countdownCircle"/>
-            </svg>
-            <div class="label" id="countdownLabel">30</div>
-          </div>
-          <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">seconds to respond</div>
-        </div>
-
-        <div class="ride-info">
-          <div class="ride-info-row">
-            <span class="icon">🟢</span>
-            <div>
-              <div class="ri-label">Pickup</div>
-              <div class="ri-value" id="rPickup">—</div>
-            </div>
-          </div>
-          <div class="ride-info-row">
-            <span class="icon">🔴</span>
-            <div>
-              <div class="ri-label">Drop-off</div>
-              <div class="ri-value" id="rDropoff">—</div>
-            </div>
-            <span class="ride-distance-badge" id="rDistance" style="margin-left:auto; flex-shrink:0;"></span>
-          </div>
-          <div class="ride-info-row">
-            <span class="icon">👤</span>
-            <div>
-              <div class="ri-label">Customer</div>
-              <div class="ri-value" id="rCustomer">—</div>
-            </div>
-          </div>
-          <div class="ride-info-row">
-            <span class="icon">💰</span>
-            <div>
-              <div class="ri-label">Estimated Fare</div>
-              <div class="ri-fare" id="rFare">—</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="ride-actions">
-          <button class="btn btn-danger"  onclick="respond('decline')">✕ Decline</button>
-          <button class="btn btn-success" onclick="respond('accept')">✓ Accept</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== ACTIVE RIDE ===== -->
-    <div id="activeRideSection" style="display:none;">
-      <div class="active-ride">
-        <div class="active-ride-header">
-          <span style="font-size:1.25rem;">🚗</span>
-          <div>
-            <div class="label">Active Ride</div>
-            <div id="activeRideStatus" style="font-size:0.85rem; color:var(--text-secondary); margin-top:1px;">En route to pickup</div>
-          </div>
-        </div>
-
-        <div class="ride-info">
-          <div class="ride-info-row">
-            <span class="icon">🟢</span>
-            <div>
-              <div class="ri-label">Pickup</div>
-              <div class="ri-value" id="aPickup">—</div>
-            </div>
-          </div>
-          <div class="ride-info-row">
-            <span class="icon">🔴</span>
-            <div>
-              <div class="ri-label">Drop-off</div>
-              <div class="ri-value" id="aDropoff">—</div>
-            </div>
-          </div>
-          <div class="ride-info-row">
-            <span class="icon">👤</span>
-            <div>
-              <div class="ri-label">Customer</div>
-              <div class="ri-value" id="aCustomer">—</div>
-            </div>
-            <a id="aPhone" href="#" class="call-link" style="margin-left:auto; flex-shrink:0;">📞 Call</a>
-          </div>
-          <div class="ride-info-row">
-            <span class="icon">💰</span>
-            <div>
-              <div class="ri-label">Fare</div>
-              <div class="ri-fare" id="aFare">—</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="step-actions">
-          <button id="btnPickedUp" class="btn btn-primary btn-block" onclick="startRide()">
-            ✓ Customer Picked Up — Start Ride
-          </button>
-          <button id="btnComplete" class="btn btn-success btn-block" style="display:none;" onclick="completeRide()">
-            🏁 Complete Ride &amp; Send Receipt
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== IDLE ===== -->
-    <div id="idleSection">
-      <div class="idle-state">
-        <div class="idle-icon">🚕</div>
-        <p style="font-weight:600; font-size:1rem; color:var(--text); margin-bottom:0.4rem;">Waiting for rides…</p>
-        <p style="font-size:0.85rem;">Stay available — new requests appear here automatically.</p>
-      </div>
-    </div>
-
-    <div style="text-align:center; margin:2rem 0;">
-      <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign Out</button>
     </div>
   </div>
-</div>
 
-<div class="toast-container" id="toasts"></div>
+  <!-- NEW RIDE BANNER -->
+  <div id="newRideBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:var(--color-accent);color:var(--color-accent-text);padding:var(--space-3) var(--space-4);align-items:center;justify-content:center;gap:var(--space-2);font-weight:700;font-size:var(--text-sm);animation:pulse-banner 1s ease-in-out infinite;">
+    🔔 New Ride Request — Tap to respond!
+  </div>
 
-<script>
-const API = '';
-let driver = null, currentRide = null, countdownTimer = null, ws = null;
-let sessionTrips = 0, sessionEarnings = 0;
-const TOTAL_SECS = 30;
-const CIRCUMFERENCE = 213.6; // 2 * π * 34
-
-// ===================== LOGIN =====================
-document.getElementById('loginForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Signing in…';
-  try {
-    const r = await fetch(`${API}/api/drivers/login`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: document.getElementById('lPhone').value, pin: document.getElementById('lPin').value })
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Invalid credentials');
-    loginSuccess((await r.json()).driver);
-  } catch(err) {
-    toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Sign In';
-  }
-});
-
-function loginSuccess(d) {
-  driver = d;
-  localStorage.setItem('ctDriver', JSON.stringify(d));
-
-  // Header badge
-  document.getElementById('headerRight').innerHTML = `
-    <div class="driver-header-badge">
-      <div class="status-dot"></div>
-      <span>${d.name}</span>
+  <!-- DRIVER DASHBOARD -->
+  <div class="driver-dashboard" id="driverDashboard">
+    <!-- Top bar -->
+    <div class="driver-topbar">
+      <div class="driver-info">
+        <div class="driver-avatar-lg" id="driverInitials">SA</div>
+        <div>
+          <div class="driver-name" id="driverDisplayName">Saqib A.</div>
+          <div class="driver-phone" id="driverDisplayPhone">+1 (289) 555-1001</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--space-2)">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme" style="width:32px;height:32px;border-radius:50%;border:1.5px solid var(--color-border);display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);cursor:pointer;background:transparent">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button id="statusToggle" class="driver-status-toggle offline" onclick="toggleStatus()">
+          <i data-lucide="circle" width="10" height="10" fill="currentColor"></i>
+          <span id="statusLabel">Offline</span>
+        </button>
+      </div>
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="signOut()" style="margin-left:0.5rem;">Out</button>`;
 
-  // Vehicle info
-  const vehicles = {
-    d1: 'White Honda CR-V · CTXI-001',
-    d2: 'Black Toyota Camry · CTXI-002',
-    d3: 'Silver Ford Escape · CTXI-003',
-    d4: 'Blue Hyundai Sonata · CTXI-004',
-  };
-  document.getElementById('vehicleText').textContent = vehicles[d.id] || 'Assigned Vehicle';
+    <!-- Stats -->
+    <div class="driver-stats">
+      <div class="driver-stat">
+        <div class="driver-stat__val" id="todayEarnings">$0</div>
+        <div class="driver-stat__label">Today</div>
+      </div>
+      <div class="driver-stat">
+        <div class="driver-stat__val" id="todayRides">0</div>
+        <div class="driver-stat__label">Rides</div>
+      </div>
+    </div>
 
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
-  connectWS();
-  startGPS();
-  toast(`Welcome back, ${d.name}!`, 'success');
-}
+    <!-- Main scrollable area -->
+    <div class="driver-main" id="driverMain">
 
-// Auto-login
-(function() {
-  const s = localStorage.getItem('ctDriver');
-  if (s) { try { loginSuccess(JSON.parse(s)); } catch(e) { localStorage.removeItem('ctDriver'); } }
-})();
+      <!-- TAB: Rides -->
+      <div id="tabRides" class="tab-panel active" style="">
 
-function signOut() {
-  driver = null; currentRide = null;
-  localStorage.removeItem('ctDriver');
-  if (ws) ws.close();
-  if (countdownTimer) clearInterval(countdownTimer);
-  document.getElementById('loginScreen').style.display = 'block';
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('headerRight').innerHTML = '';
-}
+        <!-- Incoming ride alert -->
+        <div class="ride-alert" id="rideAlert">
+          <div class="ride-alert__header">
+            <i data-lucide="bell" width="16" height="16"></i>
+            NEW RIDE REQUEST
+          </div>
+          <div class="ride-alert__body">
+            <div class="ride-alert__route">
+              <div class="route-item">
+                <div class="route-item__dot" style="background:var(--color-success)"></div>
+                <div>
+                  <div class="route-item__label">Pickup</div>
+                  <div class="route-item__address" id="alertPickup">123 King St W, Hamilton</div>
+                </div>
+              </div>
+              <div class="route-item">
+                <div class="route-item__dot" style="background:var(--color-error)"></div>
+                <div>
+                  <div class="route-item__label">Drop-off</div>
+                  <div class="route-item__address" id="alertDropoff">Hamilton Airport, Mount Hope</div>
+                </div>
+              </div>
+            </div>
+            <div class="ride-alert__meta">
+              <div class="ride-meta-item">
+                <i data-lucide="user" width="14" height="14"></i>
+                <span id="alertPassenger">John D.</span>
+              </div>
+              <div class="ride-meta-item">
+                <i data-lucide="dollar-sign" width="14" height="14"></i>
+                <span id="alertFare">$22.50</span>
+              </div>
+              <div class="ride-meta-item">
+                <i data-lucide="route" width="14" height="14"></i>
+                <span id="alertDistance">8.2 km</span>
+              </div>
+            </div>
+            <div class="ride-alert__timer" id="rideTimer">0:10</div>
+            <div class="ride-alert__actions">
+              <button class="btn btn--outline" id="declineBtn" onclick="declineRide()" style="justify-content:center">
+                Decline
+              </button>
+              <button class="btn btn--accent btn--lg" id="acceptBtn" onclick="acceptRide()" style="justify-content:center;font-weight:700">
+                <i data-lucide="check" width="18" height="18"></i>
+                Accept Ride
+              </button>
+            </div>
+          </div>
+        </div>
 
-// ===================== WEBSOCKET =====================
-function connectWS() {
-  if (!driver) return;
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}/ws/driver/${driver.id}`);
-  ws.onopen = () => console.log('[WS] Connected');
-  ws.onmessage = e => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'new_ride') showRideRequest(msg.booking);
-  };
-  ws.onclose = () => setTimeout(connectWS, 3000);
-  setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'ping' })); }, 25000);
-}
+        <!-- Current active ride -->
+        <div class="current-ride" id="currentRide">
+          <div class="current-ride__header">
+            <div>
+              <div style="font-size:var(--text-xs);opacity:0.7;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px">Active Ride</div>
+              <div style="font-size:var(--text-base);font-weight:700" id="rideBookingId">CAL-000000</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:var(--text-xs);opacity:0.7">Estimated fare</div>
+              <div style="font-size:var(--text-lg);font-weight:800" id="rideFare">$0.00</div>
+            </div>
+          </div>
+          <div class="current-ride__body">
+            <!-- Status flow -->
+            <div class="status-flow">
+              <button class="status-flow-btn active" onclick="updateRideStatus('accepted', this)">Accepted</button>
+              <button class="status-flow-btn" onclick="updateRideStatus('in_progress', this)">Picked Up</button>
+              <button class="status-flow-btn" onclick="updateRideStatus('completed', this)">Completed</button>
+            </div>
 
-// ===================== GPS =====================
-function startGPS() {
-  if (!navigator.geolocation) return;
-  const send = () => navigator.geolocation.getCurrentPosition(async pos => {
-    if (!driver) return;
+            <!-- Passenger -->
+            <div class="current-ride__passenger">
+              <div class="pax-avatar">
+                <i data-lucide="user" width="20" height="20"></i>
+              </div>
+              <div style="flex:1">
+                <div class="pax-name" id="ridePassengerName">—</div>
+                <div class="pax-phone" id="ridePassengerPhone">—</div>
+              </div>
+              <a id="callPassengerBtn" href="tel:" class="btn btn--outline btn--sm">
+                <i data-lucide="phone" width="14" height="14"></i> Call
+              </a>
+            </div>
+
+            <!-- Route -->
+            <div style="margin-bottom:var(--space-4)">
+              <div class="route-item" style="margin-bottom:var(--space-3)">
+                <div class="route-item__dot" style="background:var(--color-success);width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px"></div>
+                <div>
+                  <div class="route-item__label">Pickup</div>
+                  <div class="route-item__address" id="ridePickup">—</div>
+                </div>
+              </div>
+              <div class="route-item">
+                <div class="route-item__dot" style="background:var(--color-error);width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px"></div>
+                <div>
+                  <div class="route-item__label">Drop-off</div>
+                  <div class="route-item__address" id="rideDropoff">—</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="current-ride__actions">
+              <a id="navBtn" href="#" target="_blank" class="action-btn">
+                <i data-lucide="navigation" width="20" height="20"></i>
+                Navigate
+              </a>
+              <a id="callBtn" href="tel:" class="action-btn">
+                <i data-lucide="phone" width="20" height="20"></i>
+                Call Passenger
+              </a>
+              <button class="action-btn" onclick="markArrived()">
+                <i data-lucide="map-pin-check" width="20" height="20"></i>
+                Arrived
+              </button>
+              <button class="action-btn" onclick="completeRide()" style="background:var(--color-success-highlight);color:var(--color-success);border-color:var(--color-success)">
+                <i data-lucide="check-circle" width="20" height="20"></i>
+                Complete
+              </button>
+              <button class="action-btn" onclick="cancelActiveRide()" style="background:var(--color-error-highlight,#fee2e2);color:var(--color-error,#ef4444);border-color:var(--color-error,#ef4444)">
+                <i data-lucide="x-circle" width="20" height="20"></i>
+                Cancel
+              </button>
+              <button class="action-btn" onclick="document.getElementById('supportModal').classList.remove('hidden');lucide.createIcons()">
+                <i data-lucide="help-circle" width="20" height="20"></i>
+                Help
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Idle state -->
+        <div class="driver-idle" id="driverIdle">
+          <div class="idle-icon">
+            <i data-lucide="car" width="32" height="32"></i>
+          </div>
+          <h3 style="font-size:var(--text-lg);font-weight:700">Waiting for rides</h3>
+          <p style="font-size:var(--text-sm);color:var(--color-text-muted);max-width:28ch;text-align:center">
+            Go online to start receiving ride requests
+          </p>
+          <button class="btn btn--accent btn--lg" onclick="goOnline()" id="goOnlineBtn">
+            <i data-lucide="power" width="18" height="18"></i>
+            Go Online
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB: Earnings -->
+      <div id="tabEarnings" class="tab-panel" style="display:none">
+        <div class="earnings-panel active">
+          <div class="earnings-hero">
+            <div class="earnings-label">Today's Earnings</div>
+            <div class="earnings-amount" id="bigEarnings">$0.00</div>
+            <div style="font-size:var(--text-xs);opacity:0.6;margin-top:4px">0 rides completed</div>
+          </div>
+          <div class="earnings-grid">
+            <div class="earnings-card">
+              <div class="earnings-card__val">$0</div>
+              <div class="earnings-card__label">This Week</div>
+            </div>
+            <div class="earnings-card">
+              <div class="earnings-card__val">$0</div>
+              <div class="earnings-card__label">This Month</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Recent Rides</div>
+            <div class="ride-history-list" id="rideHistoryList">
+              <div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);font-size:var(--text-sm)">No rides yet today</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Profile -->
+      <div id="tabProfile" class="tab-panel" style="display:none">
+        <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:var(--space-4);margin-bottom:var(--space-4)">
+              <div class="driver-avatar-lg" style="width:56px;height:56px;font-size:var(--text-base)" id="profileInitials">SA</div>
+              <div>
+                <div style="font-size:var(--text-lg);font-weight:800" id="profileName">Saqib A.</div>
+                <div style="font-size:var(--text-sm);color:var(--color-text-muted)" id="profilePhone">+1 (289) 555-1001</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+              <div style="display:flex;justify-content:space-between;font-size:var(--text-sm)">
+                <span style="color:var(--color-text-muted)">Vehicle</span>
+                <span style="font-weight:600" id="profileVehicle">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:var(--text-sm)">
+                <span style="color:var(--color-text-muted)">Plate</span>
+                <span style="font-weight:600" id="profilePlate">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:var(--text-sm)">
+                <span style="color:var(--color-text-muted)">Status</span>
+                <span class="badge badge--active" id="profileStatus">Available</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn--outline" onclick="logout()" style="justify-content:center">
+            <i data-lucide="log-out" width="16" height="16"></i>
+            Sign Out
+          </button>
+          <button class="btn btn--outline" onclick="document.getElementById('supportModal').classList.remove('hidden');lucide.createIcons()" style="justify-content:center">
+            <i data-lucide="help-circle" width="16" height="16"></i>
+            Get Help
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB: Dispatch -->
+      <div id="tabDispatch" class="tab-panel" style="display:none">
+        <div class="dispatch-panel">
+          <a href="tel:+12895551001" class="btn btn--outline" style="justify-content:center;margin-bottom:var(--space-2)">
+            <i data-lucide="phone" width="16" height="16"></i>
+            Call Dispatch: (289) 555-1001
+          </a>
+          <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-2)">Live Bookings</div>
+          <div id="dispatchBookingsList">
+            <div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);font-size:var(--text-sm)">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Location status bar -->
+    <div class="location-status" id="locationBar">
+      <div class="location-dot-live"></div>
+      <span id="locationText">Location sharing active</span>
+    </div>
+
+    <!-- SOS Button -->
+    <button class="sos-btn" id="sosBtn" style="display:none" title="Hold 3 seconds for emergency">SOS</button>
+
+    <!-- Bottom nav -->
+    <nav class="driver-bottom-nav">
+      <button class="bottom-nav-item active" onclick="switchTab('Rides')" id="navRides">
+        <i data-lucide="car" width="20" height="20"></i>
+        Rides
+      </button>
+      <button class="bottom-nav-item" onclick="switchTab('Earnings')" id="navEarnings">
+        <i data-lucide="dollar-sign" width="20" height="20"></i>
+        Earnings
+      </button>
+      <button class="bottom-nav-item" onclick="switchTab('Dispatch')" id="navDispatch">
+        <i data-lucide="layout-dashboard" width="20" height="20"></i>
+        Dispatch
+      </button>
+      <button class="bottom-nav-item" onclick="switchTab('Profile')" id="navProfile">
+        <i data-lucide="user" width="20" height="20"></i>
+        Profile
+      </button>
+    </nav>
+
+    <!-- Cancellation Reason Modal -->
+    <div class="cancel-modal-overlay hidden" id="cancelModal">
+      <div class="cancel-modal">
+        <h3>Why are you cancelling?</h3>
+        <button class="cancel-reason-btn" onclick="submitCancelReason('No show')">Passenger no show</button>
+        <button class="cancel-reason-btn" onclick="submitCancelReason('Safety concern')">Safety concern</button>
+        <button class="cancel-reason-btn" onclick="submitCancelReason('Vehicle breakdown')">Vehicle breakdown</button>
+        <button class="cancel-reason-btn" onclick="submitCancelReason('Passenger request')">Passenger requested cancel</button>
+        <button class="cancel-reason-btn" onclick="submitCancelReason('Other')">Other</button>
+        <button class="btn btn--outline" style="width:100%;justify-content:center;margin-top:var(--space-2)" onclick="document.getElementById('cancelModal').classList.add('hidden')">Go Back</button>
+      </div>
+    </div>
+
+    <!-- Support Modal -->
+    <div class="support-modal-overlay hidden" id="supportModal">
+      <div class="support-modal">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4)">
+          <h3 style="font-size:var(--text-base);font-weight:800;margin:0">Get Help</h3>
+          <button onclick="document.getElementById('supportModal').classList.add('hidden')" style="background:none;border:none;cursor:pointer;padding:4px"><i data-lucide="x" width="18" height="18"></i></button>
+        </div>
+        <a href="tel:+12895551001" class="btn btn--accent btn--lg" style="width:100%;justify-content:center;margin-bottom:var(--space-2)">
+          <i data-lucide="phone" width="16" height="16"></i> Call Dispatch
+        </a>
+        <a href="sms:+12895551001" class="btn btn--outline" style="width:100%;justify-content:center;margin-bottom:var(--space-4)">
+          <i data-lucide="message-square" width="16" height="16"></i> Send Message
+        </a>
+        <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-2)">FAQ</div>
+        <details style="font-size:var(--text-sm);margin-bottom:var(--space-2)">
+          <summary style="cursor:pointer;font-weight:600">How do I accept a ride?</summary>
+          <p style="margin-top:8px;color:var(--color-text-muted)">When a ride appears, tap Accept within 10 seconds. If you miss it, it goes to the next driver.</p>
+        </details>
+        <details style="font-size:var(--text-sm);margin-bottom:var(--space-2)">
+          <summary style="cursor:pointer;font-weight:600">How do I update my location?</summary>
+          <p style="margin-top:8px;color:var(--color-text-muted)">Your location updates automatically when you're online. Make sure location permissions are granted.</p>
+        </details>
+        <details style="font-size:var(--text-sm)">
+          <summary style="cursor:pointer;font-weight:600">What if I have an emergency?</summary>
+          <p style="margin-top:8px;color:var(--color-text-muted)">Hold the red SOS button for 3 seconds. Dispatch will be alerted immediately with your GPS location.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  lucide.createIcons();
+
+  // Theme toggle
+  (function(){
+    const t = document.querySelector('[data-theme-toggle]');
+    const r = document.documentElement;
+    let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+    r.setAttribute('data-theme', d);
+    if (t) {
+      t.addEventListener('click', () => {
+        d = d==='dark'?'light':'dark';
+        r.setAttribute('data-theme', d);
+        t.innerHTML = d==='dark'
+          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      });
+    }
+  })();
+
+  let driverData = null;
+  let isOnline = false;
+  let rideTimerInterval = null;
+  let timerSeconds = 10;
+  let ws = null;
+  let completedRides = [];
+  let todayEarningsTotal = 0;
+  let ringtoneInterval = null;
+  let dispatchPollInterval = null;
+
+  // Persistent AudioContext — created once, unlocked on first user gesture
+  let _audioCtx = null;
+
+  function _getAudioCtx() {
+    if (!_audioCtx) {
+      try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    if (_audioCtx && _audioCtx.state === 'suspended') {
+      _audioCtx.resume().catch(() => {});
+    }
+    return _audioCtx;
+  }
+
+  // Unlock audio on first tap anywhere (required by browser autoplay policy)
+  document.addEventListener('click', () => _getAudioCtx(), { once: true });
+  document.addEventListener('touchend', () => _getAudioCtx(), { once: true });
+
+  function playRingtone() {
+    const ctx = _getAudioCtx();
+    if (!ctx) return;
+    // If still suspended after resume attempt, bail — can't play without user gesture
+    if (ctx.state === 'suspended') return;
     try {
-      await fetch(`${API}/api/drivers/${driver.id}/location`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
+      const pattern = [1,0,1,0,1,1];
+      pattern.forEach((on, i) => {
+        if (!on) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        osc.type = 'sine';
+        const t = ctx.currentTime + i * 0.4;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.4, t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+        osc.start(t);
+        osc.stop(t + 0.35);
       });
     } catch(e) {}
-  }, ()=>{}, { enableHighAccuracy: true });
-  send();
-  setInterval(send, 30000);
-}
+  }
 
-// ===================== STATUS =====================
-async function setStatus(s) {
-  if (!driver) return;
-  try {
-    await fetch(`${API}/api/drivers/${driver.id}/status`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: s })
-    });
-    driver.status = s;
-    localStorage.setItem('ctDriver', JSON.stringify(driver));
-    ['Available','Busy','Offline'].forEach(n => document.getElementById('btn'+n).classList.remove('active'));
-    document.getElementById('btn'+s[0].toUpperCase()+s.slice(1)).classList.add('active');
-    const msgs = {
-      available: '<span class="live-dot"></span> You\'re available for rides',
-      busy:      '⏸ Marked as busy — no new rides',
-      offline:   '⛔ You\'re offline'
-    };
-    document.getElementById('statusText').innerHTML = msgs[s];
-  } catch(e) { toast('Could not update status', 'error'); }
-}
+  function startRingtoneLoop() {
+    stopRingtoneLoop();
+    playRingtone();
+    if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+    ringtoneInterval = setInterval(() => {
+      playRingtone();
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+    }, 3000);
+  }
 
-// ===================== RIDE REQUEST =====================
-function showRideRequest(booking) {
-  currentRide = booking;
+  function stopRingtoneLoop() {
+    if (ringtoneInterval) { clearInterval(ringtoneInterval); ringtoneInterval = null; }
+  }
 
-  document.getElementById('rPickup').textContent   = booking.pickup_address;
-  document.getElementById('rDropoff').textContent  = booking.dropoff_address;
-  document.getElementById('rCustomer').textContent = booking.customer_name;
-  document.getElementById('rFare').textContent     = `$${parseFloat(booking.estimated_fare || 0).toFixed(2)}`;
+  // Login
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const phone = document.getElementById('driverPhone').value.trim();
+    const pin = document.getElementById('driverPin').value.trim();
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
 
-  const dist = booking.estimated_distance_km;
-  const distBadge = document.getElementById('rDistance');
-  if (dist) { distBadge.textContent = `${parseFloat(dist).toFixed(1)} km`; distBadge.style.display = 'inline-flex'; }
-  else distBadge.style.display = 'none';
-
-  document.getElementById('rideRequestSection').style.display = 'block';
-  document.getElementById('idleSection').style.display = 'none';
-
-  // SVG countdown ring
-  let secs = TOTAL_SECS;
-  const circle = document.getElementById('countdownCircle');
-  const label  = document.getElementById('countdownLabel');
-  label.textContent = secs;
-  circle.style.strokeDashoffset = '0';
-  circle.style.stroke = 'var(--accent)';
-
-  if (countdownTimer) clearInterval(countdownTimer);
-  countdownTimer = setInterval(() => {
-    secs--;
-    label.textContent = secs;
-    const offset = CIRCUMFERENCE * (1 - secs / TOTAL_SECS);
-    circle.style.strokeDashoffset = offset;
-    if (secs <= 10) circle.style.stroke = 'var(--danger)';
-    if (secs <= 0) { clearInterval(countdownTimer); hideRequest(); }
-  }, 1000);
-}
-
-function hideRequest() {
-  document.getElementById('rideRequestSection').style.display = 'none';
-  document.getElementById('idleSection').style.display = 'block';
-  currentRide = null;
-  if (countdownTimer) clearInterval(countdownTimer);
-}
-
-async function respond(action) {
-  if (!currentRide || !driver) return;
-  try {
-    await fetch(`${API}/api/rides/${currentRide.id}/action/${driver.id}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action })
-    });
-    if (action === 'accept') {
-      showActiveRide(currentRide);
-      toast('Ride accepted! Head to pickup.', 'success');
-    } else {
-      hideRequest();
-      toast('Ride declined.', 'info');
+    try {
+      const res = await fetch('/api/drivers/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ phone, pin })
+      });
+      const data = await res.json();
+      if (res.ok && (data.driver_id || (data.driver && data.driver.id))) {
+        // Normalize: flatten nested driver object so driver_id is always at top level
+        driverData = data.driver ? { ...data.driver, driver_id: data.driver.id } : data;
+        loginSuccess(driverData);
+      } else {
+        errEl.style.display = 'block';
+        errEl.textContent = data.detail || 'Invalid phone or PIN';
+      }
+    } catch {
+      // Demo login
+      driverData = { driver_id: 'demo', name: 'Saqib', phone: phone, vehicle: 'Toyota Camry', plate: 'DEMO-01' };
+      loginSuccess(driverData);
     }
-  } catch(e) { toast('Action failed', 'error'); }
-}
+  });
 
-// ===================== ACTIVE RIDE =====================
-function showActiveRide(b) {
-  if (countdownTimer) clearInterval(countdownTimer);
-  document.getElementById('rideRequestSection').style.display = 'none';
-  document.getElementById('idleSection').style.display = 'none';
-  document.getElementById('activeRideSection').style.display = 'block';
+  function loginSuccess(data) {
+    _getAudioCtx(); // unlock AudioContext on login gesture
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('driverDashboard').classList.add('active');
+    const name = data.name || data.driver_name || 'Driver';
+    document.getElementById('driverDisplayName').textContent = name;
+    document.getElementById('driverDisplayPhone').textContent = data.phone || '';
+    document.getElementById('driverInitials').textContent = name.split(' ').map(n=>n[0]).join('').toUpperCase().substr(0,2);
+    document.getElementById('profileInitials').textContent = name.split(' ').map(n=>n[0]).join('').toUpperCase().substr(0,2);
+    document.getElementById('profileName').textContent = name;
+    document.getElementById('profilePhone').textContent = data.phone || '';
+    document.getElementById('profileVehicle').textContent = data.vehicle || 'Standard Sedan';
+    document.getElementById('profilePlate').textContent = data.plate || '—';
+    lucide.createIcons();
+    document.getElementById('sosBtn').style.display = 'flex';
+    initSOS();
+    connectWebSocket(data.driver_id || 'demo');
+    startLocationUpdates(data.driver_id || 'demo');
+  }
 
-  document.getElementById('aPickup').textContent   = b.pickup_address;
-  document.getElementById('aDropoff').textContent  = b.dropoff_address;
-  document.getElementById('aCustomer').textContent = b.customer_name;
-  document.getElementById('aFare').textContent     = `$${parseFloat(b.estimated_fare || 0).toFixed(2)}`;
+  function connectWebSocket(driverId) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/driver/${driverId}`;
+    try {
+      ws = new WebSocket(wsUrl);
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'new_ride' || msg.type === 'new_booking' || msg.type === 'ride_assigned') {
+          if (msg.timeout_seconds) timerSeconds = msg.timeout_seconds;
+          showIncomingRide(msg.booking || msg);
+        } else if (msg.type === 'ride_cancelled') {
+          stopRingtoneLoop();
+          document.getElementById('newRideBanner').style.display = 'none';
+          document.getElementById('currentRide').classList.remove('active');
+          document.getElementById('driverIdle').style.display = 'flex';
+          showToast('Ride was cancelled by dispatch', 'warning');
+        } else if (msg.type === 'ping') {
+          // ignore
+        }
+      };
+      ws.onerror = () => {};
+    } catch {}
+  }
 
-  const phoneLink = document.getElementById('aPhone');
-  phoneLink.href           = `tel:${b.customer_phone}`;
-  phoneLink.textContent    = '📞 Call';
+  function showIncomingRide(data) {
+    document.getElementById('alertPickup').textContent = data.pickup_address || data.pickup || 'Pickup location';
+    document.getElementById('alertDropoff').textContent = data.dropoff_address || data.dropoff || 'Drop-off location';
+    document.getElementById('alertPassenger').textContent = data.customer_name || 'Customer';
+    document.getElementById('alertFare').textContent = data.estimated_fare ? `$${parseFloat(data.estimated_fare).toFixed(2)}` : 'TBD';
+    document.getElementById('alertDistance').textContent = data.estimated_distance_km ? `${parseFloat(data.estimated_distance_km).toFixed(1)} km` : '—';
+    document.getElementById('rideAlert').setAttribute('data-booking-id', data.booking_id || data.id || '');
+    document.getElementById('rideAlert').setAttribute('data-booking-data', JSON.stringify(data));
+    document.getElementById('rideAlert').classList.add('active');
+    document.getElementById('driverIdle').style.display = 'none';
+    startRingtoneLoop();
+    document.getElementById('newRideBanner').style.display = 'flex';
+    startRideTimer();
+    lucide.createIcons();
+  }
 
-  document.getElementById('activeRideStatus').textContent = 'En route to pickup location';
-  document.getElementById('btnPickedUp').style.display = 'block';
-  document.getElementById('btnComplete').style.display = 'none';
-}
+  function startRideTimer() {
+    timerSeconds = 10;
+    clearInterval(rideTimerInterval);
+    updateTimerDisplay();
+    rideTimerInterval = setInterval(() => {
+      timerSeconds--;
+      updateTimerDisplay();
+      if (timerSeconds <= 0) {
+        clearInterval(rideTimerInterval);
+        autoDecline();
+      }
+    }, 1000);
+  }
 
-async function startRide() {
-  if (!currentRide || !driver) return;
-  try {
-    await fetch(`${API}/api/rides/${currentRide.id}/start/${driver.id}`, { method: 'POST' });
-    document.getElementById('btnPickedUp').style.display = 'none';
-    document.getElementById('btnComplete').style.display = 'block';
-    document.getElementById('activeRideStatus').textContent = 'Ride in progress — heading to drop-off';
-    toast('Ride started!', 'info');
-  } catch(e) { toast('Error starting ride', 'error'); }
-}
+  function updateTimerDisplay() {
+    document.getElementById('rideTimer').textContent = `0:${String(timerSeconds).padStart(2,'0')}`;
+  }
 
-async function completeRide() {
-  if (!currentRide || !driver) return;
-  try {
-    await fetch(`${API}/api/rides/${currentRide.id}/complete/${driver.id}`, { method: 'POST' });
+  function autoDecline() {
+    stopRingtoneLoop();
+    document.getElementById('newRideBanner').style.display = 'none';
+    document.getElementById('rideAlert').classList.remove('active');
+    document.getElementById('driverIdle').style.display = 'flex';
+  }
 
-    // Update session stats
-    sessionTrips++;
-    sessionEarnings += parseFloat(currentRide.estimated_fare || 0);
-    document.getElementById('eTrips').textContent    = sessionTrips;
-    document.getElementById('eEarnings').textContent = `$${sessionEarnings.toFixed(0)}`;
+  async function acceptRide() {
+    stopRingtoneLoop();
+    document.getElementById('newRideBanner').style.display = 'none';
+    clearInterval(rideTimerInterval);
+    const alert = document.getElementById('rideAlert');
+    const bookingId = alert.getAttribute('data-booking-id');
+    const bookingData = JSON.parse(alert.getAttribute('data-booking-data') || '{}');
+    alert.classList.remove('active');
 
-    document.getElementById('activeRideSection').style.display = 'none';
-    document.getElementById('idleSection').style.display = 'block';
-    currentRide = null;
-    setStatus('available');
-    toast('Ride completed! Receipt sent to customer.', 'success');
-  } catch(e) { toast('Error completing ride', 'error'); }
-}
+    // Show current ride
+    document.getElementById('rideBookingId').textContent = bookingId.toString().toUpperCase();
+    document.getElementById('rideFare').textContent = bookingData.estimated_fare ? `$${parseFloat(bookingData.estimated_fare).toFixed(2)}` : 'TBD';
+    document.getElementById('ridePassengerName').textContent = bookingData.customer_name || 'Customer';
+    document.getElementById('ridePassengerPhone').textContent = bookingData.customer_phone || '';
+    document.getElementById('ridePickup').textContent = bookingData.pickup_address || bookingData.pickup || '—';
+    document.getElementById('rideDropoff').textContent = bookingData.dropoff_address || bookingData.dropoff || '—';
 
-// ===================== TOAST =====================
-function toast(msg, type='info') {
-  const d = document.createElement('div');
-  d.className = `toast toast-${type}`;
-  d.textContent = msg;
-  document.getElementById('toasts').appendChild(d);
-  setTimeout(() => d.remove(), 4200);
-}
-</script>
+    if (bookingData.customer_phone) {
+      document.getElementById('callBtn').href = `tel:${bookingData.customer_phone}`;
+      document.getElementById('callPassengerBtn').href = `tel:${bookingData.customer_phone}`;
+    }
+    const navUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bookingData.pickup_address || '')}`;
+    document.getElementById('navBtn').href = navUrl;
+
+    document.getElementById('driverIdle').style.display = 'none';
+    document.getElementById('currentRide').classList.add('active');
+    lucide.createIcons();
+
+    // API call
+    if (bookingId && driverData) {
+      try {
+        await fetch(`/api/rides/${bookingId}/action/${driverData.driver_id}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action: 'accept' })
+        });
+      } catch {}
+    }
+  }
+
+  async function declineRide() {
+    stopRingtoneLoop();
+    document.getElementById('newRideBanner').style.display = 'none';
+    clearInterval(rideTimerInterval);
+    const alert = document.getElementById('rideAlert');
+    const bookingId = alert.getAttribute('data-booking-id');
+    alert.classList.remove('active');
+    document.getElementById('driverIdle').style.display = 'flex';
+    showToast('Ride declined — looking for another driver', 'info');
+    if (bookingId && driverData) {
+      try {
+        await fetch(`/api/rides/${bookingId}/action/${driverData.driver_id}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action: 'decline' })
+        });
+      } catch(e) {}
+    }
+  }
+
+  function updateRideStatus(status, btn) {
+    document.querySelectorAll('.status-flow-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const allPrev = btn.previousElementSibling;
+    let el = btn.previousElementSibling;
+    while (el) {
+      el.classList.add('active');
+      el = el.previousElementSibling;
+    }
+  }
+
+  function markArrived() {
+    showToast('Arrived at pickup — passenger notified', 'success');
+  }
+
+  async function completeRide() {
+    const fare = document.getElementById('rideFare').textContent;
+    const fareNum = parseFloat(fare.replace('$','')) || 0;
+    const bookingId = document.getElementById('rideBookingId').textContent.toLowerCase();
+    todayEarningsTotal += fareNum;
+    completedRides.push({
+      dropoff: document.getElementById('rideDropoff').textContent,
+      fare: fareNum,
+      time: new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })
+    });
+    document.getElementById('currentRide').classList.remove('active');
+    document.getElementById('driverIdle').style.display = 'flex';
+    document.getElementById('todayEarnings').textContent = `$${todayEarningsTotal.toFixed(0)}`;
+    document.getElementById('bigEarnings').textContent = `$${todayEarningsTotal.toFixed(2)}`;
+    document.getElementById('todayRides').textContent = completedRides.length;
+    updateHistory();
+    showToast(`Ride completed! Earned ${fare}`, 'success');
+    // Notify backend
+    if (bookingId && driverData) {
+      fetch(`/api/rides/${bookingId}/complete/${driverData.driver_id}`, {
+        method: 'POST'
+      }).catch(() => {});
+    }
+  }
+
+  function updateHistory() {
+    const list = document.getElementById('rideHistoryList');
+    if (!completedRides.length) return;
+    list.innerHTML = completedRides.slice().reverse().map(r => `
+      <div class="history-item">
+        <div class="history-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="history-main">
+          <div class="history-addr">${r.dropoff}</div>
+          <div class="history-time">${r.time}</div>
+        </div>
+        <div class="history-fare">$${r.fare.toFixed(2)}</div>
+      </div>
+    `).join('');
+  }
+
+  function toggleStatus() {
+    const btn = document.getElementById('statusToggle');
+    const label = document.getElementById('statusLabel');
+    if (!isOnline) {
+      goOnline();
+    } else {
+      isOnline = false;
+      btn.className = 'driver-status-toggle offline';
+      label.textContent = 'Offline';
+      if (driverData) {
+        fetch(`/api/drivers/${driverData.driver_id}/status`, {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ status: 'offline' })
+        }).catch(() => {});
+      }
+    }
+  }
+
+  function goOnline() {
+    _getAudioCtx(); // unlock AudioContext on Go Online gesture
+    isOnline = true;
+    const btn = document.getElementById('statusToggle');
+    const label = document.getElementById('statusLabel');
+    btn.className = 'driver-status-toggle available';
+    label.textContent = 'Available';
+    document.getElementById('goOnlineBtn').style.display = 'none';
+    lucide.createIcons();
+    showToast('You are now online and accepting rides', 'success');
+    if (driverData) {
+      fetch(`/api/drivers/${driverData.driver_id}/status`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ status: 'available' })
+      }).catch(() => {});
+    }
+  }
+
+  function startLocationUpdates(driverId) {
+    if (!navigator.geolocation) {
+      document.getElementById('locationText').textContent = 'Location unavailable';
+      document.getElementById('locationBar').querySelector('.location-dot-live').style.background = 'var(--color-error)';
+      return;
+    }
+    navigator.geolocation.watchPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      document.getElementById('locationText').textContent = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+      if (driverId && driverData) {
+        try {
+          await fetch(`/api/drivers/${driverId}/location`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ latitude, longitude })
+          });
+        } catch {}
+      }
+    }, () => {}, { enableHighAccuracy: true });
+  }
+
+  function switchTab(tab) {
+    ['Rides', 'Earnings', 'Profile', 'Dispatch'].forEach(t => {
+      document.getElementById(`tab${t}`).style.display = t === tab ? '' : 'none';
+      const nav = document.getElementById(`nav${t}`);
+      if (nav) nav.classList.toggle('active', t === tab);
+    });
+    if (tab === 'Dispatch') {
+      loadDispatchBookings();
+      dispatchPollInterval = setInterval(loadDispatchBookings, 10000);
+    } else {
+      if (dispatchPollInterval) { clearInterval(dispatchPollInterval); dispatchPollInterval = null; }
+    }
+    lucide.createIcons();
+  }
+
+  function statusBadgeClass(status) {
+    const map = {pending:'badge--pending',dispatched:'badge--accent',accepted:'badge--accent',in_progress:'badge--pending',completed:'badge--completed',cancelled:'badge--cancelled'};
+    return map[status] || '';
+  }
+
+  async function loadDispatchBookings() {
+    try {
+      const res = await fetch('/api/bookings');
+      if (!res.ok) return;
+      const data = await res.json();
+      const bookings = (data.bookings || []).filter(b =>
+        ['pending','dispatched','accepted','in_progress'].includes(b.status)
+      );
+      const driverId = driverData ? driverData.driver_id : null;
+      const el = document.getElementById('dispatchBookingsList');
+      if (!bookings.length) {
+        el.innerHTML = '<div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);font-size:var(--text-sm)">No active bookings</div>';
+        return;
+      }
+      el.innerHTML = bookings.map(b => {
+        const isMine = b.assigned_driver_id === driverId;
+        return `
+          <div class="dispatch-booking-card ${isMine ? 'my-ride' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2)">
+              <div style="font-weight:700;font-size:var(--text-sm)">${b.customer_name || '—'}</div>
+              <span class="badge ${statusBadgeClass(b.status)}">${b.status}</span>
+            </div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${b.pickup_address || '—'}</div>
+            <div style="font-size:var(--text-xs);font-weight:600;margin-top:4px">$${parseFloat(b.estimated_fare||0).toFixed(2)}</div>
+            ${isMine ? '<div style="font-size:var(--text-xs);color:var(--color-accent);font-weight:700;margin-top:4px">← Your ride</div>' : ''}
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
+    } catch(e) {}
+  }
+
+  function logout() {
+    driverData = null;
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('driverDashboard').classList.remove('active');
+    document.getElementById('sosBtn').style.display = 'none';
+    if (ws) { ws.close(); ws = null; }
+    lucide.createIcons();
+  }
+
+  // ── SOS Button ────────────────────────────────────────────
+  let sosHoldTimer = null;
+  let sosHoldStart = null;
+
+  function initSOS() {
+    const btn = document.getElementById('sosBtn');
+    if (!btn) return;
+
+    function startHold(e) {
+      e.preventDefault();
+      sosHoldStart = Date.now();
+      btn.classList.add('holding');
+      btn.textContent = '...';
+      sosHoldTimer = setTimeout(() => {
+        triggerSOS();
+      }, 3000);
+    }
+
+    function endHold() {
+      if (sosHoldTimer) { clearTimeout(sosHoldTimer); sosHoldTimer = null; }
+      btn.classList.remove('holding');
+      btn.textContent = 'SOS';
+    }
+
+    btn.addEventListener('mousedown', startHold);
+    btn.addEventListener('touchstart', startHold, { passive: false });
+    btn.addEventListener('mouseup', endHold);
+    btn.addEventListener('mouseleave', endHold);
+    btn.addEventListener('touchend', endHold);
+  }
+
+  async function triggerSOS() {
+    const btn = document.getElementById('sosBtn');
+    btn.classList.remove('holding');
+    btn.textContent = 'SENT';
+    btn.style.background = '#dc2626';
+    navigator.vibrate && navigator.vibrate([500, 200, 500, 200, 500]);
+    showToast('🚨 SOS alert sent to dispatch!', 'error');
+
+    // Get current location
+    let lat = null, lng = null;
+    if (navigator.geolocation) {
+      try {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout: 5000}));
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch(e) {}
+    }
+
+    // Get active booking if any
+    const bookingId = document.getElementById('rideBookingId')?.textContent;
+
+    try {
+      await fetch('/api/sos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          driver_id: driverData?.driver_id,
+          driver_name: driverData?.name,
+          lat, lng,
+          booking_id: bookingId && bookingId !== 'CAL-000000' ? bookingId : null
+        })
+      });
+    } catch(e) {}
+
+    setTimeout(() => {
+      btn.textContent = 'SOS';
+      btn.style.background = '';
+    }, 10000);
+  }
+
+  // ── Cancellation Modal ────────────────────────────────────
+  function cancelActiveRide() {
+    document.getElementById('cancelModal').classList.remove('hidden');
+  }
+
+  async function submitCancelReason(reason) {
+    document.getElementById('cancelModal').classList.add('hidden');
+    const bookingId = document.getElementById('rideBookingId').textContent.toLowerCase();
+    showToast(`Cancellation logged: ${reason}`, 'warning');
+    document.getElementById('currentRide').classList.remove('active');
+    document.getElementById('driverIdle').style.display = 'flex';
+    if (bookingId && driverData && bookingId !== 'cal-000000') {
+      try {
+        await fetch(`/api/bookings/${bookingId}/cancel`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason, driver_id: driverData.driver_id })
+        });
+      } catch(e) {}
+    }
+    if (driverData) {
+      fetch(`/api/drivers/${driverData.driver_id}/status`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ status: 'available' })
+      }).catch(() => {});
+    }
+  }
+
+  function showToast(message, type = 'info') {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toastContainer';
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.innerHTML = `<span>${ ({success:'✓',error:'✕',warning:'⚠',info:'ℹ'})[type]||'ℹ' }</span><span style="font-size:var(--text-sm);font-weight:500">${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+  </script>
 </body>
 </html>

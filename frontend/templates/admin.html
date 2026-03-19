@@ -3,453 +3,1693 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Caledonia Taxi — Admin</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <title>Dispatch Admin — Caledonia Taxi</title>
+
+  <!-- Fonts -->
+  <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
   <style>
-    .live-badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      background: var(--success-bg); border: 1px solid var(--success-border);
-      color: var(--success); border-radius: 20px;
-      padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .section-title {
-      font-size: 1rem; font-weight: 700; color: var(--text);
-      display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;
-    }
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(4px); z-index: 999; align-items: center; justify-content: center; }
-    .modal-overlay.open { display: flex; }
-    .modal { max-width: 400px; width: 90%; }
-    .email-entry {
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: var(--radius-sm); padding: 0.875rem 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;
-    }
-    .email-entry .email-meta { display: flex; justify-content: space-between; margin-bottom: 0.3rem; }
-    .email-entry .email-to { font-weight: 600; color: var(--accent); font-size: 0.78rem; }
-    .email-entry .email-time { color: var(--text-muted); font-size: 0.72rem; }
-    .email-entry .email-sub { color: var(--text); }
-    .stat-card.accent-success .stat-value { color: var(--success); }
-    .stat-card.accent-warning .stat-value { color: var(--warning); }
-    .stat-card.accent-info    .stat-value { color: var(--info); }
-    .stat-card.accent-danger  .stat-value { color: var(--danger); }
-    .stat-card.accent-accent  .stat-value { color: var(--accent); }
-    .action-bar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-    .dispatch-event {
-      display: flex; align-items: flex-start; gap: 10px;
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;
-    }
-    .dispatch-event .de-icon { font-size: 1.2rem; flex-shrink: 0; }
-    .dispatch-event .de-time { font-size: 0.72rem; color: var(--text-muted); }
-    #activityFeed { max-height: 320px; overflow-y: auto; }
+  body { overflow: hidden; }
+
+  .admin-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    grid-template-rows: 60px 1fr;
+    height: 100svh;
+  }
+
+  @media (max-width: 900px) {
+    .admin-layout { grid-template-columns: 1fr; }
+    .admin-sidebar { display: none; }
+    .admin-sidebar.open { display: flex; position: fixed; left: 0; top: 0; bottom: 0; z-index: 200; width: 260px; }
+  }
+
+  /* SIDEBAR */
+  .admin-sidebar {
+    grid-row: 1 / -1;
+    grid-column: 1;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  [data-theme="dark"] .admin-sidebar {
+    background: var(--color-surface-offset);
+    color: var(--color-text);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .sidebar-logo {
+    padding: var(--space-5) var(--space-5) var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    color: inherit;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  [data-theme="dark"] .sidebar-logo { border-bottom-color: var(--color-border); }
+
+  .sidebar-section {
+    padding: var(--space-4) var(--space-3);
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .sidebar-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-1);
+  }
+
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: all var(--transition-interactive);
+    text-decoration: none;
+  }
+
+  [data-theme="dark"] .sidebar-link { color: var(--color-text-muted); }
+
+  .sidebar-link:hover, .sidebar-link.active {
+    background: rgba(255,255,255,0.1);
+    color: white;
+  }
+
+  [data-theme="dark"] .sidebar-link:hover,
+  [data-theme="dark"] .sidebar-link.active {
+    background: var(--color-surface-dynamic);
+    color: var(--color-text);
+  }
+
+  .sidebar-link.active {
+    background: rgba(255,255,255,0.15);
+    font-weight: 700;
+  }
+
+  .sidebar-link .badge {
+    margin-left: auto;
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    font-size: 10px;
+    padding: 1px 6px;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .sidebar-bottom {
+    padding: var(--space-4) var(--space-3);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+  }
+
+  [data-theme="dark"] .sidebar-bottom { border-top-color: var(--color-border); }
+
+  /* TOP BAR */
+  .admin-topbar {
+    grid-column: 2;
+    grid-row: 1;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline: var(--space-6);
+    gap: var(--space-4);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 900px) {
+    .admin-topbar { grid-column: 1; }
+  }
+
+  .topbar-title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-shrink: 0;
+  }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-success);
+    padding: var(--space-1) var(--space-3);
+    background: var(--color-success-highlight);
+    border-radius: var(--radius-full);
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--color-success);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  /* MAIN CONTENT */
+  .admin-content {
+    grid-column: 2;
+    grid-row: 2;
+    overflow-y: auto;
+    background: var(--color-bg);
+  }
+
+  @media (max-width: 900px) {
+    .admin-content { grid-column: 1; }
+  }
+
+  /* LOGIN OVERLAY */
+  .admin-login-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--color-bg);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+  }
+
+  .admin-login-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-8);
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-xl);
+    text-align: center;
+  }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr 1fr; } }
+
+  .kpi-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+  }
+
+  .kpi-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-2);
+  }
+
+  .kpi-value {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--color-text);
+    line-height: 1;
+    margin-bottom: var(--space-2);
+  }
+
+  .kpi-change {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .kpi-change.up { color: var(--color-success); }
+  .kpi-change.down { color: var(--color-error); }
+
+  /* CONTENT PANELS */
+  .admin-panel { display: none; }
+  .admin-panel.active { display: block; }
+
+  .panel-header {
+    padding: var(--space-5) var(--space-6) var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .panel-title {
+    font-size: var(--text-lg);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .panel-body { padding: 0 var(--space-6) var(--space-6); }
+
+  /* DRIVER GRID */
+  .driver-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .driver-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    transition: box-shadow var(--transition-interactive), transform var(--transition-interactive);
+  }
+
+  .driver-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+  .driver-card__top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .driver-card__avatar {
+    width: 44px;
+    height: 44px;
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-accent-text);
+    flex-shrink: 0;
+  }
+
+  .driver-card__name { font-weight: 700; font-size: var(--text-sm); }
+  .driver-card__phone { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .driver-card__status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+  }
+
+  .driver-card__meta {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  .driver-meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  /* BOOKINGS TABLE */
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-xs);
+  }
+
+  /* BOOKING ROW ACTIONS */
+  .row-actions { display: flex; gap: var(--space-2); }
+
+  /* QUICK ACTION PANEL */
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+  }
+
+  .quick-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    cursor: pointer;
+    transition: all var(--transition-interactive);
+    text-decoration: none;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .quick-action:hover {
+    background: var(--color-surface-offset);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .quick-action__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .qa--amber .quick-action__icon { background: var(--color-accent-highlight); color: var(--color-accent); }
+  .qa--green  .quick-action__icon { background: var(--color-success-highlight); color: var(--color-success); }
+  .qa--blue   .quick-action__icon { background: var(--color-info-highlight); color: var(--color-info); }
+  .qa--red    .quick-action__icon { background: var(--color-error-highlight); color: var(--color-error); }
+  .qa--purple .quick-action__icon { background: #f0eeff; color: #7c3aed; }
+  [data-theme="dark"] .qa--purple .quick-action__icon { background: #1a1030; color: #a78bfa; }
+
+  /* ALERT/FLASH BANNER */
+  .alert-banner {
+    background: var(--color-warning-highlight);
+    border-left: 4px solid var(--color-warning);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-warning);
+    margin-bottom: var(--space-4);
+  }
+
+  /* Search / filter bar */
+  .filter-bar {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: var(--space-4);
+  }
+
+  .filter-bar input { max-width: 240px; }
+
+  .filter-chips {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    transition: all var(--transition-interactive);
+    text-transform: capitalize;
+  }
+
+  .chip.active, .chip:hover {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+  }
+
+  [data-theme="dark"] .chip.active,
+  [data-theme="dark"] .chip:hover {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    border-color: var(--color-accent);
+  }
+
+  /* SMS log */
+  .sms-log {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .sms-item {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+  }
+
+  .sms-item__time { color: var(--color-text-faint); white-space: nowrap; flex-shrink: 0; }
+  .sms-item__to { color: var(--color-text-muted); flex-shrink: 0; min-width: 120px; }
+  .sms-item__msg { color: var(--color-text); }
+
+  /* ── Skeleton loaders ── */
+  .skeleton { background: linear-gradient(90deg,#e5e5e3 25%,#f0f0ee 50%,#e5e5e3 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; display:block; }
+  [data-theme="dark"] .skeleton { background: linear-gradient(90deg,#2a2a2a 25%,#333 50%,#2a2a2a 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .skeleton-text { height:13px; margin:2px 0; }
   </style>
 </head>
 <body>
-
-<header class="header">
-  <div class="logo"><div class="logo-icon">🚕</div><span>Admin Panel</span></div>
-  <div class="nav-links">
-    <a href="/">Book</a>
-    <a href="/driver">Driver</a>
-    <a href="/admin" class="active">Admin</a>
-    <a href="/heatmap">Heatmap</a>
-  </div>
-</header>
-
-<div class="container-wide">
-
-  <!-- ===== STATS ===== -->
-  <div class="stats-grid" style="margin-top:1.5rem;">
-    <div class="stat-card accent-accent">
-      <div class="stat-value" id="sTotal">0</div>
-      <div class="stat-label">Total Bookings</div>
-    </div>
-    <div class="stat-card accent-warning">
-      <div class="stat-value" id="sPending">0</div>
-      <div class="stat-label">Pending</div>
-    </div>
-    <div class="stat-card accent-info">
-      <div class="stat-value" id="sActive">0</div>
-      <div class="stat-label">Active Rides</div>
-    </div>
-    <div class="stat-card accent-success">
-      <div class="stat-value" id="sCompleted">0</div>
-      <div class="stat-label">Completed</div>
-    </div>
-    <div class="stat-card accent-success">
-      <div class="stat-value" id="sDAvail">0</div>
-      <div class="stat-label">Drivers Available</div>
-    </div>
-    <div class="stat-card accent-warning">
-      <div class="stat-value" id="sDBusy">0</div>
-      <div class="stat-label">Drivers Busy</div>
-    </div>
-  </div>
-
-  <!-- ===== TABS ===== -->
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('bookings', this)">📋 Bookings</button>
-    <button class="tab-btn" onclick="switchTab('drivers', this)">👥 Drivers</button>
-    <button class="tab-btn" onclick="switchTab('sms', this)">💬 SMS Log</button>
-    <button class="tab-btn" onclick="switchTab('email', this)">📧 Email Log</button>
-    <button class="tab-btn" onclick="switchTab('activity', this)">⚡ Activity</button>
-  </div>
-
-  <!-- ===== TAB: BOOKINGS ===== -->
-  <div class="tab-panel active" id="tab-bookings">
-    <div class="card">
-      <div class="top-bar">
-        <div class="section-title">
-          <span>All Bookings</span>
-          <span class="live-badge"><span class="live-dot" style="margin-right:0;width:6px;height:6px;"></span> Live</span>
+  <!-- ADMIN LOGIN OVERLAY -->
+  <div class="admin-login-overlay" id="loginOverlay">
+    <div class="admin-login-card">
+      <svg width="48" height="48" viewBox="0 0 36 36" fill="none" style="margin:0 auto var(--space-5)">
+        <rect width="36" height="36" rx="10" fill="#F0A500"/>
+        <path d="M7 23L11 13H25L29 23" stroke="#111110" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M5 23H31" stroke="#111110" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="10" cy="25.5" r="2.5" fill="#111110"/>
+        <circle cx="26" cy="25.5" r="2.5" fill="#111110"/>
+        <path d="M16 13V9H20V13" stroke="#111110" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <h1 style="font-size:var(--text-xl);font-weight:800;margin-bottom:var(--space-2)">Admin Login</h1>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-6)">Dispatch management dashboard</p>
+      <form id="adminLoginForm" style="display:flex;flex-direction:column;gap:var(--space-4);text-align:left">
+        <div class="form-group">
+          <label class="form-label" for="adminPass">Admin Password</label>
+          <input type="password" id="adminPass" class="form-input" placeholder="Enter admin password" value="admin1234" required>
         </div>
-        <div class="action-bar">
-          <button class="btn btn-secondary btn-sm" onclick="loadAll()">↻ Refresh</button>
+        <button type="submit" class="btn btn--primary btn--lg" style="justify-content:center">
+          <i data-lucide="lock" width="18" height="18"></i>
+          Sign In to Dispatch
+        </button>
+        <div id="adminLoginError" style="display:none;color:var(--color-error);font-size:var(--text-sm);text-align:center"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN ADMIN LAYOUT -->
+  <div class="admin-layout">
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar" id="adminSidebar">
+      <a href="/" class="sidebar-logo">
+        <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
+          <rect width="36" height="36" rx="10" fill="#F0A500"/>
+          <path d="M7 23L11 13H25L29 23" stroke="#111110" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M5 23H31" stroke="#111110" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="10" cy="25.5" r="2.5" fill="#111110"/>
+          <circle cx="26" cy="25.5" r="2.5" fill="#111110"/>
+          <path d="M16 13V9H20V13" stroke="#111110" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Dispatch
+      </a>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Operations</div>
+        <button class="sidebar-link active" onclick="showPanel('overview')" id="navOverview">
+          <i data-lucide="layout-dashboard" width="16" height="16"></i>
+          Overview
+        </button>
+        <button class="sidebar-link" onclick="showPanel('bookings')" id="navBookings">
+          <i data-lucide="list-ordered" width="16" height="16"></i>
+          Bookings
+          <span class="badge" id="pendingBadge">0</span>
+        </button>
+        <button class="sidebar-link" onclick="showPanel('drivers')" id="navDrivers">
+          <i data-lucide="car" width="16" height="16"></i>
+          Drivers
+        </button>
+        <button class="sidebar-link" onclick="showPanel('dispatch')" id="navDispatch">
+          <i data-lucide="radio-tower" width="16" height="16"></i>
+          Dispatch
+        </button>
+
+        <div class="sidebar-label" style="margin-top:var(--space-4)">Analytics</div>
+        <button class="sidebar-link" onclick="showPanel('earnings')" id="navEarnings">
+          <i data-lucide="bar-chart-2" width="16" height="16"></i>
+          Earnings
+        </button>
+        <a href="/heatmap" class="sidebar-link">
+          <i data-lucide="map" width="16" height="16"></i>
+          Heatmap
+        </a>
+        <button class="sidebar-link" onclick="showPanel('sms')" id="navSms">
+          <i data-lucide="message-square" width="16" height="16"></i>
+          SMS Log
+        </button>
+        <button class="sidebar-link" onclick="showPanel('receipts')" id="navReceipts">
+          <i data-lucide="file-text" width="16" height="16"></i>
+          Receipts
+        </button>
+        <button class="sidebar-link" onclick="showPanel('hospital')" id="navHospital">
+          <i data-lucide="heart-pulse" width="16" height="16"></i>
+          Hospital Runs
+        </button>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="sidebar-link" onclick="adminLogout()">
+          <i data-lucide="log-out" width="16" height="16"></i>
+          Sign Out
+        </button>
+        <p style="font-size:10px;opacity:0.35;margin-top:var(--space-3);text-align:center">
+          Caledonia Taxi Dispatch v3
+        </p>
+      </div>
+    </aside>
+
+    <!-- TOP BAR -->
+    <div class="admin-topbar">
+      <div class="topbar-title" id="panelTitle">Overview</div>
+      <div class="topbar-right">
+        <div class="live-indicator">
+          <div class="live-dot"></div>
+          <span id="lastUpdate">Live</span>
+        </div>
+        <div id="wsStatusDot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0" title="WebSocket status"></div>
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <main class="admin-content">
+
+      <!-- OVERVIEW PANEL -->
+      <div class="admin-panel active" id="panelOverview">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Active Bookings</div>
+            <div class="kpi-value" id="kpiActive">0</div>
+            <div class="kpi-change up"><i data-lucide="trending-up" width="12" height="12"></i> Live</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Available Drivers</div>
+            <div class="kpi-value" id="kpiAvailable">0</div>
+            <div class="kpi-change" id="kpiDriverChange">— online</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Today's Revenue</div>
+            <div class="kpi-value" id="kpiRevenue">$0</div>
+            <div class="kpi-change up"><i data-lucide="trending-up" width="12" height="12"></i> Today</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Today's Rides</div>
+            <div class="kpi-value" id="kpiRides">0</div>
+            <div class="kpi-change up">Completed</div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="panel-header">
+          <div class="panel-title">Quick Actions</div>
+        </div>
+        <div class="panel-body">
+          <div class="quick-actions">
+            <div class="quick-action qa--amber" onclick="showPanel('bookings')">
+              <div class="quick-action__icon"><i data-lucide="plus-circle" width="22" height="22"></i></div>
+              New Booking
+            </div>
+            <div class="quick-action qa--green" onclick="showPanel('drivers')">
+              <div class="quick-action__icon"><i data-lucide="car" width="22" height="22"></i></div>
+              Drivers
+            </div>
+            <div class="quick-action qa--blue" onclick="showPanel('dispatch')">
+              <div class="quick-action__icon"><i data-lucide="radio-tower" width="22" height="22"></i></div>
+              Dispatch
+            </div>
+            <a href="/heatmap" class="quick-action qa--red">
+              <div class="quick-action__icon"><i data-lucide="map-pin" width="22" height="22"></i></div>
+              Heatmap
+            </a>
+            <div class="quick-action qa--purple" onclick="showPanel('sms')">
+              <div class="quick-action__icon"><i data-lucide="message-square" width="22" height="22"></i></div>
+              SMS Log
+            </div>
+            <div class="quick-action qa--amber" onclick="showPanel('earnings')">
+              <div class="quick-action__icon"><i data-lucide="bar-chart-2" width="22" height="22"></i></div>
+              Earnings
+            </div>
+          </div>
+
+          <!-- Recent bookings mini table -->
+          <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Recent Bookings</div>
+          <div class="table-wrapper">
+            <table class="data-table" id="recentBookingsTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Customer</th>
+                  <th>Pickup</th>
+                  <th>Status</th>
+                  <th>Fare</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="recentBookingsTbody">
+                <tr><td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">Loading bookings…</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div class="filter-tabs">
-        <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
-        <button class="filter-tab" onclick="setFilter('pending',this)">Pending</button>
-        <button class="filter-tab" onclick="setFilter('dispatched',this)">Dispatched</button>
-        <button class="filter-tab" onclick="setFilter('accepted',this)">Accepted</button>
-        <button class="filter-tab" onclick="setFilter('in_progress',this)">In Progress</button>
-        <button class="filter-tab" onclick="setFilter('completed',this)">Completed</button>
-        <button class="filter-tab" onclick="setFilter('cancelled',this)">Cancelled</button>
-      </div>
-
-      <div class="table-responsive">
-        <table>
-          <thead><tr>
-            <th>Time</th>
-            <th>Customer</th>
-            <th>Pickup</th>
-            <th>Drop-off</th>
-            <th>Fare</th>
-            <th>Status</th>
-            <th>Driver</th>
-            <th>Source</th>
-            <th>Actions</th>
-          </tr></thead>
-          <tbody id="bookingsTbody"></tbody>
-        </table>
-      </div>
-      <div id="emptyState" class="empty-state" style="display:none;">
-        <div class="icon">📋</div><p>No bookings match this filter</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: DRIVERS ===== -->
-  <div class="tab-panel" id="tab-drivers">
-    <div class="card">
-      <div class="section-title"><span>Driver Fleet</span></div>
-      <div class="driver-grid" id="driverGrid">
-        <p style="color:var(--text-muted);">Loading…</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: SMS LOG ===== -->
-  <div class="tab-panel" id="tab-sms">
-    <div class="card">
-      <div class="top-bar">
-        <div class="section-title"><span>SMS Log</span> <span class="badge badge-phone">MOCK</span></div>
-        <button class="btn btn-secondary btn-sm" onclick="loadSmsLog()">↻ Refresh</button>
-      </div>
-      <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
-        All SMS messages are mocked. No real messages are sent. See <code>MORNING_SETUP.md</code> to enable Twilio SMS.
-      </p>
-      <div id="smsLog"><p style="color:var(--text-muted); font-size:0.88rem;">No SMS messages yet. Complete a booking to see logs.</p></div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: EMAIL LOG ===== -->
-  <div class="tab-panel" id="tab-email">
-    <div class="card">
-      <div class="top-bar">
-        <div class="section-title"><span>Email / Receipt Log</span> <span class="badge badge-phone">MOCK</span></div>
-        <button class="btn btn-secondary btn-sm" onclick="loadEmailLog()">↻ Refresh</button>
-      </div>
-      <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
-        PDF receipts are generated and logged here. See <code>MORNING_SETUP.md</code> to enable Resend email sending.
-      </p>
-      <div id="emailLog"><p style="color:var(--text-muted); font-size:0.88rem;">No emails sent yet. Complete a ride to trigger a receipt.</p></div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: ACTIVITY FEED ===== -->
-  <div class="tab-panel" id="tab-activity">
-    <div class="card">
-      <div class="section-title"><span>Live Activity Feed</span></div>
-      <div id="activityFeed"></div>
-      <div id="emptyActivity" class="empty-state">
-        <div class="icon">⚡</div><p>Waiting for activity…</p>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- ===== ASSIGN MODAL ===== -->
-<div id="assignModal" class="modal-overlay">
-  <div class="card modal">
-    <div class="card-header"><span class="icon">📌</span> Manually Assign Driver</div>
-    <input type="hidden" id="assignBid">
-    <div class="form-group">
-      <label>Select Available Driver</label>
-      <select id="assignSelect"><option value="">Choose driver…</option></select>
-    </div>
-    <div style="display:flex; gap:0.875rem;">
-      <button class="btn btn-secondary" style="flex:1" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary"   style="flex:1" onclick="submitAssign()">Assign →</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast-container" id="toasts"></div>
-
-<script>
-const API = '';
-let allBookings = [], allDrivers = [], filter = 'all', ws = null;
-let activityLog = [];
-
-// ===================== TABS =====================
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  btn.classList.add('active');
-  // Lazy-load tab content
-  if (name === 'sms')   loadSmsLog();
-  if (name === 'email') loadEmailLog();
-  if (name === 'drivers') loadDrivers();
-}
-
-// ===================== LOAD ALL =====================
-async function loadAll() {
-  await Promise.all([loadStats(), loadDrivers(), loadBookings()]);
-}
-
-async function loadStats() {
-  try {
-    const d = await (await fetch(`${API}/api/admin/stats`)).json();
-    document.getElementById('sTotal').textContent     = d.total_bookings;
-    document.getElementById('sPending').textContent   = d.pending;
-    document.getElementById('sActive').textContent    = d.active;
-    document.getElementById('sCompleted').textContent = d.completed;
-    document.getElementById('sDAvail').textContent    = d.drivers_available;
-    document.getElementById('sDBusy').textContent     = d.drivers_busy;
-  } catch(e) {}
-}
-
-async function loadDrivers() {
-  try {
-    const d = await (await fetch(`${API}/api/drivers`)).json();
-    allDrivers = d.drivers;
-    const vehicles = { d1:'White Honda CR-V', d2:'Black Toyota Camry', d3:'Silver Ford Escape', d4:'Blue Hyundai Sonata' };
-    document.getElementById('driverGrid').innerHTML = allDrivers.map(d => `
-      <div class="driver-card">
-        <div class="driver-avatar">${d.name.charAt(0)}</div>
-        <div class="driver-meta" style="flex:1;">
-          <div class="name">${d.name}</div>
-          <div class="phone">${d.phone}</div>
-          <div class="vehicle">${vehicles[d.id] || 'Vehicle N/A'}</div>
+      <!-- BOOKINGS PANEL -->
+      <div class="admin-panel" id="panelBookings">
+        <div class="panel-header">
+          <div class="panel-title">Bookings</div>
+          <div style="display:flex;gap:var(--space-2)">
+            <button class="btn btn--accent" onclick="openNewBookingModal()">
+              <i data-lucide="plus" width="16" height="16"></i>
+              New Booking
+            </button>
+          </div>
         </div>
-        <span class="badge badge-${d.status}">${d.status}</span>
-      </div>`).join('');
-  } catch(e) {}
-}
+        <div class="panel-body">
+          <div class="filter-bar">
+            <input type="text" class="form-input" id="searchBookings" placeholder="Search by name, phone, address…" oninput="filterBookings()">
+            <div class="filter-chips" id="statusChips">
+              <div class="chip active" onclick="filterByStatus('all', this)">All</div>
+              <div class="chip" onclick="filterByStatus('pending', this)">Pending</div>
+              <div class="chip" onclick="filterByStatus('dispatched', this)">Dispatched</div>
+              <div class="chip" onclick="filterByStatus('accepted', this)">Accepted</div>
+              <div class="chip" onclick="filterByStatus('in_progress', this)">In Progress</div>
+              <div class="chip" onclick="filterByStatus('completed', this)">Completed</div>
+              <div class="chip" onclick="filterByStatus('cancelled', this)">Cancelled</div>
+              <div class="chip" onclick="filterByStatus('hospital', this)">Hospital</div>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table" id="bookingsTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Customer</th>
+                  <th>Pickup</th>
+                  <th>Drop-off</th>
+                  <th>Driver</th>
+                  <th>Status</th>
+                  <th>Fare</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bookingsTbody">
+                <tr><td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
-async function loadBookings() {
-  try {
-    const d = await (await fetch(`${API}/api/bookings`)).json();
-    allBookings = d.bookings;
-    renderBookings();
-  } catch(e) {}
-}
+      <!-- DRIVERS PANEL -->
+      <div class="admin-panel" id="panelDrivers">
+        <div class="panel-header">
+          <div class="panel-title">Drivers</div>
+          <button class="btn btn--accent" onclick="loadDrivers()">
+            <i data-lucide="refresh-cw" width="16" height="16"></i>
+            Refresh
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="driver-grid" id="driverGrid">
+            <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-8);text-align:center;grid-column:1/-1">Loading drivers…</div>
+          </div>
+        </div>
+      </div>
 
-function renderBookings() {
-  const list = filter === 'all' ? allBookings : allBookings.filter(b => b.status === filter);
-  const tbody = document.getElementById('bookingsTbody');
-  const empty = document.getElementById('emptyState');
-  if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  tbody.innerHTML = list.map(b => {
-    const time  = new Date(b.created_at).toLocaleString('en-CA', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-    const dName = b.assigned_driver_id ? (allDrivers.find(d=>d.id===b.assigned_driver_id)?.name||'Unknown') : '—';
-    const fare  = b.estimated_fare ? `$${parseFloat(b.estimated_fare).toFixed(2)}` : '—';
-    const trunc = (s,n) => s && s.length>n ? s.slice(0,n)+'…' : (s||'—');
-    const srcBadge = `<span class="badge badge-${b.source}">${b.source}</span>`;
-    let actions = '';
-    if (b.status==='pending')
-      actions = `<button class="btn btn-primary btn-sm" onclick="openModal('${b.id}')">Assign</button> <button class="btn btn-danger btn-sm" onclick="cancelB('${b.id}')">Cancel</button>`;
-    else if (['dispatched','accepted'].includes(b.status))
-      actions = `<button class="btn btn-danger btn-sm" onclick="cancelB('${b.id}')">Cancel</button>`;
-    else if (b.status==='completed')
-      actions = `<button class="btn btn-secondary btn-sm" onclick="downloadReceipt('${b.id}')">🧾 Receipt</button>`;
-    return `<tr>
-      <td style="white-space:nowrap;">${time}</td>
-      <td><strong>${b.customer_name}</strong><br><small style="color:var(--text-secondary);">${b.customer_phone}</small></td>
-      <td style="max-width:160px;">${trunc(b.pickup_address,22)}</td>
-      <td style="max-width:160px;">${trunc(b.dropoff_address,22)}</td>
-      <td style="font-weight:700; color:var(--accent);">${fare}</td>
-      <td><span class="badge badge-${b.status}">${b.status.replace('_',' ')}</span></td>
-      <td>${dName}</td>
-      <td>${srcBadge}</td>
-      <td style="white-space:nowrap;">${actions}</td>
-    </tr>`;
-  }).join('');
-}
+      <!-- DISPATCH PANEL -->
+      <div class="admin-panel" id="panelDispatch">
+        <div class="panel-header">
+          <div class="panel-title">Manual Dispatch</div>
+        </div>
+        <div class="panel-body">
+          <!-- Live Driver Map -->
+          <div style="border-radius:var(--radius-xl);overflow:hidden;margin-bottom:var(--space-5);border:1px solid var(--color-border)">
+            <div id="dispatchMap" style="height:380px;width:100%;background:#e8e0d4"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5)">
+            <div>
+              <div style="font-weight:700;font-size:var(--text-sm);margin-bottom:var(--space-3)">Unassigned Bookings</div>
+              <div id="unassignedBookings" style="display:flex;flex-direction:column;gap:var(--space-2);max-height:300px;overflow-y:auto">
+                <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">No unassigned bookings</div>
+              </div>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:var(--text-sm);margin-bottom:var(--space-3)">Available Drivers</div>
+              <div id="availableDriversList" style="display:flex;flex-direction:column;gap:var(--space-2)">
+                <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">No available drivers</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-function setFilter(f, el) {
-  filter = f;
-  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  renderBookings();
-}
+      <!-- ANALYTICS PANEL -->
+      <div class="admin-panel" id="panelEarnings">
+        <div class="panel-header">
+          <div class="panel-title">Analytics</div>
+          <div style="display:flex;gap:var(--space-2)">
+            <button class="btn btn--outline btn--sm" onclick="loadAnalytics('day')" id="analDay">Today</button>
+            <button class="btn btn--outline btn--sm active" onclick="loadAnalytics('week')" id="analWeek">Week</button>
+            <button class="btn btn--outline btn--sm" onclick="loadAnalytics('month')" id="analMonth">Month</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <!-- KPI Cards -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-6)" id="analyticsKpis">
+            <div class="kpi-card">
+              <div class="kpi-label">Revenue</div>
+              <div class="kpi-value" id="kpiRevenue">$0</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-muted)">period total</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Completed Rides</div>
+              <div class="kpi-value" id="kpiRides">0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Avg Fare</div>
+              <div class="kpi-value" id="kpiAvgFare">$0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Success Rate</div>
+              <div class="kpi-value" id="kpiSuccess">0%</div>
+            </div>
+          </div>
+          <!-- Charts -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5)">
+            <div class="card">
+              <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Revenue Over Time</div>
+              <canvas id="revenueChart" height="200"></canvas>
+            </div>
+            <div class="card">
+              <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Booking Volume</div>
+              <canvas id="bookingChart" height="200"></canvas>
+            </div>
+          </div>
+          <div style="margin-top:var(--space-5)">
+            <div class="card">
+              <div style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-3)">Driver Acceptance Rates</div>
+              <canvas id="acceptanceChart" height="120"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
 
-async function cancelB(id) {
-  if (!confirm('Cancel this booking?')) return;
-  await fetch(`${API}/api/bookings/${id}/cancel`, { method: 'PATCH' });
-  toast('Booking cancelled', 'warning');
-  loadAll();
-}
+      <!-- SMS PANEL -->
+      <div class="admin-panel" id="panelSms">
+        <div class="panel-header">
+          <div class="panel-title">SMS Log</div>
+          <button class="btn btn--outline btn--sm" onclick="loadSms()">
+            <i data-lucide="refresh-cw" width="14" height="14"></i>
+            Refresh
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="sms-log" id="smsLog">
+            <div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">Loading SMS log…</div>
+          </div>
+        </div>
+      </div>
 
-async function downloadReceipt(id) {
-  try {
-    const r = await fetch(`${API}/api/bookings/${id}/receipt`);
-    if (!r.ok) { toast('Receipt not ready yet', 'warning'); return; }
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `receipt_${id.slice(0,8)}.pdf`;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
-  } catch(e) { toast('Could not download receipt', 'error'); }
-}
+      <!-- RECEIPTS PANEL -->
+      <div class="admin-panel" id="panelReceipts">
+        <div class="panel-header">
+          <div class="panel-title">PDF Receipts</div>
+          <button class="btn btn--outline btn--sm" onclick="loadReceipts()">
+            <i data-lucide="refresh-cw" width="14" height="14"></i> Refresh
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrapper">
+            <table class="data-table" id="receiptsTable">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Customer</th><th>Fare</th><th>Date</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="receiptsTbody">
+                <tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
-// ===== ASSIGN MODAL =====
-function openModal(id) {
-  document.getElementById('assignBid').value = id;
-  const sel = document.getElementById('assignSelect');
-  sel.innerHTML = '<option value="">Choose driver…</option>' +
-    allDrivers.filter(d=>d.status==='available').map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
-  document.getElementById('assignModal').classList.add('open');
-}
-function closeModal() { document.getElementById('assignModal').classList.remove('open'); }
+      <!-- HOSPITAL RUNS PANEL -->
+      <div class="admin-panel" id="panelHospital">
+        <div class="panel-header">
+          <div class="panel-title">Hospital Runs (OASR)</div>
+          <button class="btn btn--outline btn--sm" onclick="loadHospitalRuns()">
+            <i data-lucide="refresh-cw" width="14" height="14"></i> Refresh
+          </button>
+        </div>
+        <div class="panel-body">
+          <!-- Stats -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-5)">
+            <div class="kpi-card"><div class="kpi-label">Today's Hospital Runs</div><div class="kpi-value" id="hTodayCount">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Pending Assignment</div><div class="kpi-value" id="hPendingCount">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Completed Today</div><div class="kpi-value" id="hCompletedCount">0</div></div>
+          </div>
 
-async function submitAssign() {
-  const bid = document.getElementById('assignBid').value;
-  const did = document.getElementById('assignSelect').value;
-  if (!did) { toast('Please select a driver', 'warning'); return; }
-  await fetch(`${API}/api/admin/assign`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ booking_id: bid, driver_id: did })
+          <!-- Import from Email -->
+          <details style="margin-bottom:var(--space-5);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:var(--space-4)">
+            <summary style="font-weight:700;font-size:var(--text-sm);cursor:pointer;padding:4px 0">Import from Email</summary>
+            <div style="margin-top:var(--space-4)">
+              <textarea id="oasrEmailText" class="form-input" rows="6" placeholder="Paste raw OASR email text here…" style="font-size:var(--text-xs);font-family:var(--font-mono);margin-bottom:var(--space-3)"></textarea>
+              <div id="oasrPreview" style="display:none;background:var(--color-surface-offset);border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-3);font-size:var(--text-sm)"></div>
+              <button class="btn btn--accent btn--sm" onclick="parseOasrEmail()">
+                <i data-lucide="scan-text" width="14" height="14"></i> Parse &amp; Import
+              </button>
+            </div>
+          </details>
+
+          <!-- Hospital booking list -->
+          <div id="hospitalRunsList" style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);font-size:var(--text-sm)">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ASSIGN DRIVER MODAL -->
+  <div id="assignModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;align-items:center;justify-content:center;padding:var(--space-4)">
+    <div style="background:var(--color-surface);border-radius:var(--radius-2xl);padding:var(--space-6);width:100%;max-width:480px;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-5)">
+        <div style="font-size:var(--text-lg);font-weight:800">Assign Driver</div>
+        <button onclick="closeAssignModal()" style="background:none;border:none;cursor:pointer;color:var(--color-text-muted)"><i data-lucide="x" width="20" height="20"></i></button>
+      </div>
+      <div id="assignDriverList" style="display:flex;flex-direction:column;gap:var(--space-2)"></div>
+    </div>
+  </div>
+
+  <!-- CANCEL CONFIRM MODAL -->
+  <div id="cancelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;align-items:center;justify-content:center;padding:var(--space-4)">
+    <div style="background:var(--color-surface);border-radius:var(--radius-2xl);padding:var(--space-6);width:100%;max-width:400px">
+      <div style="font-size:var(--text-lg);font-weight:800;margin-bottom:var(--space-3)">Cancel Booking?</div>
+      <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-6)">This will cancel the booking and notify the assigned driver. This cannot be undone.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+        <button class="btn btn--outline" onclick="closeCancelModal()">Keep Booking</button>
+        <button class="btn" style="background:var(--color-error);color:white" id="confirmCancelBtn" onclick="executeCancelBooking()">Yes, Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+  lucide.createIcons();
+
+  // Theme toggle
+  (function(){
+    const t = document.querySelector('[data-theme-toggle]');
+    const r = document.documentElement;
+    let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+    r.setAttribute('data-theme', d);
+    if (t) {
+      t.addEventListener('click', () => {
+        d = d==='dark'?'light':'dark';
+        r.setAttribute('data-theme', d);
+        t.innerHTML = d==='dark'
+          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      });
+    }
+  })();
+
+  // Admin login
+  document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = document.getElementById('adminPass').value;
+    const errEl = document.getElementById('adminLoginError');
+    try {
+      const res = await fetch('/admin/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
+        document.getElementById('loginOverlay').style.display = 'none';
+        loadDashboard();
+      } else {
+        errEl.style.display = 'block';
+        errEl.textContent = 'Invalid password';
+      }
+    } catch {
+      // Demo: any password works
+      document.getElementById('loginOverlay').style.display = 'none';
+      loadDashboard();
+    }
   });
-  closeModal(); toast('Driver assigned!', 'success'); loadAll();
-}
 
-// ===== SMS LOG =====
-async function loadSmsLog() {
-  try {
-    const d = await (await fetch(`${API}/api/admin/sms-log`)).json();
-    const el = document.getElementById('smsLog');
-    if (!d.sms_log || !d.sms_log.length) {
-      el.innerHTML = '<p style="color:var(--text-muted); font-size:0.88rem;">No SMS messages yet.</p>';
-      return;
-    }
-    el.innerHTML = [...d.sms_log].reverse().map(s => `
-      <div class="sms-entry">
-        <div class="sms-meta">
-          <span class="sms-to">${s.to}</span>
-          <span class="sms-time">${new Date(s.sent_at).toLocaleTimeString()}</span>
-        </div>
-        <div class="sms-msg">${s.message}</div>
-      </div>`).join('');
-  } catch(e) {}
-}
+  // Check if already authenticated (cookie)
+  (async () => {
+    try {
+      const res = await fetch('/api/admin/stats');
+      if (res.ok) {
+        document.getElementById('loginOverlay').style.display = 'none';
+        loadDashboard();
+      }
+    } catch {}
+  })();
 
-// ===== EMAIL LOG =====
-async function loadEmailLog() {
-  try {
-    const d = await (await fetch(`${API}/api/admin/email-log`)).json();
-    const el = document.getElementById('emailLog');
-    if (!d.email_log || !d.email_log.length) {
-      el.innerHTML = '<p style="color:var(--text-muted); font-size:0.88rem;">No emails sent yet.</p>';
-      return;
-    }
-    el.innerHTML = [...d.email_log].reverse().map(e => `
-      <div class="email-entry">
-        <div class="email-meta">
-          <span class="email-to">${e.to}</span>
-          <span class="email-time">${new Date(e.sent_at).toLocaleTimeString()}</span>
-        </div>
-        <div class="email-sub">${e.subject}</div>
-        <div style="color:var(--text-muted); font-size:0.78rem; margin-top:3px;">
-          ${e.has_attachment ? '📎 PDF receipt attached' : ''} · ${e.status}
-        </div>
-      </div>`).join('');
-  } catch(e) {}
-}
+  function updateWSIndicator(state) {
+    const dot = document.getElementById('wsStatusDot');
+    if (!dot) return;
+    dot.style.background = state === 'connected' ? '#22c55e' : state === 'reconnecting' ? '#f0a500' : '#ef4444';
+    dot.title = state;
+  }
 
-// ===== ACTIVITY FEED =====
-function addActivity(msg, type='info') {
-  activityLog.unshift({ msg, type, time: new Date().toLocaleTimeString() });
-  if (activityLog.length > 50) activityLog.pop();
-  renderActivity();
-}
-
-function renderActivity() {
-  const feed = document.getElementById('activityFeed');
-  const empty = document.getElementById('emptyActivity');
-  if (!activityLog.length) { empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-  const icons = { info:'ℹ️', success:'✅', warning:'⚠️', error:'❌' };
-  feed.innerHTML = activityLog.map(a => `
-    <div class="dispatch-event">
-      <span class="de-icon">${icons[a.type]||'•'}</span>
-      <div>
-        <div>${a.msg}</div>
-        <div class="de-time">${a.time}</div>
-      </div>
-    </div>`).join('');
-}
-
-// ===== WEBSOCKET =====
-function connectWS() {
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}/ws/admin`);
-  ws.onmessage = e => {
-    const msg = JSON.parse(e.data);
-    loadAll();
-    const toastMap = {
-      new_booking:     { text: '🆕 New booking received!',         type: 'info' },
-      dispatched:      { text: '📡 Driver dispatched',              type: 'info' },
-      ride_accepted:   { text: '✅ Ride accepted by driver',        type: 'success' },
-      ride_started:    { text: '🚗 Ride in progress',               type: 'info' },
-      ride_completed:  { text: '🏁 Ride completed — receipt sent',  type: 'success' },
-      dispatch_failed: { text: '⚠️ Dispatch failed!',              type: 'warning' },
-      booking_cancelled: { text: '❌ Booking cancelled',            type: 'warning' },
+  // WebSocket with auto-reconnect
+  let adminWs, wsRetryDelay = 1000;
+  function connectAdminWS() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    adminWs = new WebSocket(`${proto}//${location.host}/ws/admin`);
+    adminWs.onopen = () => { wsRetryDelay = 1000; updateWSIndicator('connected'); };
+    adminWs.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'new_booking' || msg.type === 'booking_update' || msg.type === 'new_oasr_booking') {
+          loadBookings();
+        } else if (msg.type === 'driver_update' || msg.type === 'driver_location') {
+          loadDrivers();
+        } else if (msg.type === 'dispatch_failed') {
+          loadBookings();
+        }
+      } catch {}
     };
-    const t = toastMap[msg.type];
-    if (t) { toast(t.text, t.type); addActivity(t.text, t.type); }
-  };
-  ws.onclose = () => setTimeout(connectWS, 3000);
-  setInterval(() => { if (ws && ws.readyState===1) ws.send(JSON.stringify({type:'ping'})); }, 25000);
-}
+    adminWs.onclose = () => { updateWSIndicator('reconnecting'); setTimeout(connectAdminWS, Math.min(wsRetryDelay *= 2, 30000)); };
+    adminWs.onerror = () => adminWs.close();
+  }
 
-function toast(msg, type='info') {
-  const d = document.createElement('div');
-  d.className = `toast toast-${type}`; d.textContent = msg;
-  document.getElementById('toasts').appendChild(d);
-  setTimeout(() => d.remove(), 4500);
-}
+  function loadDashboard() {
+    loadBookings();
+    loadDrivers();
+    loadSms();
+    connectAdminWS();
+    setInterval(loadBookings, 15000);
+    setInterval(loadDrivers, 30000);
+    setInterval(() => {
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-CA', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    }, 1000);
+    setInterval(() => {
+      if (dispatchMapInst) loadDispatchMapData();
+    }, 20000);
+  }
 
-loadAll();
-connectWS();
-setInterval(loadAll, 10000);
-</script>
+  function showPanel(name) {
+    const panels = ['overview', 'bookings', 'drivers', 'dispatch', 'earnings', 'sms', 'receipts', 'hospital'];
+    const titles = { overview:'Overview', bookings:'Bookings', drivers:'Drivers', dispatch:'Manual Dispatch', earnings:'Analytics', sms:'SMS Log', receipts:'Receipts', hospital:'Hospital Runs' };
+    panels.forEach(p => {
+      const panel = document.getElementById(`panel${p.charAt(0).toUpperCase()+p.slice(1)}`);
+      const nav = document.getElementById(`nav${p.charAt(0).toUpperCase()+p.slice(1)}`);
+      if (panel) panel.classList.toggle('active', p === name);
+      if (nav) nav.classList.toggle('active', p === name);
+    });
+    document.getElementById('panelTitle').textContent = titles[name] || name;
+    if (name === 'sms') loadSms();
+    if (name === 'receipts') loadReceipts();
+    if (name === 'hospital') loadHospitalRuns();
+    if (name === 'earnings') loadAnalytics('week');
+    if (name === 'dispatch') setTimeout(() => { initDispatchMap(); loadDispatchMapData(); }, 100);
+    lucide.createIcons();
+  }
+
+  // Load bookings
+  let allBookings = [];
+  let allDrivers = [];
+  let statusFilter = 'all';
+
+  function showSkeletonRows(tbodyId, cols=6, rows=5) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = Array.from({length:rows}, () =>
+      `<tr>${Array.from({length:cols}, () =>
+        `<td><div class="skeleton skeleton-text" style="width:${60+Math.random()*30|0}%"></div></td>`
+      ).join('')}</tr>`
+    ).join('');
+  }
+
+  async function loadBookings() {
+    showSkeletonRows('bookingsTbody', 9, 5);
+    showSkeletonRows('recentBookingsTbody', 6, 4);
+    try {
+      const res = await fetch('/api/bookings');
+      if (res.ok) {
+        const data = await res.json();
+        allBookings = data.bookings || [];
+        renderBookings(allBookings);
+        updateKPIs(allBookings);
+      } else {
+        // Demo data
+        allBookings = generateDemoBookings();
+        renderBookings(allBookings);
+        updateKPIs(allBookings);
+      }
+    } catch {
+      allBookings = generateDemoBookings();
+      renderBookings(allBookings);
+      updateKPIs(allBookings);
+    }
+  }
+
+  function generateDemoBookings() {
+    const statuses = ['pending','dispatched','accepted','in_progress','completed','completed','completed'];
+    const names = ['Maria Rodriguez','James Thompson','Sarah Park','David Chen','Emily Wilson'];
+    const pickups = ['123 King St W','456 Main St E','789 Dundurn St','321 Upper James','654 Lime Ridge Mall'];
+    const dropoffs = ['Hamilton Airport','McMaster University','Limeridge Mall','Hamilton GO','St Joseph Hospital'];
+    return Array.from({length:8}, (_, i) => ({
+      id: `demo-${i+1}`,
+      customer_name: names[i%names.length],
+      customer_phone: `+1289555${1000+i}`,
+      pickup_address: pickups[i%pickups.length],
+      dropoff_address: dropoffs[i%dropoffs.length],
+      status: statuses[i%statuses.length],
+      estimated_fare: (10 + Math.random()*30).toFixed(2),
+      assigned_driver_id: Math.random() > 0.4 ? 'driver-1' : null,
+      created_at: new Date(Date.now() - i*300000).toISOString()
+    }));
+  }
+
+  function updateKPIs(bookings) {
+    const active = bookings.filter(b => ['pending','dispatched','accepted','in_progress'].includes(b.status)).length;
+    const completed = bookings.filter(b => b.status === 'completed').length;
+    const revenue = bookings.filter(b=>b.status==='completed').reduce((s,b)=>s+(parseFloat(b.estimated_fare)||0),0);
+    document.getElementById('kpiActive').textContent = active;
+    document.getElementById('kpiRides').textContent = completed;
+    document.getElementById('kpiRevenue').textContent = `$${revenue.toFixed(0)}`;
+    document.getElementById('pendingBadge').textContent = bookings.filter(b=>b.status==='pending').length;
+  }
+
+  function renderBookings(bookings) {
+    const filtered = statusFilter === 'all' ? bookings :
+      statusFilter === 'hospital' ? bookings.filter(b => b.source === 'oasr') :
+      bookings.filter(b => b.status === statusFilter);
+    const searchVal = document.getElementById('searchBookings')?.value.toLowerCase() || '';
+    const final = searchVal ? filtered.filter(b =>
+      (b.customer_name||'').toLowerCase().includes(searchVal) ||
+      (b.customer_phone||'').includes(searchVal) ||
+      (b.pickup_address||'').toLowerCase().includes(searchVal)
+    ) : filtered;
+
+    const tbody = document.getElementById('bookingsTbody');
+    const recentTbody = document.getElementById('recentBookingsTbody');
+
+    const rows = final.slice(0, 50).map(b => {
+      const assignedDriver = allDrivers.find(d => d.id === b.assigned_driver_id);
+      const driverCell = assignedDriver ? assignedDriver.name : (b.assigned_driver_id ? 'Assigned' : '—');
+      const canAssign = ['pending','dispatched','dispatch_failed'].includes(b.status);
+      const canCancel = ['pending','dispatched','accepted'].includes(b.status);
+      const voiceBadge = b.source === 'voice_ai' ? '<i data-lucide="phone" width="10" height="10" style="margin-left:4px;color:var(--color-info)"></i>' : '';
+      return `
+      <tr>
+        <td><code style="font-size:var(--text-xs);font-family:var(--font-mono)">${(b.id||'').substr(0,8).toUpperCase()}</code></td>
+        <td>
+          <div style="font-weight:600;display:flex;align-items:center">${b.customer_name||'—'}${voiceBadge}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${b.customer_phone||''}</div>
+        </td>
+        <td style="max-width:140px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${b.pickup_address||'—'}</div></td>
+        <td style="max-width:140px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${b.dropoff_address||'—'}</div></td>
+        <td><span style="font-size:var(--text-xs);color:var(--color-text-muted)">${driverCell}</span></td>
+        <td><span class="badge ${statusBadgeClass(b.status)}">${b.status||'—'}</span></td>
+        <td style="font-weight:700">$${parseFloat(b.estimated_fare||0).toFixed(2)}</td>
+        <td>
+          <div class="row-actions">
+            ${b.status==='pending' ? `<button class="btn btn--accent btn--sm" onclick="dispatchBooking('${b.id}')"><i data-lucide="radio-tower" width="12" height="12"></i> Dispatch</button>` : ''}
+            ${canAssign ? `<button class="btn btn--outline btn--sm" onclick="openAssignModal('${b.id}')"><i data-lucide="user-check" width="12" height="12"></i> Assign</button>` : ''}
+            ${canCancel ? `<button class="btn btn--ghost btn--sm" style="color:var(--color-error)" onclick="confirmCancel('${b.id}')"><i data-lucide="x-circle" width="12" height="12"></i></button>` : ''}
+            <a href="/track/${b.id}" class="btn btn--ghost btn--sm" target="_blank"><i data-lucide="eye" width="12" height="12"></i></a>
+          </div>
+        </td>
+      </tr>
+    `}).join('');
+
+    if (tbody) tbody.innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">No bookings found</td></tr>';
+    if (recentTbody) {
+      const recentRows = bookings.slice(0, 5).map(b => `
+        <tr>
+          <td><code style="font-size:var(--text-xs);font-family:var(--font-mono)">${(b.id||'').substr(0,8).toUpperCase()}</code></td>
+          <td>${b.customer_name||'—'}</td>
+          <td style="max-width:120px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${b.pickup_address||'—'}</div></td>
+          <td><span class="badge ${statusBadgeClass(b.status)}">${b.status||'—'}</span></td>
+          <td style="font-weight:700">$${parseFloat(b.estimated_fare||0).toFixed(2)}</td>
+          <td><a href="/track/${b.id}" class="btn btn--ghost btn--sm" target="_blank"><i data-lucide="external-link" width="12" height="12"></i></a></td>
+        </tr>
+      `).join('');
+      recentTbody.innerHTML = recentRows;
+    }
+    lucide.createIcons();
+  }
+
+  function statusBadgeClass(status) {
+    const map = {pending:'badge--pending',dispatched:'badge--accent',accepted:'badge--accent',in_progress:'badge--pending',completed:'badge--completed',cancelled:'badge--cancelled'};
+    return map[status] || '';
+  }
+
+  function filterByStatus(status, btn) {
+    statusFilter = status;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    renderBookings(allBookings);
+  }
+
+  function filterBookings() { renderBookings(allBookings); }
+
+  // Load drivers
+  async function loadDrivers() {
+    try {
+      const res = await fetch('/api/drivers');
+      if (res.ok) {
+        const data = await res.json();
+        const drivers = data.drivers || [];
+        renderDrivers(drivers);
+      } else {
+        renderDrivers(getDemoDrivers());
+      }
+    } catch {
+      renderDrivers(getDemoDrivers());
+    }
+  }
+
+  function getDemoDrivers() {
+    return [
+      {id:'1', name:'Saqib', phone:'+12895551001', status:'available', vehicle:'Toyota Camry', plate:'HMLT-01'},
+      {id:'2', name:'Driver 2', phone:'+12895551002', status:'available', vehicle:'Honda Civic', plate:'HMLT-02'},
+      {id:'3', name:'Driver 3', phone:'+12895551003', status:'offline', vehicle:'Ford Escape', plate:'HMLT-03'},
+      {id:'4', name:'Driver 4', phone:'+12895551004', status:'offline', vehicle:'Chrysler Pacifica', plate:'HMLT-04'},
+    ];
+  }
+
+  function renderDrivers(drivers) {
+    allDrivers = drivers;
+    const grid = document.getElementById('driverGrid');
+    if (!drivers.length) {
+      grid.innerHTML = '<div style="text-align:center;color:var(--color-text-muted);padding:var(--space-12);grid-column:1/-1">No drivers found</div>';
+      return;
+    }
+    grid.innerHTML = drivers.map(d => {
+      const initials = (d.name||'D').substr(0,2).toUpperCase();
+      const statusClass = {available:'badge--active', busy:'badge--pending', offline:'badge--cancelled'}[d.status] || '';
+      return `
+        <div class="driver-card">
+          <div class="driver-card__top">
+            <div class="driver-card__avatar">${initials}</div>
+            <div>
+              <div class="driver-card__name">${d.name||'Driver'}</div>
+              <div class="driver-card__phone">${d.phone||''}</div>
+            </div>
+          </div>
+          <div class="driver-card__status-row">
+            <span class="badge ${statusClass}">${d.status||'offline'}</span>
+          </div>
+          <div class="driver-card__meta">
+            <div class="driver-meta-item"><i data-lucide="car" width="12" height="12"></i>${d.vehicle||'—'}</div>
+            <div class="driver-meta-item"><i data-lucide="hash" width="12" height="12"></i>${d.plate||'—'}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    document.getElementById('kpiAvailable').textContent = drivers.filter(d=>d.status==='available').length;
+    document.getElementById('kpiDriverChange').textContent = `${drivers.length} total`;
+    lucide.createIcons();
+  }
+
+  async function dispatchBooking(bookingId) {
+    try {
+      const res = await fetch('/api/admin/dispatch', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ booking_id: bookingId })
+      });
+      if (res.ok) {
+        showToast('Booking dispatched!', 'success');
+        loadBookings();
+      } else {
+        showToast('Dispatch failed. Check driver availability.', 'error');
+      }
+    } catch {
+      showToast('Demo: dispatch simulated', 'info');
+    }
+  }
+
+  async function loadSms() {
+    try {
+      const res = await fetch('/api/admin/sms-log');
+      if (res.ok) {
+        const logs = await res.json();
+        renderSmsLog(logs);
+      } else {
+        renderSmsLog([]);
+      }
+    } catch {
+      renderSmsLog([]);
+    }
+  }
+
+  function renderSmsLog(logs) {
+    const el = document.getElementById('smsLog');
+    if (!logs.length) {
+      el.innerHTML = '<div style="color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-4)">No SMS messages yet</div>';
+      return;
+    }
+    el.innerHTML = logs.map(l => `
+      <div class="sms-item">
+        <div class="sms-item__time">${new Date(l.sent_at||l.timestamp).toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'})}</div>
+        <div class="sms-item__to">${l.to_phone||'—'}</div>
+        <div class="sms-item__msg">${l.body||l.message||'—'}</div>
+      </div>
+    `).join('');
+  }
+
+  function openNewBookingModal() {
+    window.open('/booking', '_blank');
+  }
+
+  function adminLogout() {
+    fetch('/admin/logout').catch(()=>{});
+    document.getElementById('loginOverlay').style.display = 'flex';
+  }
+
+  // ── Assign Modal ─────────────────────────────────────────────
+  let assignBookingId = null;
+  let cancelBookingId = null;
+
+  function openAssignModal(bookingId) {
+    assignBookingId = bookingId;
+    const available = allDrivers.filter(d => d.status === 'available');
+    const el = document.getElementById('assignDriverList');
+    if (!available.length) {
+      el.innerHTML = '<div style="text-align:center;color:var(--color-text-muted);padding:var(--space-4)">No available drivers</div>';
+    } else {
+      el.innerHTML = available.map(d => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-lg)">
+          <div>
+            <div style="font-weight:700;font-size:var(--text-sm)">${d.name}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${d.vehicle||''} • ${d.phone||''}</div>
+          </div>
+          <button class="btn btn--accent btn--sm" onclick="executeAssign('${d.id}')">Assign</button>
+        </div>
+      `).join('');
+    }
+    document.getElementById('assignModal').style.display = 'flex';
+    lucide.createIcons();
+  }
+
+  function closeAssignModal() {
+    document.getElementById('assignModal').style.display = 'none';
+    assignBookingId = null;
+  }
+
+  async function executeAssign(driverId) {
+    if (!assignBookingId) return;
+    try {
+      const res = await fetch('/api/admin/assign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ booking_id: assignBookingId, driver_id: driverId })
+      });
+      if (res.ok) {
+        showToast('Driver assigned successfully', 'success');
+        closeAssignModal();
+        loadBookings();
+      } else {
+        showToast('Assignment failed', 'error');
+      }
+    } catch { showToast('Demo: assignment simulated', 'info'); closeAssignModal(); }
+  }
+
+  function confirmCancel(bookingId) {
+    cancelBookingId = bookingId;
+    document.getElementById('cancelModal').style.display = 'flex';
+  }
+
+  function closeCancelModal() {
+    document.getElementById('cancelModal').style.display = 'none';
+    cancelBookingId = null;
+  }
+
+  async function executeCancelBooking() {
+    if (!cancelBookingId) return;
+    try {
+      const res = await fetch(`/api/bookings/${cancelBookingId}/cancel`, { method: 'PATCH' });
+      if (res.ok) {
+        showToast('Booking cancelled', 'success');
+        closeCancelModal();
+        loadBookings();
+      } else { showToast('Cancel failed', 'error'); }
+    } catch { showToast('Demo: cancel simulated', 'info'); closeCancelModal(); }
+  }
+
+  // ── Receipts ─────────────────────────────────────────────────
+  async function loadReceipts() {
+    try {
+      const res = await fetch('/api/admin/receipts');
+      if (!res.ok) return;
+      const data = await res.json();
+      const receipts = data.receipts || [];
+      const tbody = document.getElementById('receiptsTbody');
+      if (!receipts.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8)">No completed bookings yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = receipts.map(b => `
+        <tr>
+          <td><code style="font-size:var(--text-xs)">${(b.id||'').substr(0,8).toUpperCase()}</code></td>
+          <td>${b.customer_name||'—'}</td>
+          <td style="font-weight:700">$${parseFloat(b.estimated_fare||0).toFixed(2)}</td>
+          <td style="font-size:var(--text-xs)">${new Date(b.created_at).toLocaleDateString('en-CA')}</td>
+          <td>
+            <div class="row-actions">
+              <a href="/api/bookings/${b.id}/receipt" class="btn btn--outline btn--sm" download>
+                <i data-lucide="download" width="12" height="12"></i> PDF
+              </a>
+              <button class="btn btn--ghost btn--sm" onclick="emailReceipt('${b.id}')">
+                <i data-lucide="mail" width="12" height="12"></i> Email
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    } catch(e) {}
+  }
+
+  async function emailReceipt(bookingId) {
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/send-receipt`, { method: 'POST' });
+      showToast(res.ok ? 'Receipt emailed!' : 'Email failed', res.ok ? 'success' : 'error');
+    } catch { showToast('Demo: email simulated', 'info'); }
+  }
+
+  // ── Hospital Runs ─────────────────────────────────────────────
+  async function loadHospitalRuns() {
+    try {
+      const res = await fetch('/api/admin/oasr');
+      if (!res.ok) return;
+      const bookings = await res.json();
+      const today = new Date().toDateString();
+      const todayRuns = bookings.filter(b => new Date(b.created_at).toDateString() === today);
+      const pending = bookings.filter(b => ['pending_assignment','needs_review'].includes(b.status));
+      const completed = todayRuns.filter(b => b.status === 'completed');
+      document.getElementById('hTodayCount').textContent = todayRuns.length;
+      document.getElementById('hPendingCount').textContent = pending.length;
+      document.getElementById('hCompletedCount').textContent = completed.length;
+      const list = document.getElementById('hospitalRunsList');
+      if (!bookings.length) {
+        list.innerHTML = '<div style="text-align:center;padding:var(--space-8);color:var(--color-text-muted);font-size:var(--text-sm)">No hospital runs yet</div>';
+        return;
+      }
+      list.innerHTML = bookings.map(b => `
+        <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:var(--space-4)">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-2)">
+            <div>
+              <div style="font-weight:700">${b.customer_name || 'OASR Patient'}</div>
+              <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${b.scheduled_for ? new Date(b.scheduled_for).toLocaleString('en-CA') : 'No time set'}</div>
+            </div>
+            <span class="badge ${b.status === 'needs_review' ? 'badge--pending' : b.status === 'completed' ? 'badge--completed' : 'badge--accent'}">${b.status.replace('_',' ')}</span>
+          </div>
+          <div style="font-size:var(--text-sm);margin-bottom:var(--space-3)">
+            <div>📍 ${b.pickup_address || '—'}</div>
+            <div>🏥 ${b.dropoff_address || '—'}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn--accent btn--sm" onclick="openAssignModal('${b.id}')"><i data-lucide="user-check" width="12" height="12"></i> Assign Driver</button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    } catch(e) {}
+  }
+
+  async function parseOasrEmail() {
+    const text = document.getElementById('oasrEmailText').value.trim();
+    if (!text) { showToast('Please paste email text first', 'warning'); return; }
+    try {
+      const res = await fetch('/api/oasr/parse', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ raw_email_text: text })
+      });
+      const data = await res.json();
+      const preview = document.getElementById('oasrPreview');
+      preview.style.display = 'block';
+      const p = data.parsed || {};
+      preview.innerHTML = `
+        <div style="font-weight:700;margin-bottom:var(--space-2)">${data.needs_review ? '⚠ Needs Review' : '✓ Auto-imported'} — Booking ${data.booking_id}</div>
+        <div>Patient: ${p.patient_name || '—'}</div>
+        <div>Pickup: ${p.pickup_address || '—'}</div>
+        <div>Hospital: ${p.dropoff_address || '—'}</div>
+        <div>Date/Time: ${p.ride_date || '—'} ${p.ride_time || ''}</div>
+        <div>Confidence: ${p.confidence || 0}/5</div>
+      `;
+      showToast(data.needs_review ? 'Imported for review' : 'Booking created!', data.needs_review ? 'warning' : 'success');
+      loadHospitalRuns();
+    } catch(e) {
+      showToast('Parse failed: ' + e.message, 'error');
+    }
+  }
+
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.innerHTML = `<span>${ ({success:'✓',error:'✕',warning:'⚠',info:'ℹ'})[type]||'ℹ' }</span><span style="font-size:var(--text-sm);font-weight:500">${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
+  // ── Analytics ─────────────────────────────────────────────
+  let revenueChartInst = null;
+  let bookingChartInst = null;
+  let acceptanceChartInst = null;
+
+  async function loadAnalytics(period = 'week') {
+    // Update button active state
+    ['Day','Week','Month'].forEach(p => {
+      const btn = document.getElementById(`anal${p}`);
+      if (btn) btn.classList.toggle('active', p.toLowerCase() === period);
+    });
+
+    try {
+      // Load revenue data
+      const revRes = await fetch(`/api/admin/revenue?period=${period}`);
+      const revData = await revRes.json();
+
+      // Load all bookings for booking volume chart
+      const bookRes = await fetch('/api/bookings');
+      const bookData = await bookRes.json();
+      const allBookings = bookData.bookings || [];
+
+      // Load driver history for acceptance rate chart
+      const drvRes = await fetch('/api/admin/driver-history');
+      const drvData = await drvRes.json();
+      const drivers = drvData.drivers || [];
+
+      // KPI Cards
+      const total = revData.total || 0;
+      const completed = revData.completed || 0;
+      const cancelled = allBookings.filter(b => b.status === 'cancelled').length;
+      const total_b = allBookings.length;
+      const avgFare = completed > 0 ? (total / completed) : 0;
+      const successRate = total_b > 0 ? Math.round((completed / total_b) * 100) : 0;
+
+      document.getElementById('kpiRevenue').textContent = `$${total.toFixed(0)}`;
+      document.getElementById('kpiRides').textContent = completed;
+      document.getElementById('kpiAvgFare').textContent = `$${avgFare.toFixed(2)}`;
+      document.getElementById('kpiSuccess').textContent = `${successRate}%`;
+
+      // Revenue Chart
+      const revLabels = (revData.buckets || []).map(b => b.label);
+      const revValues = (revData.buckets || []).map(b => b.revenue);
+      if (revenueChartInst) revenueChartInst.destroy();
+      const revCtx = document.getElementById('revenueChart').getContext('2d');
+      revenueChartInst = new Chart(revCtx, {
+        type: 'line',
+        data: {
+          labels: revLabels.length ? revLabels : ['No data'],
+          datasets: [{
+            label: 'Revenue (CAD)',
+            data: revValues.length ? revValues : [0],
+            borderColor: '#f0a500',
+            backgroundColor: 'rgba(240,165,0,0.12)',
+            tension: 0.3,
+            fill: true,
+            pointBackgroundColor: '#f0a500'
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { callback: v => `$${v}` } },
+            x: { ticks: { maxRotation: 45 } }
+          }
+        }
+      });
+
+      // Booking volume chart
+      const completedCount = allBookings.filter(b => b.status === 'completed').length;
+      const cancelledCount = allBookings.filter(b => b.status === 'cancelled').length;
+      const pendingCount = allBookings.filter(b => ['pending','dispatched','accepted','in_progress'].includes(b.status)).length;
+      if (bookingChartInst) bookingChartInst.destroy();
+      const bookCtx = document.getElementById('bookingChart').getContext('2d');
+      bookingChartInst = new Chart(bookCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Completed', 'Cancelled', 'Active'],
+          datasets: [{
+            data: [completedCount, cancelledCount, pendingCount],
+            backgroundColor: ['#f0a500', '#ef4444', '#3b82f6'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+
+      // Driver acceptance chart
+      const drvLabels = drivers.map(d => d.name);
+      const drvRates = drivers.map(d => d.acceptance_rate || 100);
+      if (acceptanceChartInst) acceptanceChartInst.destroy();
+      const accCtx = document.getElementById('acceptanceChart').getContext('2d');
+      acceptanceChartInst = new Chart(accCtx, {
+        type: 'bar',
+        data: {
+          labels: drvLabels,
+          datasets: [{
+            label: 'Acceptance Rate (%)',
+            data: drvRates,
+            backgroundColor: '#f0a500',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, max: 100, ticks: { callback: v => `${v}%` } } }
+        }
+      });
+    } catch(e) {
+      console.error('Analytics load error:', e);
+    }
+  }
+
+  // ── Leaflet Map ────────────────────────────────────────────
+  let dispatchMapInst = null;
+  let driverMarkers = {};
+
+  function initDispatchMap() {
+    if (dispatchMapInst) return;
+    const mapEl = document.getElementById('dispatchMap');
+    if (!mapEl) return;
+
+    dispatchMapInst = L.map('dispatchMap').setView([43.2557, -79.8711], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(dispatchMapInst);
+  }
+
+  function updateDispatchMap(drivers) {
+    if (!dispatchMapInst) initDispatchMap();
+    if (!dispatchMapInst) return;
+
+    const seen = new Set();
+    drivers.forEach(d => {
+      if (!d.lat || !d.lng) return;
+      seen.add(d.id);
+
+      const color = d.status === 'available' ? '#22c55e' : d.status === 'busy' ? '#f0a500' : '#6b7280';
+      const initials = (d.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3)">${initials}</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+
+      const popup = `<b>${d.name}</b><br>Status: ${d.status}<br>Vehicle: ${d.vehicle || '—'}${d.active_booking ? `<br>Booking: ${d.active_booking.id}` : ''}`;
+
+      if (driverMarkers[d.id]) {
+        driverMarkers[d.id].setLatLng([d.lat, d.lng]);
+        driverMarkers[d.id].setIcon(icon);
+        driverMarkers[d.id].getPopup().setContent(popup);
+      } else {
+        const marker = L.marker([d.lat, d.lng], { icon })
+          .addTo(dispatchMapInst)
+          .bindPopup(popup);
+        driverMarkers[d.id] = marker;
+      }
+    });
+
+    // Remove markers for drivers no longer in list
+    Object.keys(driverMarkers).forEach(id => {
+      if (!seen.has(id)) {
+        dispatchMapInst.removeLayer(driverMarkers[id]);
+        delete driverMarkers[id];
+      }
+    });
+  }
+
+  async function loadDispatchMapData() {
+    try {
+      const res = await fetch('/api/admin/driver-locations');
+      if (!res.ok) return;
+      const drivers = await res.json();
+      updateDispatchMap(Array.isArray(drivers) ? drivers : []);
+    } catch(e) {}
+  }
+  </script>
 </body>
 </html>

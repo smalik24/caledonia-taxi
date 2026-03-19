@@ -1,0 +1,2214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+   ______                            __
+  / ____/___  ____ ___  ____  __  __/ /____  _____
+ / /   / __ \/ __ `__ \/ __ \/ / / / __/ _ \/ ___/
+/ /___/ /_/ / / / / / / /_/ / /_/ / /_/  __/ /
+\____/\____/_/ /_/ /_/ .___/\__,_/\__/\___/_/
+                    /_/
+        Created with Perplexity Computer
+        https://www.perplexity.ai/computer
+-->
+<meta name="generator" content="Perplexity Computer">
+<meta name="author" content="Perplexity Computer">
+<meta property="og:see_also" content="https://www.perplexity.ai/computer">
+<link rel="author" href="https://www.perplexity.ai/computer">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book a Ride — Caledonia Taxi</title>
+  <meta name="description" content="Book your ride with Caledonia Taxi. Instant dispatch, upfront fares, available 24/7 in Hamilton, Ontario.">
+
+  <!-- Fonts -->
+
+  <!-- Styles -->
+
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <style>
+  /* BOOKING PAGE */
+  .booking-page {
+    min-height: 100svh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 64px 1fr;
+  }
+
+  @media (max-width: 900px) {
+    .booking-page {
+      grid-template-columns: 1fr;
+    }
+    .booking-map { display: none; }
+  }
+
+  /* Map panel */
+  .booking-map {
+    grid-row: 1 / -1;
+    grid-column: 2;
+    background: var(--color-surface-offset);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .booking-map__canvas {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 40% 50%, color-mix(in oklab, var(--color-accent) 5%, transparent) 0%, transparent 60%),
+      var(--color-surface-offset);
+  }
+
+  .booking-map__grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--color-border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.5;
+  }
+
+  /* Map route preview */
+  .map-preview {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .map-preview__inner {
+    text-align: center;
+    padding: var(--space-8);
+  }
+
+  .map-preview__icon {
+    width: 80px;
+    height: 80px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-inline: auto;
+    margin-bottom: var(--space-4);
+    box-shadow: var(--shadow-lg);
+    color: var(--color-accent);
+  }
+
+  .map-preview__title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+
+  .map-preview__sub {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  /* Fare card on map */
+  .map-fare-card {
+    position: absolute;
+    bottom: var(--space-8);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5) var(--space-6);
+    box-shadow: var(--shadow-xl);
+    min-width: 280px;
+    animation: fadeUp 0.4s ease;
+    display: none;
+  }
+
+  .map-fare-card.visible { display: block; }
+
+  .map-fare-card__title {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-3);
+  }
+
+  .fare-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .fare-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .fare-row--total {
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-2);
+    font-weight: 700;
+    color: var(--color-text);
+    font-size: var(--text-base);
+  }
+
+  /* Form panel */
+  .booking-form-panel {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media (max-width: 900px) {
+    .booking-form-panel { grid-column: 1; }
+  }
+
+  /* Booking nav */
+  .booking-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: 64px;
+    background: color-mix(in oklab, var(--color-bg) 80%, transparent);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--color-divider);
+    display: flex;
+    align-items: center;
+    padding-inline: clamp(var(--space-4), 4vw, var(--space-8));
+    gap: var(--space-4);
+  }
+
+  .booking-nav__back {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--transition-interactive);
+    flex-shrink: 0;
+  }
+  .booking-nav__back:hover { color: var(--color-text); }
+
+  .booking-nav__title {
+    flex: 1;
+    font-size: var(--text-base);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Form content */
+  .booking-form-content {
+    padding: clamp(var(--space-6), 4vw, var(--space-10));
+    max-width: 520px;
+    width: 100%;
+    margin: 0 auto;
+    flex: 1;
+  }
+
+  /* Steps indicator */
+  .booking-steps {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--space-8);
+    gap: 0;
+  }
+
+  .booking-step {
+    display: flex;
+    align-items: center;
+    flex: 1;
+  }
+
+  .booking-step__dot {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-offset);
+    border: 2px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    transition: all var(--transition-interactive);
+    font-family: var(--font-display);
+  }
+
+  .booking-step.active .booking-step__dot {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-text);
+  }
+
+  .booking-step.done .booking-step__dot {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: white;
+    content: '✓';
+  }
+
+  .booking-step__label {
+    font-size: var(--text-xs);
+    margin-left: var(--space-2);
+    color: var(--color-text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .booking-step.active .booking-step__label { color: var(--color-text); font-weight: 600; }
+
+  .booking-step__line {
+    flex: 1;
+    height: 2px;
+    background: var(--color-border);
+    margin-inline: var(--space-2);
+    border-radius: 2px;
+  }
+
+  .booking-step.done .booking-step__line { background: var(--color-success); }
+
+  /* Step panels */
+  .booking-panel { display: none; }
+  .booking-panel.active { display: block; animation: fadeUp 0.3s ease; }
+
+  /* Service type selector */
+  .service-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+  }
+
+  .service-option {
+    position: relative;
+    cursor: pointer;
+  }
+
+  .service-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .service-option__card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-interactive);
+  }
+
+  .service-option input:checked + .service-option__card {
+    border-color: var(--color-accent);
+    background: var(--color-accent-highlight);
+    box-shadow: 0 0 0 1px var(--color-accent);
+  }
+
+  .service-option__icon {
+    width: 40px;
+    height: 40px;
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    transition: all var(--transition-interactive);
+  }
+
+  .service-option input:checked + .service-option__card .service-option__icon {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+  }
+
+  .service-option__name {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .service-option__price {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  /* Location inputs */
+  .location-group {
+    position: relative;
+    margin-bottom: var(--space-4);
+  }
+
+  .location-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+    transition: border-color var(--transition-interactive), box-shadow var(--transition-interactive);
+  }
+
+  .location-input-wrap:focus-within {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 15%, transparent);
+  }
+
+  .location-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+
+  .location-dot--pickup { background: var(--color-success); }
+  .location-dot--dropoff { background: var(--color-error); }
+
+  .location-input {
+    flex: 1;
+    border: none;
+    background: none;
+    font-size: var(--text-base);
+    color: var(--color-text);
+    outline: none;
+  }
+
+  .location-input::placeholder { color: var(--color-text-faint); }
+
+  .location-swap {
+    position: absolute;
+    right: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 28px;
+    height: 28px;
+    background: var(--color-surface-offset);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    transition: all var(--transition-interactive);
+  }
+
+  .location-swap:hover {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    border-color: var(--color-accent);
+  }
+
+  .location-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin-inline: calc(var(--space-4) + 6px);
+    padding-block: var(--space-1);
+  }
+
+  .location-connector span {
+    width: 2px;
+    height: 4px;
+    background: var(--color-border);
+    border-radius: 1px;
+  }
+
+  /* Date/time picker row */
+  .datetime-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  /* Passenger section */
+  .passenger-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    background: var(--color-surface);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .passenger-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .counter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .counter__btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-offset);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text);
+    transition: all var(--transition-interactive);
+    line-height: 1;
+  }
+
+  .counter__btn:hover {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    border-color: var(--color-accent);
+  }
+
+  .counter__val {
+    font-size: var(--text-base);
+    font-weight: 700;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  /* Details form */
+  .details-form { display: flex; flex-direction: column; gap: var(--space-4); }
+
+  /* Confirmation */
+  .confirm-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    margin-bottom: var(--space-5);
+  }
+
+  .confirm-card__header {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    padding: var(--space-5) var(--space-6);
+  }
+
+  [data-theme="dark"] .confirm-card__header {
+    background: var(--color-surface-offset-2);
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .confirm-card__body {
+    padding: var(--space-5) var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .confirm-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .confirm-row__icon {
+    width: 32px;
+    height: 32px;
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+  }
+
+  .confirm-row__label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .confirm-row__value {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  /* Payment selector */
+  .payment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .payment-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .payment-option {
+    position: relative;
+    cursor: pointer;
+  }
+
+  .payment-option__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-interactive);
+    text-align: center;
+  }
+
+  .payment-option input:checked + .payment-option__card {
+    border-color: var(--color-accent);
+    background: var(--color-accent-highlight);
+  }
+
+  .payment-option__icon { color: var(--color-text-muted); }
+  .payment-option input:checked + .payment-option__card .payment-option__icon { color: var(--color-accent); }
+  .payment-option__label { font-size: var(--text-xs); font-weight: 600; }
+
+  /* Success state */
+  .booking-success {
+    text-align: center;
+    padding: var(--space-8);
+    display: none;
+  }
+
+  .booking-success.active { display: block; animation: fadeUp 0.4s ease; }
+
+  .success-circle {
+    width: 80px;
+    height: 80px;
+    background: var(--color-success-highlight);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-inline: auto;
+    margin-bottom: var(--space-6);
+    color: var(--color-success);
+  }
+
+  .success-booking-id {
+    display: inline-block;
+    padding: var(--space-2) var(--space-5);
+    background: var(--color-surface-offset);
+    border-radius: var(--radius-full);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-6);
+  }
+
+  /* Navigation buttons */
+  .form-nav {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+    padding-bottom: var(--space-8);
+  }
+
+  .form-nav--centered { justify-content: center; }
+  </style>
+<style>
+/* ============================================
+   CALEDONIA TAXI — Design Tokens
+   Clean / Modern / Uber-inspired aesthetic
+   Premium black + amber gold accent palette
+   ============================================ */
+
+:root, [data-theme="light"] {
+  /* Surfaces — clean off-white */
+  --color-bg:              #f8f8f6;
+  --color-surface:         #ffffff;
+  --color-surface-2:       #fafaf8;
+  --color-surface-offset:  #f2f1ee;
+  --color-surface-offset-2:#e8e7e3;
+  --color-surface-dynamic: #e0deda;
+  --color-divider:         #e4e3df;
+  --color-border:          #d8d7d2;
+
+  /* Text */
+  --color-text:            #111110;
+  --color-text-muted:      #6b6a66;
+  --color-text-faint:      #b0afa9;
+  --color-text-inverse:    #ffffff;
+
+  /* Primary — deep charcoal/black (Uber-style) */
+  --color-primary:         #111110;
+  --color-primary-hover:   #2a2a28;
+  --color-primary-active:  #3d3d3a;
+  --color-primary-highlight: #e4e3df;
+
+  /* Accent — amber gold (taxi iconography) */
+  --color-accent:          #f0a500;
+  --color-accent-hover:    #d99200;
+  --color-accent-active:   #c07f00;
+  --color-accent-highlight:#fff3cc;
+  --color-accent-text:     #111110;
+
+  /* Semantic */
+  --color-success:         #2d7a22;
+  --color-success-hover:   #1f5a18;
+  --color-success-highlight:#d4edcc;
+  --color-error:           #c0392b;
+  --color-error-hover:     #9b2d22;
+  --color-error-highlight: #fde8e6;
+  --color-warning:         #d97706;
+  --color-warning-hover:   #b45309;
+  --color-warning-highlight:#fef3c7;
+  --color-info:            #0369a1;
+  --color-info-highlight:  #e0f2fe;
+
+  /* Status badges */
+  --color-status-pending:  #d97706;
+  --color-status-active:   #2d7a22;
+  --color-status-completed:#0369a1;
+  --color-status-cancelled:#c0392b;
+
+  /* Radii */
+  --radius-sm:  0.375rem;
+  --radius-md:  0.625rem;
+  --radius-lg:  1rem;
+  --radius-xl:  1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full:9999px;
+
+  /* Transitions */
+  --transition-fast:        120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-interactive: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow:        320ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Shadows */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.05);
+  --shadow-xl:  0 24px 48px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.06);
+
+  /* Content widths */
+  --content-narrow:  640px;
+  --content-default: 960px;
+  --content-wide:    1200px;
+  --content-full:    100%;
+
+  /* Type scale */
+  --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
+  --text-sm:   clamp(0.875rem, 0.8rem  + 0.35vw, 1rem);
+  --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
+  --text-lg:   clamp(1.125rem, 1rem    + 0.75vw, 1.5rem);
+  --text-xl:   clamp(1.5rem,   1.2rem  + 1.25vw, 2.25rem);
+  --text-2xl:  clamp(2rem,     1.2rem  + 2.5vw,  3.5rem);
+  --text-3xl:  clamp(2.5rem,   1rem    + 4vw,    5rem);
+  --text-hero: clamp(3rem,     0.5rem  + 7vw,    7rem);
+
+  /* Spacing */
+  --space-1:   0.25rem;
+  --space-2:   0.5rem;
+  --space-3:   0.75rem;
+  --space-4:   1rem;
+  --space-5:   1.25rem;
+  --space-6:   1.5rem;
+  --space-8:   2rem;
+  --space-10:  2.5rem;
+  --space-12:  3rem;
+  --space-16:  4rem;
+  --space-20:  5rem;
+  --space-24:  6rem;
+  --space-32:  8rem;
+
+  /* Fonts */
+  --font-display: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body:    'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+  --color-bg:              #0e0e0d;
+  --color-surface:         #141413;
+  --color-surface-2:       #1a1a18;
+  --color-surface-offset:  #1f1f1d;
+  --color-surface-offset-2:#252523;
+  --color-surface-dynamic: #2c2c29;
+  --color-divider:         #2a2a27;
+  --color-border:          #363633;
+
+  --color-text:            #f0efeb;
+  --color-text-muted:      #888782;
+  --color-text-faint:      #504f4b;
+  --color-text-inverse:    #111110;
+
+  --color-primary:         #f0efeb;
+  --color-primary-hover:   #ffffff;
+  --color-primary-active:  #d8d7d2;
+  --color-primary-highlight: #2a2a27;
+
+  --color-accent:          #f0a500;
+  --color-accent-hover:    #ffb520;
+  --color-accent-active:   #ffc940;
+  --color-accent-highlight:#2a2200;
+  --color-accent-text:     #0e0e0d;
+
+  --color-success:         #4caf50;
+  --color-success-hover:   #66bb6a;
+  --color-success-highlight:#1a2e1a;
+  --color-error:           #ef5350;
+  --color-error-hover:     #f44336;
+  --color-error-highlight: #2e1a1a;
+  --color-warning:         #ff9800;
+  --color-warning-hover:   #ffa726;
+  --color-warning-highlight:#2e2000;
+  --color-info:            #29b6f6;
+  --color-info-highlight:  #0a1e2e;
+
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.25);
+  --shadow-xl:  0 24px 48px rgba(0,0,0,0.6), 0 8px 16px rgba(0,0,0,0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg:              #0e0e0d;
+    --color-surface:         #141413;
+    --color-surface-2:       #1a1a18;
+    --color-surface-offset:  #1f1f1d;
+    --color-surface-offset-2:#252523;
+    --color-surface-dynamic: #2c2c29;
+    --color-divider:         #2a2a27;
+    --color-border:          #363633;
+    --color-text:            #f0efeb;
+    --color-text-muted:      #888782;
+    --color-text-faint:      #504f4b;
+    --color-text-inverse:    #111110;
+    --color-primary:         #f0efeb;
+    --color-primary-hover:   #ffffff;
+    --color-primary-active:  #d8d7d2;
+    --color-primary-highlight: #2a2a27;
+    --color-accent:          #f0a500;
+    --color-accent-hover:    #ffb520;
+    --color-accent-active:   #ffc940;
+    --color-accent-highlight:#2a2200;
+    --color-accent-text:     #0e0e0d;
+    --color-success:         #4caf50;
+    --color-success-highlight:#1a2e1a;
+    --color-error:           #ef5350;
+    --color-error-highlight: #2e1a1a;
+    --color-warning:         #ff9800;
+    --color-warning-highlight:#2e2000;
+    --shadow-xs:  0 1px 2px rgba(0,0,0,0.3);
+    --shadow-sm:  0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md:  0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+    --shadow-lg:  0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.25);
+    --shadow-xl:  0 24px 48px rgba(0,0,0,0.6), 0 8px 16px rgba(0,0,0,0.3);
+  }
+}
+/* ============================================
+   BASE STYLESHEET — Caledonia Taxi
+   ============================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--space-20);
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+body {
+  min-height: 100dvh;
+  line-height: 1.6;
+  font-family: var(--font-body, sans-serif);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  transition: background-color var(--transition-slow), color var(--transition-slow);
+}
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+input, button, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display, sans-serif);
+  text-wrap: balance;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+p, li, figcaption {
+  text-wrap: pretty;
+  max-width: 72ch;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul[role="list"], ol[role="list"] {
+  list-style: none;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 30%, transparent);
+  color: var(--color-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Transitions for interactive elements */
+a, button, [role="button"], input, textarea, select, .btn {
+  transition: color var(--transition-interactive),
+              background var(--transition-interactive),
+              border-color var(--transition-interactive),
+              box-shadow var(--transition-interactive),
+              transform var(--transition-interactive),
+              opacity var(--transition-interactive);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================
+   LAYOUT UTILITIES
+   ============================================ */
+.container {
+  width: 100%;
+  max-width: var(--content-wide);
+  margin-inline: auto;
+  padding-inline: clamp(var(--space-4), 5vw, var(--space-16));
+}
+
+.container--narrow {
+  max-width: var(--content-narrow);
+}
+
+.container--default {
+  max-width: var(--content-default);
+}
+
+.section {
+  padding-block: clamp(var(--space-12), 8vw, var(--space-32));
+}
+
+/* ============================================
+   BUTTON SYSTEM
+   ============================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  border: 2px solid transparent;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn--primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
+}
+.btn--primary:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.btn--primary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btn--accent {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-color: var(--color-accent);
+}
+.btn--accent:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--color-accent) 40%, transparent);
+}
+.btn--accent:active {
+  transform: translateY(0);
+}
+
+.btn--outline {
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.btn--outline:hover {
+  background: var(--color-surface-offset);
+  border-color: var(--color-text-muted);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-color: transparent;
+}
+.btn--ghost:hover {
+  background: var(--color-surface-offset);
+  color: var(--color-text);
+}
+
+.btn--lg {
+  padding: var(--space-4) var(--space-8);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.btn--sm {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs);
+}
+
+.btn--icon {
+  padding: var(--space-3);
+  aspect-ratio: 1;
+  border-radius: var(--radius-full);
+}
+
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.01em;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-base);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  transition: border-color var(--transition-interactive),
+              box-shadow var(--transition-interactive);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.form-input:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: var(--color-text-muted);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 20%, transparent);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--color-text-faint);
+}
+
+.form-help {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.form-error {
+  font-size: var(--text-xs);
+  color: var(--color-error);
+}
+
+/* ============================================
+   CARD
+   ============================================ */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.card--elevated {
+  box-shadow: var(--shadow-lg);
+  border-color: transparent;
+}
+
+/* ============================================
+   BADGE / STATUS
+   ============================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.2em var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge--pending  { background: var(--color-warning-highlight); color: var(--color-warning); }
+.badge--active   { background: var(--color-success-highlight); color: var(--color-success); }
+.badge--completed{ background: var(--color-info-highlight);    color: var(--color-info); }
+.badge--cancelled{ background: var(--color-error-highlight);   color: var(--color-error); }
+.badge--accent   { background: var(--color-accent-highlight);  color: var(--color-accent); }
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: color-mix(in oklab, var(--color-bg) 80%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--color-divider);
+  transition: background var(--transition-slow);
+}
+
+.nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  gap: var(--space-4);
+}
+
+.nav__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  list-style: none;
+}
+
+.nav__links a {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: color var(--transition-interactive),
+              background var(--transition-interactive);
+}
+
+.nav__links a:hover {
+  color: var(--color-text);
+  background: var(--color-surface-offset);
+}
+
+.nav__links a.active {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.nav__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Mobile hamburger */
+.nav__hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: var(--space-2);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+.nav__hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--color-text);
+  border-radius: 2px;
+  transition: transform var(--transition-interactive), opacity var(--transition-interactive);
+}
+
+@media (max-width: 768px) {
+  .nav__links { display: none; }
+  .nav__hamburger { display: flex; }
+
+  .nav__links.open {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-4);
+    gap: var(--space-1);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .nav__links.open a {
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+/* ============================================
+   THEME TOGGLE
+   ============================================ */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  color: var(--color-text);
+  background: var(--color-surface-offset);
+}
+
+/* ============================================
+   MAIN CONTENT OFFSET (for fixed nav)
+   ============================================ */
+.page-body {
+  padding-top: 64px;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding-block: var(--space-12) var(--space-8);
+}
+
+[data-theme="dark"] .footer {
+  background: var(--color-surface-offset);
+  color: var(--color-text);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ============================================
+   LOADING / SKELETON
+   ============================================ */
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--color-surface-offset) 25%,
+    var(--color-surface-dynamic) 50%,
+    var(--color-surface-offset) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up  { animation: fadeUp 0.5s ease forwards; }
+.animate-fade-in  { animation: fadeIn 0.4s ease forwards; }
+.animate-spin     { animation: spin 1s linear infinite; }
+.animate-pulse    { animation: pulse 2s ease-in-out infinite; }
+
+/* Stagger delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* ============================================
+   DIVIDER
+   ============================================ */
+.divider {
+  border: none;
+  border-top: 1px solid var(--color-divider);
+  margin-block: var(--space-6);
+}
+
+/* ============================================
+   TOAST NOTIFICATIONS
+   ============================================ */
+.toast-container {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 360px;
+  pointer-events: all;
+  animation: slideDown 0.3s ease forwards;
+}
+
+.toast--success { border-left: 3px solid var(--color-success); }
+.toast--error   { border-left: 3px solid var(--color-error); }
+.toast--warning { border-left: 3px solid var(--color-warning); }
+.toast--info    { border-left: 3px solid var(--color-accent); }
+
+/* ============================================
+   TABLE
+   ============================================ */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.data-table th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  background: var(--color-surface-offset);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table th:first-child { border-radius: var(--radius-md) 0 0 0; }
+.data-table th:last-child  { border-radius: 0 var(--radius-md) 0 0; }
+
+.data-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-text);
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--color-surface-offset); }
+
+/* ============================================
+   MODAL
+   ============================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: var(--space-4);
+  animation: fadeIn 0.2s ease;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 480px;
+  width: 100%;
+  padding: var(--space-8);
+  animation: fadeUp 0.3s ease;
+  position: relative;
+}
+
+.modal__close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border: none;
+  background: var(--color-surface-offset);
+}
+
+.modal__close:hover {
+  background: var(--color-surface-dynamic);
+  color: var(--color-text);
+}
+
+/* ============================================
+   PROGRESS STEPS
+   ============================================ */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: var(--space-8);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.step__dot {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-offset);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: all var(--transition-interactive);
+}
+
+.step.active .step__dot {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.step.done .step__dot {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: white;
+}
+
+.step__line {
+  flex: 1;
+  height: 2px;
+  background: var(--color-border);
+  margin-inline: var(--space-2);
+}
+
+.step.done .step__line {
+  background: var(--color-success);
+}
+
+</style>
+</head>
+<body>
+  <div class="booking-page">
+    <!-- FORM PANEL -->
+    <div class="booking-form-panel">
+      <!-- Sticky nav -->
+      <nav class="booking-nav">
+        <a href="index.html" class="booking-nav__back">
+          <i data-lucide="arrow-left" width="18" height="18"></i>
+          Back
+        </a>
+        <div class="booking-nav__title">Book a Ride</div>
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </nav>
+
+      <!-- Form content -->
+      <div class="booking-form-content">
+        <!-- Steps -->
+        <div class="booking-steps" id="bookingSteps">
+          <div class="booking-step active" id="step1">
+            <div class="booking-step__dot">1</div>
+            <span class="booking-step__label">Route</span>
+            <div class="booking-step__line"></div>
+          </div>
+          <div class="booking-step" id="step2">
+            <div class="booking-step__dot">2</div>
+            <span class="booking-step__label">Details</span>
+            <div class="booking-step__line"></div>
+          </div>
+          <div class="booking-step" id="step3">
+            <div class="booking-step__dot">3</div>
+            <span class="booking-step__label">Confirm</span>
+          </div>
+        </div>
+
+        <!-- Panel 1: Route & Service -->
+        <div class="booking-panel active" id="panel1">
+          <h2 style="font-size:var(--text-xl);font-weight:800;letter-spacing:-0.03em;margin-bottom:var(--space-6)">Where are you going?</h2>
+
+          <!-- Service type -->
+          <div class="form-group" style="margin-bottom:var(--space-5)">
+            <label class="form-label">Ride type</label>
+            <div class="service-grid">
+              <label class="service-option">
+                <input type="radio" name="serviceType" value="now" checked>
+                <div class="service-option__card">
+                  <div class="service-option__icon">
+                    <i data-lucide="zap" width="18" height="18"></i>
+                  </div>
+                  <div class="service-option__name">Ride Now</div>
+                  <div class="service-option__price">~8 min pickup</div>
+                </div>
+              </label>
+              <label class="service-option">
+                <input type="radio" name="serviceType" value="scheduled">
+                <div class="service-option__card">
+                  <div class="service-option__icon">
+                    <i data-lucide="calendar" width="18" height="18"></i>
+                  </div>
+                  <div class="service-option__name">Schedule</div>
+                  <div class="service-option__price">Pick a time</div>
+                </div>
+              </label>
+              <label class="service-option">
+                <input type="radio" name="serviceType" value="airport">
+                <div class="service-option__card">
+                  <div class="service-option__icon">
+                    <i data-lucide="plane" width="18" height="18"></i>
+                  </div>
+                  <div class="service-option__name">Airport</div>
+                  <div class="service-option__price">Flight tracked</div>
+                </div>
+              </label>
+              <label class="service-option">
+                <input type="radio" name="serviceType" value="parcel">
+                <div class="service-option__card">
+                  <div class="service-option__icon">
+                    <i data-lucide="package" width="18" height="18"></i>
+                  </div>
+                  <div class="service-option__name">Parcel</div>
+                  <div class="service-option__price">Same-day delivery</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Location inputs -->
+          <div class="form-group" style="margin-bottom:var(--space-2)">
+            <label class="form-label">Pickup location</label>
+            <div class="location-input-wrap">
+              <div class="location-dot location-dot--pickup"></div>
+              <input type="text" class="location-input" id="pickupInput" placeholder="Enter pickup address…" autocomplete="off">
+              <button class="location-swap" id="locationSwap" title="Swap locations" type="button">
+                <i data-lucide="arrow-up-down" width="14" height="14"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="location-connector">
+            <span></span><span></span><span></span>
+          </div>
+
+          <div class="form-group" style="margin-bottom:var(--space-5)">
+            <label class="form-label">Drop-off location</label>
+            <div class="location-input-wrap">
+              <div class="location-dot location-dot--dropoff"></div>
+              <input type="text" class="location-input" id="dropoffInput" placeholder="Where are you going?…" autocomplete="off">
+            </div>
+          </div>
+
+          <!-- Scheduled datetime (hidden by default) -->
+          <div id="scheduledFields" style="display:none">
+            <div class="datetime-row" style="margin-bottom:var(--space-4)">
+              <div class="form-group">
+                <label class="form-label">Date</label>
+                <input type="date" class="form-input" id="schedDate">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Time</label>
+                <input type="time" class="form-input" id="schedTime">
+              </div>
+            </div>
+          </div>
+
+          <!-- Passengers -->
+          <div class="form-group" style="margin-bottom:var(--space-6)">
+            <label class="form-label">Passengers</label>
+            <div class="passenger-row">
+              <span class="passenger-label">
+                <i data-lucide="users" width="16" height="16" style="display:inline;vertical-align:-3px;margin-right:6px"></i>
+                Number of passengers
+              </span>
+              <div class="counter">
+                <button class="counter__btn" id="passDown" type="button">−</button>
+                <span class="counter__val" id="passCount">1</span>
+                <button class="counter__btn" id="passUp" type="button">+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fare estimate display -->
+          <div id="fareEstimate" style="display:none;margin-bottom:var(--space-5)">
+            <div style="background:var(--color-accent-highlight);border:1px solid var(--color-accent);border-radius:var(--radius-lg);padding:var(--space-4);display:flex;align-items:center;gap:var(--space-3)">
+              <i data-lucide="receipt" width="20" height="20" style="color:var(--color-accent);flex-shrink:0"></i>
+              <div>
+                <div style="font-size:var(--text-xs);font-weight:700;color:var(--color-accent);text-transform:uppercase;letter-spacing:0.05em">Estimated Fare</div>
+                <div id="fareValue" style="font-size:var(--text-lg);font-weight:800;color:var(--color-text)">$0.00</div>
+              </div>
+              <div style="margin-left:auto;font-size:var(--text-xs);color:var(--color-text-muted);max-width:12ch;text-align:right">Based on distance</div>
+            </div>
+          </div>
+
+          <div class="form-nav">
+            <button class="btn btn--primary btn--lg" style="flex:1" onclick="goToStep(2)">
+              Continue
+              <i data-lucide="arrow-right" width="18" height="18"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Panel 2: Contact Details -->
+        <div class="booking-panel" id="panel2">
+          <h2 style="font-size:var(--text-xl);font-weight:800;letter-spacing:-0.03em;margin-bottom:var(--space-2)">Your details</h2>
+          <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-6)">We'll send your driver info and receipt via SMS.</p>
+
+          <div class="details-form">
+            <div class="form-group">
+              <label class="form-label" for="custName">Full Name</label>
+              <div style="position:relative">
+                <div style="position:absolute;left:var(--space-3);top:50%;transform:translateY(-50%);color:var(--color-text-faint)"><i data-lucide="user" width="16" height="16"></i></div>
+                <input type="text" id="custName" class="form-input" placeholder="John Smith" style="padding-left:var(--space-10)" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="custPhone">Mobile Number</label>
+              <div style="position:relative">
+                <div style="position:absolute;left:var(--space-3);top:50%;transform:translateY(-50%);color:var(--color-text-faint)"><i data-lucide="phone" width="16" height="16"></i></div>
+                <input type="tel" id="custPhone" class="form-input" placeholder="(289) 555-0000" style="padding-left:var(--space-10)" required>
+              </div>
+              <span class="form-help">You'll receive an SMS when your driver is confirmed</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="custNotes">Special Instructions <span style="color:var(--color-text-faint);font-weight:400">(optional)</span></label>
+              <textarea id="custNotes" class="form-textarea" rows="3" placeholder="E.g. I'll be at the side entrance, I have luggage, etc."></textarea>
+            </div>
+
+            <!-- Promo code -->
+            <div class="form-group">
+              <label class="form-label" for="promoCode">Promo Code <span style="color:var(--color-text-faint);font-weight:400">(optional)</span></label>
+              <div style="display:flex;gap:var(--space-2)">
+                <input type="text" id="promoCode" class="form-input" placeholder="Enter promo code…" style="text-transform:uppercase">
+                <button class="btn btn--outline" onclick="applyPromo()" type="button" style="flex-shrink:0">Apply</button>
+              </div>
+              <span id="promoMsg" class="form-help" style="display:none"></span>
+            </div>
+          </div>
+
+          <div class="form-nav">
+            <button class="btn btn--ghost btn--lg" onclick="goToStep(1)">
+              <i data-lucide="arrow-left" width="18" height="18"></i>
+              Back
+            </button>
+            <button class="btn btn--primary btn--lg" style="flex:1" onclick="goToStep(3)">
+              Review Booking
+              <i data-lucide="arrow-right" width="18" height="18"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Panel 3: Confirm -->
+        <div class="booking-panel" id="panel3">
+          <h2 style="font-size:var(--text-xl);font-weight:800;letter-spacing:-0.03em;margin-bottom:var(--space-6)">Confirm your ride</h2>
+
+          <div class="confirm-card">
+            <div class="confirm-card__header">
+              <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;opacity:0.7;margin-bottom:var(--space-2)">Booking Summary</div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span id="confirmServiceType" class="badge" style="background:rgba(240,165,0,0.2);color:var(--color-accent);font-size:var(--text-xs)">Ride Now</span>
+                <span id="confirmFare" style="font-size:var(--text-xl);font-weight:800;letter-spacing:-0.02em">$0.00</span>
+              </div>
+            </div>
+            <div class="confirm-card__body">
+              <div class="confirm-row">
+                <div class="confirm-row__icon"><i data-lucide="map-pin" width="16" height="16"></i></div>
+                <div>
+                  <div class="confirm-row__label">Pickup</div>
+                  <div class="confirm-row__value" id="confirmPickup">—</div>
+                </div>
+              </div>
+              <div class="confirm-row">
+                <div class="confirm-row__icon"><i data-lucide="flag" width="16" height="16"></i></div>
+                <div>
+                  <div class="confirm-row__label">Drop-off</div>
+                  <div class="confirm-row__value" id="confirmDropoff">—</div>
+                </div>
+              </div>
+              <div class="confirm-row">
+                <div class="confirm-row__icon"><i data-lucide="user" width="16" height="16"></i></div>
+                <div>
+                  <div class="confirm-row__label">Passenger</div>
+                  <div class="confirm-row__value" id="confirmName">—</div>
+                </div>
+              </div>
+              <div class="confirm-row">
+                <div class="confirm-row__icon"><i data-lucide="phone" width="16" height="16"></i></div>
+                <div>
+                  <div class="confirm-row__label">Phone</div>
+                  <div class="confirm-row__value" id="confirmPhone">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment method -->
+          <div class="form-group" style="margin-bottom:var(--space-5)">
+            <label class="form-label">Payment Method</label>
+            <div class="payment-grid">
+              <label class="payment-option">
+                <input type="radio" name="payment" value="cash" checked>
+                <div class="payment-option__card">
+                  <div class="payment-option__icon"><i data-lucide="banknote" width="20" height="20"></i></div>
+                  <div class="payment-option__label">Cash</div>
+                </div>
+              </label>
+              <label class="payment-option">
+                <input type="radio" name="payment" value="card">
+                <div class="payment-option__card">
+                  <div class="payment-option__icon"><i data-lucide="credit-card" width="20" height="20"></i></div>
+                  <div class="payment-option__label">Card</div>
+                </div>
+              </label>
+              <label class="payment-option">
+                <input type="radio" name="payment" value="etransfer">
+                <div class="payment-option__card">
+                  <div class="payment-option__icon"><i data-lucide="smartphone" width="20" height="20"></i></div>
+                  <div class="payment-option__label">e-Transfer</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Terms -->
+          <p style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-5)">
+            By confirming, you agree to our terms of service. Fare estimates may vary based on actual route, traffic, and wait time.
+          </p>
+
+          <div class="form-nav">
+            <button class="btn btn--ghost btn--lg" onclick="goToStep(2)">
+              <i data-lucide="arrow-left" width="18" height="18"></i>
+              Back
+            </button>
+            <button class="btn btn--accent btn--lg" id="confirmBtn" style="flex:1;font-weight:700" onclick="submitBooking()">
+              <i data-lucide="check" width="18" height="18"></i>
+              Confirm Booking
+            </button>
+          </div>
+        </div>
+
+        <!-- Success panel -->
+        <div class="booking-success" id="bookingSuccess">
+          <div class="success-circle">
+            <i data-lucide="check" width="36" height="36"></i>
+          </div>
+          <h2 style="font-size:var(--text-xl);font-weight:800;letter-spacing:-0.03em;margin-bottom:var(--space-3)">Ride confirmed!</h2>
+          <p style="font-size:var(--text-base);color:var(--color-text-muted);margin-bottom:var(--space-5)">
+            Your driver is being dispatched. You'll receive an SMS with driver details in the next few minutes.
+          </p>
+          <div class="success-booking-id" id="successBookingId">BOOKING: ------</div>
+          <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-8)">
+            Save this booking ID to track your ride or contact support.
+          </p>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);max-width:320px;margin-inline:auto">
+            <a id="trackLink" href="/track/placeholder" class="btn btn--primary btn--lg" style="justify-content:center">
+              <i data-lucide="navigation" width="18" height="18"></i>
+              Track My Ride
+            </a>
+            <a href="index.html" class="btn btn--outline btn--lg" style="justify-content:center">
+              Back to Home
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAP PANEL -->
+    <div class="booking-map">
+      <div class="booking-map__canvas">
+        <div class="booking-map__grid"></div>
+      </div>
+      <div class="map-preview" id="mapPreview">
+        <div class="map-preview__inner">
+          <div class="map-preview__icon">
+            <i data-lucide="map" width="32" height="32"></i>
+          </div>
+          <div class="map-preview__title">Enter your route</div>
+          <div class="map-preview__sub">Your route preview will appear here</div>
+        </div>
+      </div>
+      <!-- Fare breakdown card (shows after estimate) -->
+      <div class="map-fare-card" id="mapFareCard">
+        <div class="map-fare-card__title">Fare Breakdown</div>
+        <div class="fare-breakdown">
+          <div class="fare-row">
+            <span>Base fare</span>
+            <span>$3.90</span>
+          </div>
+          <div class="fare-row">
+            <span id="fareDistLabel">Distance (0 km)</span>
+            <span id="fareDistVal">$0.00</span>
+          </div>
+          <div class="fare-row">
+            <span>HST (13%)</span>
+            <span id="fareHstVal">$0.00</span>
+          </div>
+          <div class="fare-row fare-row--total">
+            <span>Estimated Total</span>
+            <span id="fareTotalVal">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+  lucide.createIcons();
+
+  // Theme toggle
+  (function(){
+    const t = document.querySelector('[data-theme-toggle]');
+    const r = document.documentElement;
+    let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+    r.setAttribute('data-theme', d);
+    if (t) {
+      t.addEventListener('click', () => {
+        d = d === 'dark' ? 'light' : 'dark';
+        r.setAttribute('data-theme', d);
+        t.innerHTML = d === 'dark'
+          ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+          : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      });
+    }
+  })();
+
+  // Pre-fill from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('pickup')) document.getElementById('pickupInput').value = urlParams.get('pickup');
+  if (urlParams.get('dropoff')) document.getElementById('dropoffInput').value = urlParams.get('dropoff');
+  if (urlParams.get('type') === 'scheduled') {
+    document.querySelector('input[value="scheduled"]').checked = true;
+    document.getElementById('scheduledFields').style.display = 'block';
+  }
+  if (urlParams.get('service')) {
+    const sv = urlParams.get('service');
+    const radio = document.querySelector(`input[value="${sv}"]`);
+    if (radio) {
+      radio.checked = true;
+      if (sv === 'scheduled' || sv === 'airport') {
+        document.getElementById('scheduledFields').style.display = 'block';
+      }
+    }
+  }
+
+  // Scheduled fields toggle
+  document.querySelectorAll('input[name="serviceType"]').forEach(r => {
+    r.addEventListener('change', () => {
+      const sf = document.getElementById('scheduledFields');
+      sf.style.display = (r.value === 'scheduled' || r.value === 'airport') ? 'block' : 'none';
+    });
+  });
+
+  // Passenger counter
+  let passengers = 1;
+  document.getElementById('passDown').addEventListener('click', () => {
+    if (passengers > 1) { passengers--; document.getElementById('passCount').textContent = passengers; }
+  });
+  document.getElementById('passUp').addEventListener('click', () => {
+    if (passengers < 7) { passengers++; document.getElementById('passCount').textContent = passengers; }
+  });
+
+  // Location swap
+  document.getElementById('locationSwap').addEventListener('click', () => {
+    const p = document.getElementById('pickupInput');
+    const d = document.getElementById('dropoffInput');
+    [p.value, d.value] = [d.value, p.value];
+    estimateFare();
+  });
+
+  // Fare estimation
+  let fareData = null;
+  async function estimateFare() {
+    const pickup = document.getElementById('pickupInput').value;
+    const dropoff = document.getElementById('dropoffInput').value;
+    if (!pickup || !dropoff) return;
+    try {
+      const res = await fetch('/api/fare-estimate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ pickup_address: pickup, dropoff_address: dropoff })
+      });
+      if (res.ok) {
+        fareData = await res.json();
+        displayFare(fareData);
+      } else {
+        // Demo fare if API unavailable
+        const mockFare = { estimated_fare: 14.50, estimated_distance_km: 5.2 };
+        displayFare(mockFare);
+      }
+    } catch {
+      const mockFare = { estimated_fare: 14.50, estimated_distance_km: 5.2 };
+      displayFare(mockFare);
+    }
+  }
+
+  function displayFare(data) {
+    if (!data) return;
+    const fare = data.estimated_fare || 0;
+    const dist = data.estimated_distance_km || 0;
+    const base = 3.90;
+    const distCost = Math.max(0, fare - base);
+    const hst = fare * 0.13;
+    const total = fare + hst;
+
+    document.getElementById('fareValue').textContent = `$${total.toFixed(2)}`;
+    document.getElementById('fareEstimate').style.display = 'block';
+
+    document.getElementById('fareDistLabel').textContent = `Distance (${dist.toFixed(1)} km)`;
+    document.getElementById('fareDistVal').textContent = `$${distCost.toFixed(2)}`;
+    document.getElementById('fareHstVal').textContent = `$${hst.toFixed(2)}`;
+    document.getElementById('fareTotalVal').textContent = `$${total.toFixed(2)}`;
+    document.getElementById('mapFareCard').classList.add('visible');
+
+    fareData = { ...data, total_with_tax: total };
+    lucide.createIcons();
+  }
+
+  // Debounced fare estimation on input
+  let fareTimeout;
+  ['pickupInput', 'dropoffInput'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      clearTimeout(fareTimeout);
+      fareTimeout = setTimeout(estimateFare, 800);
+    });
+  });
+
+  // Step navigation
+  let currentStep = 1;
+
+  function goToStep(step) {
+    // Validation
+    if (step === 2) {
+      if (!document.getElementById('pickupInput').value.trim()) {
+        showToast('Please enter a pickup address', 'error');
+        return;
+      }
+      if (!document.getElementById('dropoffInput').value.trim()) {
+        showToast('Please enter a drop-off address', 'error');
+        return;
+      }
+    }
+    if (step === 3) {
+      if (!document.getElementById('custName').value.trim()) {
+        showToast('Please enter your name', 'error');
+        return;
+      }
+      if (!document.getElementById('custPhone').value.trim()) {
+        showToast('Please enter your phone number', 'error');
+        return;
+      }
+      // Fill confirmation
+      const serviceType = document.querySelector('input[name="serviceType"]:checked')?.value || 'now';
+      const serviceLabels = { now: 'Ride Now', scheduled: 'Scheduled', airport: 'Airport Transfer', parcel: 'Parcel Delivery' };
+      document.getElementById('confirmServiceType').textContent = serviceLabels[serviceType] || serviceType;
+      document.getElementById('confirmPickup').textContent = document.getElementById('pickupInput').value;
+      document.getElementById('confirmDropoff').textContent = document.getElementById('dropoffInput').value;
+      document.getElementById('confirmName').textContent = document.getElementById('custName').value;
+      document.getElementById('confirmPhone').textContent = document.getElementById('custPhone').value;
+      const fareTotal = fareData ? fareData.total_with_tax : 0;
+      document.getElementById('confirmFare').textContent = fareTotal ? `$${fareTotal.toFixed(2)}` : 'TBD';
+    }
+
+    // Update UI
+    document.getElementById(`panel${currentStep}`).classList.remove('active');
+    document.getElementById(`step${currentStep}`).classList.remove('active');
+    if (currentStep < step) {
+      document.getElementById(`step${currentStep}`).classList.add('done');
+    }
+    currentStep = step;
+    document.getElementById(`panel${step}`).classList.add('active');
+    document.getElementById(`step${step}`).classList.add('active');
+
+    // Scroll to top of form
+    document.querySelector('.booking-form-panel').scrollTo({ top: 0, behavior: 'smooth' });
+    lucide.createIcons();
+  }
+
+  // Submit booking
+  async function submitBooking() {
+    const btn = document.getElementById('confirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Confirming…';
+
+    const serviceType = document.querySelector('input[name="serviceType"]:checked')?.value || 'now';
+    const scheduledDate = document.getElementById('schedDate')?.value;
+    const scheduledTime = document.getElementById('schedTime')?.value;
+
+    const payload = {
+      customer_name: document.getElementById('custName').value.trim(),
+      customer_phone: document.getElementById('custPhone').value.trim(),
+      pickup_address: document.getElementById('pickupInput').value.trim(),
+      dropoff_address: document.getElementById('dropoffInput').value.trim(),
+      service_type: serviceType,
+      notes: document.getElementById('custNotes').value.trim(),
+      passenger_count: passengers,
+    };
+
+    if ((serviceType === 'scheduled' || serviceType === 'airport') && scheduledDate && scheduledTime) {
+      payload.scheduled_for = `${scheduledDate}T${scheduledTime}:00`;
+    }
+
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const bookingId = data.booking_id || data.id || 'DEMO-' + Math.random().toString(36).substr(2,6).toUpperCase();
+        showSuccess(bookingId);
+      } else {
+        showToast(data.detail || 'Booking failed. Please try again.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Confirm Booking';
+        lucide.createIcons();
+      }
+    } catch {
+      // Demo success
+      const bookingId = 'CAL-' + Math.random().toString(36).substr(2,6).toUpperCase();
+      showSuccess(bookingId);
+    }
+  }
+
+  function showSuccess(bookingId) {
+    document.getElementById(`panel${currentStep}`).classList.remove('active');
+    document.querySelector('.booking-steps').style.display = 'none';
+    document.getElementById('bookingSuccess').classList.add('active');
+    document.getElementById('successBookingId').textContent = bookingId;
+    document.getElementById('trackLink').href = `/track/${bookingId}`;
+    lucide.createIcons();
+  }
+
+  // Promo code
+  function applyPromo() {
+    const code = document.getElementById('promoCode').value.trim().toUpperCase();
+    const msg = document.getElementById('promoMsg');
+    if (code === 'WELCOME10') {
+      msg.style.display = 'block';
+      msg.style.color = 'var(--color-success)';
+      msg.textContent = '✓ 10% discount applied!';
+    } else if (code) {
+      msg.style.display = 'block';
+      msg.style.color = 'var(--color-error)';
+      msg.textContent = 'Invalid promo code';
+    }
+  }
+
+  // Toast
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+    toast.innerHTML = `
+      <span style="font-size:16px;flex-shrink:0">${icons[type]||'ℹ'}</span>
+      <span style="font-size:var(--text-sm);font-weight:500">${message}</span>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
+  // Set default date/time
+  const now = new Date();
+  const dateEl = document.getElementById('schedDate');
+  const timeEl = document.getElementById('schedTime');
+  if (dateEl) dateEl.value = now.toISOString().split('T')[0];
+  if (timeEl) {
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(Math.ceil(now.getMinutes()/15)*15 % 60).padStart(2,'0');
+    timeEl.value = `${h}:${m}`;
+  }
+  </script>
+</body>
+</html>

@@ -98,6 +98,38 @@ def _demo_geocode(address: str) -> dict:
     return {"lat": round(lat, 6), "lng": round(lng, 6)}
 
 
+async def geocode_route(addresses: list) -> list:
+    """
+    Geocode a list of addresses and compute Haversine distances between consecutive points.
+    Returns list of legs suitable for calculate_fare().
+
+    Each leg: {"from": str, "to": str, "km": float, "from_lat": float, "from_lng": float,
+               "to_lat": float, "to_lng": float}
+    """
+    if len(addresses) < 2:
+        return []
+
+    coords = []
+    for addr in addresses:
+        result = await geocode_address(addr)
+        coords.append({"address": addr, "lat": result["lat"], "lng": result["lng"]})
+
+    legs = []
+    for i in range(len(coords) - 1):
+        a, b = coords[i], coords[i + 1]
+        km = haversine_distance(a["lat"], a["lng"], b["lat"], b["lng"])
+        legs.append({
+            "from":     a["address"],
+            "to":       b["address"],
+            "km":       round(km, 2),
+            "from_lat": a["lat"],
+            "from_lng": a["lng"],
+            "to_lat":   b["lat"],
+            "to_lng":   b["lng"],
+        })
+    return legs
+
+
 # ============================================
 # ROUTING
 # ============================================
@@ -146,10 +178,89 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 # FARE CALCULATION
 # ============================================
 
-def calculate_fare(distance_km: float) -> float:
-    """Base fare + per-km rate, with minimum fare floor."""
-    fare = BASE_FARE + (distance_km * PER_KM_RATE)
-    return round(max(fare, MINIMUM_FARE), 2)
+def calculate_fare(
+    legs: list,
+    service_type: str = "standard",
+    surge_multiplier: float = 1.0,
+    promo_discount: float = 0.0,
+) -> dict:
+    """
+    Multi-leg fare calculation. AUTHORITATIVE — used for Stripe payment amounts.
+    Must stay in sync with frontend/static/js/fare-engine.js.
+
+    Args:
+        legs: list of {"from": str, "to": str, "km": float}
+        service_type: "standard" | "medical" | "long_distance"
+        surge_multiplier: 1.0 = no surge. surge_addition = subtotal * (mult - 1.0)
+        promo_discount: 0.0–1.0 fraction (e.g. 0.10 for 10% off)
+
+    Returns dict with keys:
+        legs: [{"label": str, "km": float, "subtotal": float}]
+        base_fare, stop_surcharge, subtotal,
+        promo_discount (negative), surge_addition, total,
+        estimated_fare (alias for total), is_flat_rate
+    """
+    try:
+        from backend.config import get_pricing, get_flat_rates
+    except ImportError:
+        from config import get_pricing, get_flat_rates
+
+    pricing = get_pricing()
+    flat_rates = get_flat_rates()
+
+    base_fare  = pricing["base_fare"]
+    per_km     = pricing["per_km_rate"]
+    min_fare   = pricing["minimum_fare"]
+    stop_fee   = pricing["stop_surcharge"]
+
+    if not legs:
+        return {
+            "legs": [], "base_fare": base_fare, "stop_surcharge": 0.0,
+            "subtotal": 0.0, "promo_discount": 0.0, "surge_addition": 0.0,
+            "total": min_fare, "estimated_fare": min_fare, "is_flat_rate": False,
+        }
+
+    stop_count = max(0, len(legs) - 1)  # intermediate stops only
+    is_flat    = service_type == "long_distance"
+
+    computed_legs = []
+    if is_flat:
+        dest = legs[-1].get("to", "")
+        flat = float(flat_rates.get(dest, 0.0))
+        for i, leg in enumerate(legs):
+            computed_legs.append({
+                "label":    f"{leg.get('from', '')} → {leg.get('to', '')}",
+                "km":       float(leg.get("km", 0.0)),
+                "subtotal": round(flat if i == 0 else 0.0, 2),
+            })
+    else:
+        for i, leg in enumerate(legs):
+            km = float(leg.get("km", 0.0))
+            subtotal = round((base_fare if i == 0 else 0.0) + km * per_km, 2)
+            computed_legs.append({
+                "label":    f"{leg.get('from', '')} → {leg.get('to', '')}",
+                "km":       km,
+                "subtotal": subtotal,
+            })
+
+    leg_total  = round(sum(l["subtotal"] for l in computed_legs), 2)
+    stop_total = round(stop_count * stop_fee, 2)
+    subtotal   = round(leg_total + stop_total, 2)
+    promo_amt  = round(subtotal * promo_discount, 2)
+    surge_amt  = round(subtotal * (surge_multiplier - 1.0), 2)
+    total      = round(max(subtotal - promo_amt + surge_amt, min_fare), 2)
+
+    return {
+        "legs":            computed_legs,
+        "base_fare":       base_fare if not is_flat else 0.0,
+        "stop_surcharge":  stop_total,
+        "subtotal":        subtotal,
+        "promo_discount":  -promo_amt,
+        "surge_addition":  surge_amt,
+        "total":           total,
+        "estimated_fare":  total,
+        "is_flat_rate":    is_flat,
+    }
 
 
 # ============================================
@@ -177,3 +288,41 @@ def find_nearest_driver(
         pickup_lat, pickup_lng, d["latitude"], d["longitude"]
     ))
     return available[0]
+
+
+# ============================================
+# SURGE PRICING
+# ============================================
+
+def fare_from_distance(distance_km: float, service_type: str = "standard") -> float:
+    """Compatibility helper: compute flat fare from a raw km distance (no legs)."""
+    legs = [{"from": "Pickup", "to": "Dropoff", "km": distance_km}]
+    return calculate_fare(legs, service_type)["total"]
+
+
+def get_current_surge_multiplier(bookings_db: dict, drivers_db: dict) -> float:
+    """Calculate current surge multiplier based on demand/supply."""
+    try:
+        from backend.config import get_surge_config
+    except ImportError:
+        from config import get_surge_config
+
+    cfg = get_surge_config()
+    if not cfg.get("enabled", True):
+        return 1.0
+
+    pending_count   = sum(1 for b in bookings_db.values() if b.get("status") == "pending")
+    available_count = sum(1 for d in drivers_db.values()  if d.get("status") == "available")
+
+    t2_pending  = cfg.get("tier2_pending_min", 5)
+    t2_avail    = cfg.get("tier2_available_max", 1)
+    t2_mult     = float(cfg.get("tier2_multiplier", 2.0))
+    t1_pending  = cfg.get("tier1_pending_min", 3)
+    t1_avail    = cfg.get("tier1_available_max", 2)
+    t1_mult     = float(cfg.get("tier1_multiplier", 1.5))
+
+    if pending_count >= t2_pending and available_count <= t2_avail:
+        return t2_mult
+    if pending_count >= t1_pending and available_count <= t1_avail:
+        return t1_mult
+    return 1.0

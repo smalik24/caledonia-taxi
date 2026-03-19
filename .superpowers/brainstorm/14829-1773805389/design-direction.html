@@ -1,0 +1,116 @@
+<h2>What visual direction feels right for Caledonia Taxi?</h2>
+<p class="subtitle">Each option shows a mini-preview of the booking screen. Pick the vibe that fits the brand.</p>
+
+<div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 20px;">
+
+  <!-- Option A: Uber Noir -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; background: #000; border-radius: 8px 8px 0 0; overflow: hidden; height: 280px;">
+      <div style="background:#000; padding: 14px 16px; border-bottom: 1px solid #1a1a1a;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:#fff; font-weight:700; font-size:15px; letter-spacing:1px;">CALEDONIA TAXI</span>
+          <span style="color:#888; font-size:11px;">●●●</span>
+        </div>
+      </div>
+      <div style="padding: 16px;">
+        <div style="color:#fff; font-size:20px; font-weight:700; margin-bottom:4px;">Book a ride</div>
+        <div style="color:#666; font-size:11px; margin-bottom:14px;">Caledonia · Hamilton · Area</div>
+        <div style="background:#111; border:1px solid #222; border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+          <div style="color:#555; font-size:9px; margin-bottom:2px;">PICKUP</div>
+          <div style="color:#fff; font-size:12px;">📍 Your location</div>
+        </div>
+        <div style="background:#111; border:1px solid #222; border-radius:8px; padding:10px 12px; margin-bottom:14px;">
+          <div style="color:#555; font-size:9px; margin-bottom:2px;">DROPOFF</div>
+          <div style="color:#aaa; font-size:12px;">Where to?</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1; background:#fff; border-radius:8px; padding:10px; text-align:center;">
+            <div style="color:#000; font-size:12px; font-weight:700;">Book Now</div>
+          </div>
+          <div style="flex:1; background:#111; border:1px solid #333; border-radius:8px; padding:10px; text-align:center;">
+            <div style="color:#888; font-size:12px;">Schedule</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body" style="background:#111; border-radius: 0 0 8px 8px; padding: 14px 16px;">
+      <h3 style="color:#fff; margin:0 0 4px;">A — Uber Noir</h3>
+      <p style="color:#666; font-size:12px; margin:0;">Pure black, white CTA, clean sans-serif. Minimal. Business-first. No colour noise — just sharp contrast.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Premium Amber -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; background: #0a0a0f; border-radius: 8px 8px 0 0; overflow: hidden; height: 280px;">
+      <div style="background:linear-gradient(135deg,#0d0d18,#12121f); padding: 14px 16px; border-bottom: 1px solid #1e1e2e;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:#f5c518; font-weight:800; font-size:15px; letter-spacing:2px;">CALEDONIA</span>
+          <span style="background:#f5c518; color:#000; font-size:9px; font-weight:700; padding:2px 6px; border-radius:3px;">TAXI</span>
+        </div>
+      </div>
+      <div style="padding: 16px;">
+        <div style="color:#f5f5f5; font-size:19px; font-weight:700; margin-bottom:4px;">Where are you going?</div>
+        <div style="color:#4a4a6a; font-size:11px; margin-bottom:14px;">Hamilton · Caledonia · Haldimand</div>
+        <div style="background:#13131f; border:1px solid #252535; border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+          <div style="color:#f5c518; font-size:9px; font-weight:700; margin-bottom:2px;">PICKUP</div>
+          <div style="color:#e2e2f0; font-size:12px;">📍 Your location</div>
+        </div>
+        <div style="background:#13131f; border:1px solid #252535; border-radius:8px; padding:10px 12px; margin-bottom:14px;">
+          <div style="color:#555570; font-size:9px; margin-bottom:2px;">DROPOFF</div>
+          <div style="color:#55556a; font-size:12px;">Where to?</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1; background:#f5c518; border-radius:8px; padding:10px; text-align:center;">
+            <div style="color:#000; font-size:12px; font-weight:800;">Book Now</div>
+          </div>
+          <div style="flex:1; background:#1a1a2e; border:1px solid #2a2a3e; border-radius:8px; padding:10px; text-align:center;">
+            <div style="color:#7777aa; font-size:12px;">Schedule</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body" style="background:#0d0d18; border-top: 1px solid #1e1e2e; border-radius: 0 0 8px 8px; padding: 14px 16px;">
+      <h3 style="color:#f5c518; margin:0 0 4px;">B — Premium Amber</h3>
+      <p style="color:#555570; font-size:12px; margin:0;">Deep navy-black with gold accent. Luxury taxi feel. Current brand colour evolved into something premium.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Apple Clean -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 0; background: #f5f5f7; border-radius: 8px 8px 0 0; overflow: hidden; height: 280px;">
+      <div style="background:#fff; padding: 14px 16px; border-bottom: 1px solid #e5e5e7; box-shadow: 0 1px 3px rgba(0,0,0,.06);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:#1d1d1f; font-weight:700; font-size:15px; letter-spacing:-0.3px;">Caledonia Taxi</span>
+          <span style="color:#06c; font-size:12px; font-weight:500;">Sign in</span>
+        </div>
+      </div>
+      <div style="padding: 16px; background:#f5f5f7;">
+        <div style="color:#1d1d1f; font-size:20px; font-weight:700; margin-bottom:3px; letter-spacing:-0.5px;">Book a Ride</div>
+        <div style="color:#86868b; font-size:11px; margin-bottom:14px;">Serving Caledonia & Hamilton</div>
+        <div style="background:#fff; border-radius:10px; padding:10px 12px; margin-bottom:8px; box-shadow:0 1px 4px rgba(0,0,0,.08);">
+          <div style="color:#86868b; font-size:9px; font-weight:600; margin-bottom:2px;">PICKUP</div>
+          <div style="color:#1d1d1f; font-size:12px;">📍 Your location</div>
+        </div>
+        <div style="background:#fff; border-radius:10px; padding:10px 12px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.08);">
+          <div style="color:#86868b; font-size:9px; font-weight:600; margin-bottom:2px;">DROP-OFF</div>
+          <div style="color:#86868b; font-size:12px;">Where to?</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1; background:#1d1d1f; border-radius:10px; padding:10px; text-align:center;">
+            <div style="color:#fff; font-size:12px; font-weight:600;">Book Now</div>
+          </div>
+          <div style="flex:1; background:#fff; border:1px solid #d2d2d7; border-radius:10px; padding:10px; text-align:center;">
+            <div style="color:#1d1d1f; font-size:12px; font-weight:500;">Schedule</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body" style="background:#fff; border-top: 1px solid #e5e5e7; border-radius: 0 0 8px 8px; padding: 14px 16px;">
+      <h3 style="color:#1d1d1f; margin:0 0 4px;">C — Apple Clean</h3>
+      <p style="color:#86868b; font-size:12px; margin:0;">Light mode. SF-style typography, white cards, subtle shadows. Feels trustworthy and modern — like the iOS Maps app.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:20px; text-align:center;">Click a card to select, or just tell me in the terminal. You can mix ideas too ("A but with gold accents" works great).</p>
