@@ -124,6 +124,34 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 
+# ── Global exception handler ─────────────────────────────────────────────────
+import traceback, uuid as _uuid
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    ref_id = str(_uuid.uuid4())[:8].upper()
+    print(f"[ERROR {ref_id}] {type(exc).__name__}: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "reference": ref_id,
+                 "message": "Something went wrong. Please try again or contact support."}
+    )
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    return JSONResponse(status_code=404, content={"error": "Not found", "path": str(request.url.path)})
+
+@app.exception_handler(422)
+async def validation_handler(request: Request, exc):
+    from fastapi.exceptions import RequestValidationError
+    errors = []
+    if hasattr(exc, "errors"):
+        for e in exc.errors():
+            field = ".".join(str(x) for x in e.get("loc", [])[1:])
+            errors.append({"field": field, "message": e.get("msg", "Invalid value")})
+    return JSONResponse(status_code=422, content={"error": "Validation failed", "fields": errors})
+
+
 # ── Simple in-memory rate limiter for auth endpoints ────────────────────────
 import time as _time
 _auth_attempts: dict[str, list] = {}  # ip -> [timestamp, ...]

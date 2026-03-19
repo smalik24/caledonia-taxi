@@ -497,6 +497,12 @@
   .sms-item__time { color: var(--color-text-faint); white-space: nowrap; flex-shrink: 0; }
   .sms-item__to { color: var(--color-text-muted); flex-shrink: 0; min-width: 120px; }
   .sms-item__msg { color: var(--color-text); }
+
+  /* ── Skeleton loaders ── */
+  .skeleton { background: linear-gradient(90deg,#e5e5e3 25%,#f0f0ee 50%,#e5e5e3 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; display:block; }
+  [data-theme="dark"] .skeleton { background: linear-gradient(90deg,#2a2a2a 25%,#333 50%,#2a2a2a 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .skeleton-text { height:13px; margin:2px 0; }
   </style>
 </head>
 <body>
@@ -1061,7 +1067,19 @@
   let allDrivers = [];
   let statusFilter = 'all';
 
+  function showSkeletonRows(tbodyId, cols=6, rows=5) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = Array.from({length:rows}, () =>
+      `<tr>${Array.from({length:cols}, () =>
+        `<td><div class="skeleton skeleton-text" style="width:${60+Math.random()*30|0}%"></div></td>`
+      ).join('')}</tr>`
+    ).join('');
+  }
+
   async function loadBookings() {
+    showSkeletonRows('bookingsTbody', 9, 5);
+    showSkeletonRows('recentBookingsTbody', 6, 4);
     try {
       const res = await fetch('/api/bookings');
       if (res.ok) {

@@ -338,6 +338,21 @@
   }
 
   #leafletTrackMap { height: 320px; width: 100%; border-radius: var(--radius-xl); }
+
+  /* ── Skeleton loader ── */
+  .skeleton { background: linear-gradient(90deg,#e5e5e3 25%,#f0f0ee 50%,#e5e5e3 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:8px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .skeleton-text { height:14px; margin-bottom:8px; }
+  .skeleton-title { height:20px; width:60%; margin-bottom:12px; }
+
+  /* ── Toast ── */
+  #toastContainer { position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:10px; pointer-events:none; }
+  .toast { display:flex; align-items:center; gap:10px; padding:12px 18px; border-radius:12px; font-size:14px; font-weight:500; color:#fff; box-shadow:0 4px 20px rgba(0,0,0,.18); pointer-events:all; cursor:pointer; animation:toastIn .25s ease; max-width:320px; }
+  @keyframes toastIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .toast.success { background:#1a7a3a; }
+  .toast.error   { background:#c0392b; }
+  .toast.warning { background:#d68910; }
+  .toast.info    { background:#1a5276; }
   </style>
 </head>
 <body>
@@ -609,6 +624,27 @@
   fetchTracking();
   setInterval(fetchTracking, 10000);
   connectTrackWS();
+
+  // ── Toast system ───────────────────────────────────────────
+  const _tc = document.createElement('div');
+  _tc.id = 'toastContainer';
+  document.body.appendChild(_tc);
+  window.toast = {
+    success: (m,d=3000) => _showToast(m,'success',d),
+    error:   (m,d=5000) => _showToast(m,'error',d),
+    warning: (m,d=4000) => _showToast(m,'warning',d),
+    info:    (m,d=3000) => _showToast(m,'info',d),
+  };
+  function _showToast(msg, type, duration) {
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    const icons = {success:'✓',error:'✕',warning:'⚠',info:'ℹ'};
+    t.textContent = (icons[type]||'') + ' ' + msg;
+    t.onclick = () => t.remove();
+    _tc.appendChild(t);
+    if (_tc.children.length > 3) _tc.firstChild.remove();
+    setTimeout(() => t.remove(), duration);
+  }
   </script>
 </body>
 </html>
