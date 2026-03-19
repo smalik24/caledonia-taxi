@@ -382,3 +382,35 @@ async def test_receipt_generation(client):
     resp = await client.get(f"/api/bookings/{booking_id}/receipt")
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/pdf"
+
+
+# ── SMS Inbound Webhook ──────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_sms_inbound_unknown_command(client):
+    """Unknown SMS body returns TwiML help message."""
+    r = await client.post("/sms/inbound", data={
+        "From": "+12895550099",
+        "To": "+12895551001",
+        "Body": "HELLO",
+        "MessageSid": "SM_test_1",
+        "AccountSid": "AC_test"
+    })
+    assert r.status_code == 200
+    assert "text/xml" in r.headers.get("content-type", "")
+    assert "<Response>" in r.text
+    assert "<Message>" in r.text
+
+
+@pytest.mark.asyncio
+async def test_sms_inbound_status_no_booking(client):
+    """STATUS with no active booking returns appropriate TwiML."""
+    r = await client.post("/sms/inbound", data={
+        "From": "+19999999999",  # phone with no bookings
+        "To": "+12895551001",
+        "Body": "STATUS",
+        "MessageSid": "SM_test_2",
+        "AccountSid": "AC_test"
+    })
+    assert r.status_code == 200
+    assert "<Response>" in r.text
