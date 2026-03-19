@@ -25,7 +25,7 @@ logger = logging.getLogger("caledonia")
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Cookie, Depends, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, Response, JSONResponse
+from fastapi.responses import HTMLResponse, Response, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 import stripe as stripe_lib
@@ -163,6 +163,47 @@ import time as _time
 _auth_attempts: dict[str, list] = {}  # ip -> [timestamp, ...]
 _RATE_LIMIT_WINDOW = 60   # seconds
 _RATE_LIMIT_MAX    = 10   # attempts per window
+
+# ── Admin login brute-force protection ────────────────────────────────────────
+_login_attempts: dict[str, list] = {}   # ip → [timestamps of failed attempts]
+_login_lockouts: dict[str, float] = {}  # ip → lockout_until unix timestamp
+
+_MAX_LOGIN_ATTEMPTS = 5
+_LOCKOUT_SECONDS    = 15 * 60   # 15 minutes
+_ATTEMPT_WINDOW     = 15 * 60   # count attempts within 15 min window
+
+
+def _check_login_allowed(ip: str) -> tuple[bool, int]:
+    """Returns (allowed, seconds_remaining). If locked: (False, N). Else: (True, 0)."""
+    now = _time.time()
+    lockout_until = _login_lockouts.get(ip, 0)
+    if now < lockout_until:
+        return False, int(lockout_until - now)
+    # Clean up old attempts outside window
+    attempts = [t for t in _login_attempts.get(ip, []) if now - t < _ATTEMPT_WINDOW]
+    _login_attempts[ip] = attempts
+    return True, 0
+
+
+def _record_failed_login(ip: str) -> int:
+    """Record a failed attempt. Returns remaining attempts before lockout."""
+    now = _time.time()
+    attempts = _login_attempts.get(ip, [])
+    attempts.append(now)
+    _login_attempts[ip] = attempts
+    remaining = _MAX_LOGIN_ATTEMPTS - len(attempts)
+    if remaining <= 0:
+        _login_lockouts[ip] = now + _LOCKOUT_SECONDS
+        logger.warning(f"[Auth] IP {ip} locked out after {_MAX_LOGIN_ATTEMPTS} failed attempts")
+        return 0
+    return remaining
+
+
+def _clear_login_attempts(ip: str) -> None:
+    """Clear attempts on successful login."""
+    _login_attempts.pop(ip, None)
+    _login_lockouts.pop(ip, None)
+
 
 def _check_rate_limit(ip: str) -> bool:
     """Return True if the IP is within rate limit, False if exceeded."""
@@ -361,14 +402,21 @@ async def driver_page(request: Request):
     return templates.TemplateResponse("driver.html", {"request": request})
 
 
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(request: Request):
+    """Dedicated admin login page. Redirects to /admin if already authenticated."""
+    session_cookie = request.cookies.get("admin_session")
+    if session_cookie and verify_session_token(session_cookie, APP_SECRET_KEY):
+        return RedirectResponse(url="/admin", status_code=302)
+    return templates.TemplateResponse("admin_login.html", {"request": request})
+
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
-    admin_session = request.cookies.get("admin_session", "")
-    authed = verify_session_token(admin_session, APP_SECRET_KEY) if admin_session else False
-    return templates.TemplateResponse("admin.html", {
-        "request": request,
-        "authed": authed
-    })
+    session_cookie = request.cookies.get("admin_session")
+    if not session_cookie or not verify_session_token(session_cookie, APP_SECRET_KEY):
+        return RedirectResponse(url="/admin/login?next=/admin", status_code=302)
+    return templates.TemplateResponse("admin.html", {"request": request})
 
 
 @app.get("/heatmap", response_class=HTMLResponse)
@@ -383,18 +431,35 @@ async def track_page(request: Request, booking_id: str):
 
 @app.post("/admin/login")
 async def admin_login(request: Request):
-    # Rate-limit auth endpoint
     client_ip = request.client.host if request.client else "unknown"
+
+    # Check brute-force lockout
+    allowed, secs_remaining = _check_login_allowed(client_ip)
+    if not allowed:
+        mins, secs = secs_remaining // 60, secs_remaining % 60
+        raise HTTPException(
+            status_code=423,
+            detail=f"Too many failed attempts. Try again in {mins}m {secs}s."
+        )
+
+    # Basic rate limit
     if not _check_rate_limit(client_ip):
-        logger.warning(f"[Auth] Rate limit exceeded for {client_ip}")
-        raise HTTPException(status_code=429, detail="Too many login attempts. Wait 60 seconds.")
+        raise HTTPException(status_code=429, detail="Too many requests. Wait 60 seconds.")
 
     data = await request.json()
     password = data.get("password", "")
-    if not safe_compare(password, ADMIN_PASSWORD):
-        logger.warning(f"[Auth] Failed admin login attempt from {client_ip}")
-        raise HTTPException(status_code=401, detail="Invalid password")
 
+    if not safe_compare(password, ADMIN_PASSWORD):
+        remaining = _record_failed_login(client_ip)
+        logger.warning(f"[Auth] Failed admin login from {client_ip} ({remaining} attempts left)")
+        if remaining == 0:
+            raise HTTPException(status_code=423, detail="Account locked for 15 minutes.")
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid password. {remaining} attempt{'s' if remaining != 1 else ''} remaining."
+        )
+
+    _clear_login_attempts(client_ip)
     token = create_session_token(APP_SECRET_KEY)
     response = JSONResponse({"ok": True})
     response.set_cookie(
