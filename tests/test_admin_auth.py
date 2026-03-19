@@ -58,3 +58,8 @@ async def test_admin_brute_force_lockout(client):
 
     # After 5+ failures the account should be locked (423) or at least rejected (401)
     assert last_r.status_code in (423, 401)
+
+    # Clean up lockout and rate-limit state so subsequent tests in other modules are not affected
+    _main._login_attempts.clear()
+    _main._login_lockouts.clear()
+    _main._auth_attempts.clear()
