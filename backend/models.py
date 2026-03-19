@@ -118,3 +118,81 @@ class BookingResponse(BaseModel):
     assigned_driver_id:     Optional[str]
     source:                 str
     created_at:             str
+
+
+import uuid as _uuid
+from datetime import timezone as _tz
+
+
+# ── WebSocket / Event Models ───────────────────────────────────────────────────
+
+class WebSocketMessage(BaseModel):
+    """Standardized WebSocket message envelope."""
+    type:       str
+    payload:    dict = {}
+    timestamp:  str  = Field(default_factory=lambda: datetime.now(_tz.utc).isoformat())
+    message_id: str  = Field(default_factory=lambda: str(_uuid.uuid4()))
+
+
+class DispatchEvent(BaseModel):
+    booking_id:  str
+    driver_id:   Optional[str] = None
+    event_type:  str  # dispatched, accepted, declined, timeout, failed
+    attempt:     int  = 1
+    timestamp:   str  = Field(default_factory=lambda: datetime.now(_tz.utc).isoformat())
+
+
+# ── Analytics Models ──────────────────────────────────────────────────────────
+
+class DriverPerformance(BaseModel):
+    driver_id:         str
+    driver_name:       str
+    trips_completed:   int   = 0
+    trips_accepted:    int   = 0
+    trips_declined:    int   = 0
+    acceptance_rate:   float = 0.0
+    total_earnings:    float = 0.0
+    avg_trip_minutes:  float = 0.0
+    cancellation_rate: float = 0.0
+
+
+class RevenueReport(BaseModel):
+    period:        str
+    total_revenue: float
+    total_trips:   int
+    avg_fare:      float
+    buckets:       list = []
+
+
+class AnalyticsSummary(BaseModel):
+    today_revenue:        float = 0.0
+    today_bookings:       int   = 0
+    active_drivers:       int   = 0
+    fleet_total:          int   = 0
+    avg_trip_minutes:     float = 0.0
+    booking_success_rate: float = 0.0
+    avg_match_seconds:    float = 0.0
+    cancellation_rate:    float = 0.0
+    payment_success_rate: float = 0.0
+    avg_fare_cad:         float = 0.0
+
+
+# ── Webhook Models ────────────────────────────────────────────────────────────
+
+class SMSWebhookPayload(BaseModel):
+    """Twilio inbound SMS webhook payload (form-encoded fields)."""
+    From:       str = ""
+    To:         str = ""
+    Body:       str = ""
+    MessageSid: str = ""
+    AccountSid: str = ""
+    NumMedia:   str = "0"
+
+
+class VapiWebhookPayload(BaseModel):
+    """Vapi function-call webhook payload."""
+    type:         str
+    call:         Optional[dict] = None
+    transcript:   Optional[str]  = None
+    functionCall: Optional[dict] = None
+    timestamp:    Optional[str]  = None
