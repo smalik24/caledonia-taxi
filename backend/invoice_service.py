@@ -2,12 +2,10 @@
 Invoice & Receipt Service — Caledonia Taxi
 ==========================================
 Generates professional PDF receipts using ReportLab.
-Mocks email delivery (logs to console + in-memory store).
-
-To go live: see MORNING_SETUP.md → "Enable Real Email (Resend)"
-Replace `_send_email_mock()` body with Resend/SendGrid SDK calls.
+Uses real Resend API when RESEND_API_KEY is set; falls back to mock logging.
 """
 
+import os
 import logging
 from io import BytesIO
 from datetime import datetime, timezone
@@ -55,6 +53,48 @@ def _send_email_mock(
 
     logger.info(f"[MOCK EMAIL] To={to_email} | Subject={subject}")
     return entry
+
+
+def _send_email_real(to_email: str, subject: str, body: str, attachments=None) -> dict:
+    api_key = os.getenv("RESEND_API_KEY")
+    if not api_key:
+        return _send_email_mock(to_email, subject, body, attachments)
+    try:
+        import httpx
+        import base64
+        payload = {
+            "from": "receipts@caledonia.taxi",
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        }
+        if attachments:
+            payload["attachments"] = [
+                {"filename": a["filename"], "content": base64.b64encode(a["data"]).decode()}
+                for a in attachments
+            ]
+        r = httpx.post("https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=payload, timeout=10)
+        r.raise_for_status()
+        result = r.json()
+        entry = {
+            "id": result.get("id", "resend-ok"),
+            "to": to_email,
+            "subject": subject,
+            "body_preview": body[:200],
+            "has_attachment": bool(attachments),
+            "attachment_names": [a.get("filename","file") for a in (attachments or [])],
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "status": "sent",
+            "provider": "resend"
+        }
+        _email_log.append(entry)
+        logger.info(f"[Email] Sent via Resend to {to_email}")
+        return entry
+    except Exception as e:
+        logger.error(f"[Email] Resend error: {e}")
+        return _send_email_mock(to_email, subject, body, attachments)
 
 
 # ============================================================
@@ -289,7 +329,7 @@ Caledonia Taxi Team
 Hamilton, Ontario | (289) 555-1001 | Available 24/7
 """
 
-    return _send_email_mock(
+    return _send_email_real(
         to_email=to_email,
         subject=f"Your Caledonia Taxi Receipt — ${fare:.2f} CAD",
         body=body,

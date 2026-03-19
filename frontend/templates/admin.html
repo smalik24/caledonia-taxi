@@ -603,6 +603,7 @@
           <div class="live-dot"></div>
           <span id="lastUpdate">Live</span>
         </div>
+        <div id="wsStatusDot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0" title="WebSocket status"></div>
         <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
@@ -993,10 +994,40 @@
     } catch {}
   })();
 
+  function updateWSIndicator(state) {
+    const dot = document.getElementById('wsStatusDot');
+    if (!dot) return;
+    dot.style.background = state === 'connected' ? '#22c55e' : state === 'reconnecting' ? '#f0a500' : '#ef4444';
+    dot.title = state;
+  }
+
+  // WebSocket with auto-reconnect
+  let adminWs, wsRetryDelay = 1000;
+  function connectAdminWS() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    adminWs = new WebSocket(`${proto}//${location.host}/ws/admin`);
+    adminWs.onopen = () => { wsRetryDelay = 1000; updateWSIndicator('connected'); };
+    adminWs.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'new_booking' || msg.type === 'booking_update' || msg.type === 'new_oasr_booking') {
+          loadBookings();
+        } else if (msg.type === 'driver_update' || msg.type === 'driver_location') {
+          loadDrivers();
+        } else if (msg.type === 'dispatch_failed') {
+          loadBookings();
+        }
+      } catch {}
+    };
+    adminWs.onclose = () => { updateWSIndicator('reconnecting'); setTimeout(connectAdminWS, Math.min(wsRetryDelay *= 2, 30000)); };
+    adminWs.onerror = () => adminWs.close();
+  }
+
   function loadDashboard() {
     loadBookings();
     loadDrivers();
     loadSms();
+    connectAdminWS();
     setInterval(loadBookings, 15000);
     setInterval(loadDrivers, 30000);
     setInterval(() => {

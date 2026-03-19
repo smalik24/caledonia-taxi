@@ -204,6 +204,9 @@ ratings_db: list[dict] = []
 # Dispatch log: list of {booking_id, driver_id, action, timestamp}
 dispatch_log: list[dict] = []
 
+# Idempotency store: {key: {created_at: iso, booking_id: str}} — 24h TTL
+_idempotency_store: dict[str, dict] = {}
+
 
 # ============================================================
 # WEBSOCKET MANAGER
@@ -450,8 +453,25 @@ async def create_payment_intent(req: FareEstimateRequest):
 # ============================================================
 
 @app.post("/api/bookings")
-async def create_booking(req: BookingRequest):
+async def create_booking(request: Request, req: BookingRequest):
     global _booking_counter
+
+    # Idempotency key deduplication (24h)
+    idem_key = request.headers.get("X-Idempotency-Key")
+    if idem_key:
+        now_ts = datetime.now(timezone.utc)
+        existing = _idempotency_store.get(idem_key)
+        if existing:
+            # Check if within 24h
+            created = datetime.fromisoformat(existing["created_at"])
+            if (now_ts - created).total_seconds() < 86400:
+                # Return cached response
+                cached_booking = next((b for b in demo_bookings if b["id"] == existing["booking_id"]), None)
+                if cached_booking:
+                    return {"success": True, "booking": cached_booking, "idempotent": True}
+        # Register key (booking_id filled in after creation)
+        _idempotency_store[idem_key] = {"created_at": now_ts.isoformat(), "booking_id": None}
+
     pickup  = await geocode_address(req.pickup_address)
     dropoff = await geocode_address(req.dropoff_address)
     if not pickup or not dropoff:
@@ -540,6 +560,10 @@ async def create_booking(req: BookingRequest):
         )
     except Exception as e:
         print(f"[SMS] booking_confirmed error: {e}")
+
+    # Store idempotency result
+    if idem_key:
+        _idempotency_store[idem_key]["booking_id"] = booking["id"]
 
     if is_scheduled:
         # Do NOT dispatch now — APScheduler will handle this in Task 10

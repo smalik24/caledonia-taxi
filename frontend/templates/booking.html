@@ -730,7 +730,10 @@
             <label class="form-label">Pickup location</label>
             <div class="location-input-wrap">
               <div class="location-dot location-dot--pickup"></div>
-              <input type="text" class="location-input" id="pickupInput" placeholder="Enter pickup address…" autocomplete="off">
+              <div style="position:relative">
+                <input type="text" class="location-input" id="pickupInput" placeholder="Enter pickup address…" autocomplete="off">
+                <div id="pickupSuggestions" style="position:absolute;top:100%;left:0;right:0;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);z-index:50;display:none;box-shadow:var(--shadow-lg);max-height:220px;overflow-y:auto"></div>
+              </div>
               <button class="location-swap" id="locationSwap" title="Swap locations" type="button">
                 <i data-lucide="arrow-up-down" width="14" height="14"></i>
               </button>
@@ -745,7 +748,10 @@
             <label class="form-label">Drop-off location</label>
             <div class="location-input-wrap">
               <div class="location-dot location-dot--dropoff"></div>
-              <input type="text" class="location-input" id="dropoffInput" placeholder="Where are you going?…" autocomplete="off">
+              <div style="position:relative">
+                <input type="text" class="location-input" id="dropoffInput" placeholder="Where are you going?…" autocomplete="off">
+                <div id="dropoffSuggestions" style="position:absolute;top:100%;left:0;right:0;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);z-index:50;display:none;box-shadow:var(--shadow-lg);max-height:220px;overflow-y:auto"></div>
+              </div>
             </div>
           </div>
 
@@ -1078,7 +1084,7 @@
     const dropoff = document.getElementById('dropoffInput').value;
     if (!pickup || !dropoff) return;
     try {
-      const res = await fetch('/api/fare-estimate', {
+      const res = await fetch('/api/estimate-fare', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ pickup_address: pickup, dropoff_address: dropoff })
@@ -1119,8 +1125,69 @@
     lucide.createIcons();
   }
 
+  // ── Nominatim Address Autocomplete ──────────────────────
+  const HAMILTON_BBOX = 'countrycodes=ca&viewbox=-80.2,43.0,-79.5,43.5&bounded=1';
+  let _acTimers = {};
+
+  function setupAutocomplete(inputId, suggestId) {
+    const input = document.getElementById(inputId);
+    const box = document.getElementById(suggestId);
+    if (!input || !box) return;
+
+    input.addEventListener('input', () => {
+      clearTimeout(_acTimers[inputId]);
+      const q = input.value.trim();
+      if (q.length < 3) { box.style.display = 'none'; return; }
+      _acTimers[inputId] = setTimeout(() => fetchSuggestions(q, box, input), 300);
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => { box.style.display = 'none'; }, 200);
+    });
+  }
+
+  async function fetchSuggestions(query, box, input) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ' Hamilton Ontario')}&format=json&limit=5&${HAMILTON_BBOX}`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const results = await res.json();
+      if (!results.length) { box.style.display = 'none'; return; }
+      box.innerHTML = results.map(r => {
+        const short = r.display_name.replace(', Ontario, Canada', '').replace(', Canada', '');
+        return `<div style="padding:10px 14px;cursor:pointer;font-size:var(--text-sm);border-bottom:1px solid var(--color-border);transition:background 0.1s"
+          onmousedown="event.preventDefault()"
+          onclick="selectSuggestion(this,'${inputId}','${suggestId}')"
+          data-lat="${r.lat}" data-lng="${r.lon}" data-display="${short.replace(/'/g,"\\'")}">
+          ${short}
+        </div>`;
+      }).join('');
+      // make inputId/suggestId available in onclick via closure workaround
+      box.querySelectorAll('[onclick]').forEach((el, i) => {
+        const r = results[i];
+        const short = r.display_name.replace(', Ontario, Canada','').replace(', Canada','');
+        el.onclick = () => {
+          input.value = short;
+          input.dataset.lat = r.lat;
+          input.dataset.lng = r.lon;
+          box.style.display = 'none';
+          // trigger fare estimate after selection
+          clearTimeout(fareTimeout);
+          fareTimeout = setTimeout(estimateFare, 200);
+        };
+      });
+      box.style.display = 'block';
+    } catch(e) {
+      box.style.display = 'none';
+    }
+  }
+
   // Debounced fare estimation on input
   let fareTimeout;
+
+  // Wire up autocomplete after fareTimeout is declared
+  setupAutocomplete('pickupInput', 'pickupSuggestions');
+  setupAutocomplete('dropoffInput', 'dropoffSuggestions');
+
   ['pickupInput', 'dropoffInput'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       clearTimeout(fareTimeout);
@@ -1211,7 +1278,7 @@
       });
       const data = await res.json();
       if (res.ok) {
-        const bookingId = data.booking_id || data.id || 'DEMO-' + Math.random().toString(36).substr(2,6).toUpperCase();
+        const bookingId = (data.booking && data.booking.id) || data.booking_id || data.id || 'DEMO-' + Math.random().toString(36).substr(2,6).toUpperCase();
         showSuccess(bookingId);
       } else {
         showToast(data.detail || 'Booking failed. Please try again.', 'error');
@@ -1274,6 +1341,31 @@
     const m = String(Math.ceil(now.getMinutes()/15)*15 % 60).padStart(2,'0');
     timeEl.value = `${h}:${m}`;
   }
+
+  // ── WebSocket reconnection (for real-time booking updates) ──
+  (function() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let ws, retryDelay = 1000;
+    function connect() {
+      try {
+        ws = new WebSocket(`${proto}//${location.host}/ws/booking`);
+        ws.onopen = () => { retryDelay = 1000; };
+        ws.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'surge_update' && msg.payload) {
+              const m = msg.payload.multiplier;
+              const el = document.getElementById('surgeIndicator');
+              if (el) el.style.display = m > 1.0 ? '' : 'none';
+            }
+          } catch(err) {}
+        };
+        ws.onclose = () => setTimeout(connect, Math.min(retryDelay *= 2, 30000));
+        ws.onerror = () => ws.close();
+      } catch(e) {}
+    }
+    connect();
+  })();
   </script>
 </body>
 </html>

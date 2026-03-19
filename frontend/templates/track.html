@@ -12,6 +12,9 @@
   <link rel="stylesheet" href="/static/css/tokens.css">
   <link rel="stylesheet" href="/static/css/base.css">
 
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
@@ -333,6 +336,8 @@
   .status-step.done .status-step__label {
     color: var(--color-text);
   }
+
+  #leafletTrackMap { height: 320px; width: 100%; border-radius: var(--radius-xl); }
   </style>
 </head>
 <body>
@@ -342,30 +347,7 @@
       <div class="track-map__grid"></div>
       <div class="track-map__glow"></div>
 
-      <!-- Route visualization SVG -->
-      <div class="route-viz">
-        <svg class="route-svg" viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Route line -->
-          <path d="M40 150 C100 150 140 50 200 50 C260 50 300 150 360 150" stroke="var(--color-border)" stroke-width="3" stroke-dasharray="6 4"/>
-          <path id="routeProgress" d="M40 150 C100 150 140 50 200 50 C260 50 300 150 360 150" stroke="var(--color-accent)" stroke-width="3" stroke-dasharray="400" stroke-dashoffset="300"/>
-          <!-- Pickup pin -->
-          <circle cx="40" cy="150" r="8" fill="var(--color-success)"/>
-          <circle cx="40" cy="150" r="4" fill="white"/>
-          <!-- Dropoff pin -->
-          <circle cx="360" cy="150" r="8" fill="var(--color-error)"/>
-          <circle cx="360" cy="150" r="4" fill="white"/>
-          <!-- Decorative city blocks -->
-          <rect x="80" y="60" width="40" height="30" rx="4" fill="var(--color-surface-offset-2)" opacity="0.5"/>
-          <rect x="140" y="70" width="30" height="25" rx="4" fill="var(--color-surface-offset-2)" opacity="0.4"/>
-          <rect x="230" y="65" width="45" height="28" rx="4" fill="var(--color-surface-offset-2)" opacity="0.4"/>
-          <rect x="290" y="60" width="35" height="35" rx="4" fill="var(--color-surface-offset-2)" opacity="0.5"/>
-        </svg>
-      </div>
-
-      <!-- Driver car marker (positioned dynamically) -->
-      <div class="driver-marker" id="driverMarker" style="left:35%;top:40%;transform:translate(-50%,-50%)">
-        🚕
-      </div>
+      <div id="leafletTrackMap"></div>
 
       <!-- Top bar -->
       <div class="track-topbar">
@@ -527,8 +509,8 @@
       document.getElementById('driverRating').textContent = d.rating || '4.9';
       if (d.phone) document.getElementById('callDriver').href = `tel:${d.phone}`;
 
-      // Simulate driver movement
-      animateDriver();
+      if (d.lat && d.lng) moveDriverMarker(d.lat, d.lng);
+      else initTrackMap(43.2557, -79.8711);
     }
 
     // Update step indicators
@@ -545,18 +527,33 @@
     lucide.createIcons();
   }
 
-  function animateDriver() {
-    const marker = document.getElementById('driverMarker');
-    let x = 30 + Math.random() * 5;
-    let y = 35 + Math.random() * 5;
-    setInterval(() => {
-      x += (Math.random() - 0.45) * 1.5;
-      y += (Math.random() - 0.45) * 0.8;
-      x = Math.max(15, Math.min(75, x));
-      y = Math.max(20, Math.min(70, y));
-      marker.style.left = x + '%';
-      marker.style.top = y + '%';
-    }, 2000);
+  // ── Leaflet Map ──────────────────────────────────────────
+  let trackMap = null;
+  let driverMarkerL = null;
+
+  function initTrackMap(lat, lng) {
+    if (trackMap) return;
+    const el = document.getElementById('leafletTrackMap');
+    if (!el) return;
+    trackMap = L.map('leafletTrackMap').setView([lat || 43.2557, lng || -79.8711], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom: 19
+    }).addTo(trackMap);
+  }
+
+  function moveDriverMarker(lat, lng) {
+    if (!trackMap) initTrackMap(lat, lng);
+    const icon = L.divIcon({
+      className: '',
+      html: '<div style="width:32px;height:32px;background:#f0a500;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center">🚕</div>',
+      iconSize: [32,32], iconAnchor: [16,16]
+    });
+    if (driverMarkerL) {
+      driverMarkerL.setLatLng([lat, lng]);
+    } else {
+      driverMarkerL = L.marker([lat, lng], { icon }).addTo(trackMap);
+    }
+    trackMap.panTo([lat, lng]);
   }
 
   // Fetch tracking data
@@ -585,8 +582,33 @@
     }
   }
 
+  // ── WebSocket real-time tracking ──────────────────────────
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  let trackWs, trackRetry = 1000;
+
+  function connectTrackWS() {
+    try {
+      trackWs = new WebSocket(`${proto}//${location.host}/ws/track_${bookingId}`);
+      trackWs.onopen = () => { trackRetry = 1000; };
+      trackWs.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'location_update' && msg.lat && msg.lng) {
+            moveDriverMarker(msg.lat, msg.lng);
+          }
+          if (msg.type === 'booking_update') {
+            fetchTracking();
+          }
+        } catch(err) {}
+      };
+      trackWs.onclose = () => setTimeout(connectTrackWS, Math.min(trackRetry *= 2, 30000));
+      trackWs.onerror = () => trackWs.close();
+    } catch(e) {}
+  }
+
   fetchTracking();
   setInterval(fetchTracking, 10000);
+  connectTrackWS();
   </script>
 </body>
 </html>

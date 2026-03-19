@@ -1,0 +1,182 @@
+<h2>Admin Panel — Design Direction</h2>
+<p class="subtitle">You run operations from here. Which layout gives you the best view of what's happening?</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d0d1a;padding:12px;font-family:system-ui;border-radius:8px 8px 0 0;">
+      <div style="background:#1a1a2e;border-radius:8px;padding:10px;">
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px;">
+          <div style="background:#0d0d1a;border-radius:5px;padding:6px;text-align:center;border-top:2px solid #f5c518;">
+            <div style="color:#f5c518;font-size:14px;font-weight:800;">24</div>
+            <div style="color:#555;font-size:6px;">BOOKINGS</div>
+          </div>
+          <div style="background:#0d0d1a;border-radius:5px;padding:6px;text-align:center;border-top:2px solid #22c55e;">
+            <div style="color:#22c55e;font-size:14px;font-weight:800;">3</div>
+            <div style="color:#555;font-size:6px;">ACTIVE</div>
+          </div>
+          <div style="background:#0d0d1a;border-radius:5px;padding:6px;text-align:center;border-top:2px solid #3b82f6;">
+            <div style="color:#3b82f6;font-size:14px;font-weight:800;">5</div>
+            <div style="color:#555;font-size:6px;">DRIVERS</div>
+          </div>
+          <div style="background:#0d0d1a;border-radius:5px;padding:6px;text-align:center;border-top:2px solid #a78bfa;">
+            <div style="color:#a78bfa;font-size:14px;font-weight:800;">$342</div>
+            <div style="color:#555;font-size:6px;">REVENUE</div>
+          </div>
+        </div>
+        <!-- Tabs -->
+        <div style="display:flex;gap:2px;margin-bottom:8px;">
+          <div style="background:#f5c518;color:#000;font-size:7px;font-weight:700;padding:3px 7px;border-radius:4px;">Bookings</div>
+          <div style="color:#666;font-size:7px;padding:3px 7px;border-radius:4px;">Drivers</div>
+          <div style="color:#666;font-size:7px;padding:3px 7px;border-radius:4px;">SMS</div>
+          <div style="color:#666;font-size:7px;padding:3px 7px;border-radius:4px;">Activity</div>
+        </div>
+        <!-- Bookings list -->
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <div style="background:#0d0d1a;border-radius:5px;padding:6px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="color:#fff;font-size:8px;font-weight:600;">John Smith</div>
+              <div style="color:#555;font-size:7px;">GO Station → McMaster</div>
+            </div>
+            <div style="background:#22c55e22;border:1px solid #22c55e;border-radius:8px;padding:1px 6px;color:#22c55e;font-size:6px;">en route</div>
+          </div>
+          <div style="background:#0d0d1a;border-radius:5px;padding:6px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="color:#fff;font-size:8px;font-weight:600;">Maria K.</div>
+              <div style="color:#555;font-size:7px;">Lime Ridge → Downtown</div>
+            </div>
+            <div style="background:#f5c51822;border:1px solid #f5c518;border-radius:8px;padding:1px 6px;color:#f5c518;font-size:6px;">dispatching</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Polished Tabs</h3>
+      <p>Keep the tabbed layout. Better stat cards with revenue tracking, cleaner booking rows, improved colour coding by status.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#050510;padding:0;font-family:system-ui;border-radius:8px 8px 0 0;overflow:hidden;">
+      <!-- Sidebar layout -->
+      <div style="display:flex;height:170px;">
+        <!-- Sidebar -->
+        <div style="width:38px;background:#0a0a18;border-right:1px solid #1a1a2e;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:8px;">
+          <div style="font-size:14px;">🚕</div>
+          <div style="width:24px;height:24px;background:#f5c51822;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;">📋</div>
+          <div style="width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;">🚗</div>
+          <div style="width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;">💬</div>
+          <div style="width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;">📊</div>
+          <div style="margin-top:auto;width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;">⚙️</div>
+        </div>
+        <!-- Main content -->
+        <div style="flex:1;padding:8px;overflow:hidden;">
+          <!-- Revenue banner -->
+          <div style="background:linear-gradient(135deg,#1a2e1a,#0d1f0d);border-radius:6px;padding:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="color:#22c55e;font-size:14px;font-weight:900;">$342.00</div>
+              <div style="color:#4a7a4a;font-size:6px;text-transform:uppercase;">Today's Revenue</div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <div style="text-align:center;"><div style="color:#fff;font-size:9px;font-weight:700;">24</div><div style="color:#4a7a4a;font-size:6px;">rides</div></div>
+              <div style="text-align:center;"><div style="color:#fff;font-size:9px;font-weight:700;">3</div><div style="color:#4a7a4a;font-size:6px;">active</div></div>
+              <div style="text-align:center;"><div style="color:#22c55e;font-size:9px;font-weight:700;">5/5</div><div style="color:#4a7a4a;font-size:6px;">drivers</div></div>
+            </div>
+          </div>
+          <!-- Live bookings -->
+          <div style="font-size:7px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Live Bookings</div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="background:#1a1a2e;border-radius:5px;padding:5px 7px;display:flex;justify-content:space-between;border-left:2px solid #22c55e;">
+              <div style="color:#ccc;font-size:7px;">John S. · GO → McMaster</div>
+              <div style="color:#22c55e;font-size:7px;font-weight:600;">$14.50</div>
+            </div>
+            <div style="background:#1a1a2e;border-radius:5px;padding:5px 7px;display:flex;justify-content:space-between;border-left:2px solid #f5c518;">
+              <div style="color:#ccc;font-size:7px;">Maria K. · Lime Ridge → DT</div>
+              <div style="color:#f5c518;font-size:7px;font-weight:600;">dispatching</div>
+            </div>
+            <div style="background:#1a1a2e;border-radius:5px;padding:5px 7px;display:flex;justify-content:space-between;border-left:2px solid #3b82f6;">
+              <div style="color:#ccc;font-size:7px;">Ahmed R. · Airport → West</div>
+              <div style="color:#3b82f6;font-size:7px;font-weight:600;">$22.00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Sidebar + Revenue Dashboard</h3>
+      <p>Icon sidebar navigation. Revenue stats front and centre. Left-border colour coding for booking status at a glance.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#050510;padding:10px;font-family:system-ui;border-radius:8px 8px 0 0;">
+      <!-- Split: bookings left, live activity right -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;height:150px;">
+        <!-- Left: bookings -->
+        <div style="background:#0d0d1a;border-radius:6px;padding:7px;overflow:hidden;">
+          <div style="color:#888;font-size:6px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">📋 Active Rides (3)</div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="background:#1a1a2e;border-radius:4px;padding:5px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <div style="color:#fff;font-size:7px;font-weight:600;">John S.</div>
+                <div style="color:#22c55e;font-size:6px;">en route</div>
+              </div>
+              <div style="color:#555;font-size:6px;">Saqib · 2.1km away</div>
+            </div>
+            <div style="background:#1a1a2e;border-radius:4px;padding:5px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <div style="color:#fff;font-size:7px;font-weight:600;">Maria K.</div>
+                <div style="color:#f5c518;font-size:6px;">dispatching</div>
+              </div>
+              <div style="color:#555;font-size:6px;">Finding driver...</div>
+            </div>
+            <div style="background:#1a1a2e;border-radius:4px;padding:5px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                <div style="color:#fff;font-size:7px;font-weight:600;">Ahmed R.</div>
+                <div style="color:#3b82f6;font-size:6px;">arriving</div>
+              </div>
+              <div style="color:#555;font-size:6px;">Omar · 0.3km away</div>
+            </div>
+          </div>
+        </div>
+        <!-- Right: live activity feed + driver status -->
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="background:#0d0d1a;border-radius:6px;padding:7px;flex:1;overflow:hidden;">
+            <div style="color:#888;font-size:6px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">🚗 Drivers</div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="color:#ccc;font-size:7px;">Saqib</div>
+                <div style="width:6px;height:6px;background:#22c55e;border-radius:50%;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="color:#ccc;font-size:7px;">Omar</div>
+                <div style="width:6px;height:6px;background:#22c55e;border-radius:50%;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="color:#555;font-size:7px;">Tariq</div>
+                <div style="width:6px;height:6px;background:#333;border-radius:50%;"></div>
+              </div>
+            </div>
+          </div>
+          <div style="background:#0d0d1a;border-radius:6px;padding:7px;">
+            <div style="color:#888;font-size:6px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">⚡ Activity</div>
+            <div style="color:#555;font-size:6px;line-height:1.5;">
+              <div>✅ Ride #B8F2 completed</div>
+              <div>📍 Saqib picked up John</div>
+              <div>🔔 New booking · $22</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Split Operations View</h3>
+      <p>Active rides on the left, driver status + live activity feed on the right. Everything visible at once — no tabs needed.</p>
+    </div>
+  </div>
+
+</div>
