@@ -45,4 +45,45 @@ async def test_cash_booking_has_payment_fields(client):
     assert r.status_code == 200
     booking = r.json().get("booking") or r.json()
     assert booking.get("payment_method") == "cash"
-    assert booking.get("payment_status") == "pending"
+    assert booking.get("payment_status") == "unpaid"
+
+
+def test_payment_state_machine_constants():
+    """All required payment states exist."""
+    import sys; sys.path.insert(0, "/Users/saqib/Downloads/caledonia-taxi/backend")
+    from main import PAYMENT_STATES
+    for s in ["unpaid", "payment_initiated", "authorized", "captured", "refunded", "failed"]:
+        assert s in PAYMENT_STATES, f"Missing state: {s}"
+
+
+def test_valid_payment_transitions():
+    """Only allowed state transitions return True."""
+    import sys; sys.path.insert(0, "/Users/saqib/Downloads/caledonia-taxi/backend")
+    from main import is_valid_payment_transition
+    assert is_valid_payment_transition("unpaid", "payment_initiated") is True
+    assert is_valid_payment_transition("authorized", "captured") is True
+    assert is_valid_payment_transition("captured", "refunded") is True
+    assert is_valid_payment_transition("failed", "payment_initiated") is True  # retry
+    assert is_valid_payment_transition("captured", "unpaid") is False
+    assert is_valid_payment_transition("refunded", "captured") is False
+    assert is_valid_payment_transition("abandoned", "unpaid") is False
+
+
+def test_advance_payment_state_success():
+    """advance_payment_state returns True and updates booking on valid transition."""
+    import sys; sys.path.insert(0, "/Users/saqib/Downloads/caledonia-taxi/backend")
+    from main import advance_payment_state
+    booking = {"id": "test-1", "payment_status": "unpaid"}
+    result = advance_payment_state(booking, "payment_initiated")
+    assert result is True
+    assert booking["payment_status"] == "payment_initiated"
+
+
+def test_advance_payment_state_invalid():
+    """advance_payment_state returns False and does NOT update on invalid transition."""
+    import sys; sys.path.insert(0, "/Users/saqib/Downloads/caledonia-taxi/backend")
+    from main import advance_payment_state
+    booking = {"id": "test-2", "payment_status": "captured"}
+    result = advance_payment_state(booking, "unpaid")  # can't go backwards
+    assert result is False
+    assert booking["payment_status"] == "captured"  # unchanged

@@ -241,6 +241,44 @@ dispatch_log: list[dict] = []
 # Idempotency store: {key: {created_at: iso, booking_id: str}} — 24h TTL
 _idempotency_store: dict[str, dict] = {}
 
+# ── Payment State Machine ──────────────────────────────────────────────────
+PAYMENT_STATES = frozenset({
+    "unpaid", "payment_initiated", "authorized",
+    "captured", "refunded", "failed", "abandoned"
+})
+
+_VALID_TRANSITIONS: dict[str, set] = {
+    "unpaid":             {"payment_initiated"},
+    "payment_initiated":  {"authorized", "failed"},
+    "authorized":         {"captured", "failed"},
+    "captured":           {"refunded"},
+    "failed":             {"payment_initiated"},   # allow retry
+    "refunded":           set(),                   # terminal
+    "abandoned":          set(),                   # terminal
+}
+
+
+def is_valid_payment_transition(current: str, next_state: str) -> bool:
+    """Return True if the payment state transition is allowed."""
+    return next_state in _VALID_TRANSITIONS.get(current, set())
+
+
+def advance_payment_state(booking: dict, next_state: str) -> bool:
+    """
+    Attempt to advance booking payment state.
+    Returns True on success, False if transition is invalid.
+    """
+    current = booking.get("payment_status", "unpaid")
+    if not is_valid_payment_transition(current, next_state):
+        logger.warning(
+            f"[Payment] Invalid transition {current!r} → {next_state!r} "
+            f"for booking {booking.get('id', '?')}"
+        )
+        return False
+    booking["payment_status"] = next_state
+    logger.info(f"[Payment] {booking.get('id','?')} {current} → {next_state}")
+    return True
+
 
 # ============================================================
 # WEBSOCKET MANAGER
@@ -582,7 +620,11 @@ async def create_booking(request: Request, req: BookingRequest):
         demo_bookings.append(booking)
 
     booking["payment_method"] = req.payment_method if hasattr(req, 'payment_method') else "cash"
-    booking["payment_status"] = "paid" if booking.get("payment_method") == "stripe" else "pending"
+    # Payment state machine: stripe → payment_initiated, cash → unpaid
+    if booking.get("payment_method") == "stripe":
+        booking["payment_status"] = "payment_initiated"
+    else:
+        booking["payment_status"] = "unpaid"  # cash/COD
 
     await manager.broadcast("admin", {"type": "new_booking", "booking": booking})
 
@@ -2396,6 +2438,105 @@ async def resolve_sos(sos_id: str):
             entry["resolved_at"] = datetime.now(timezone.utc).isoformat()
             return {"ok": True}
     raise HTTPException(404, "SOS event not found")
+
+
+# ============================================================
+# Twilio Inbound SMS Webhook
+# ============================================================
+
+@app.post("/sms/inbound")
+async def sms_inbound(request: Request):
+    """
+    Twilio inbound SMS webhook.
+    Handles:
+      CANCEL → cancel latest active booking for that phone number
+      STATUS → reply with current booking status
+      Other  → reply with help message
+    Returns TwiML XML.
+    """
+    from fastapi.responses import Response as _XMLResponse
+
+    form = await request.form()
+    from_phone = str(form.get("From", "")).strip()
+    body_raw   = str(form.get("Body", "")).strip()
+    body       = body_raw.upper().strip()
+
+    logger.info(f"[SMS Inbound] From: {from_phone} | Body: {body_raw!r}")
+
+    def twiml(message: str):
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            f'<Response><Message>{message}</Message></Response>'
+        )
+        return _XMLResponse(content=xml, media_type="text/xml")
+
+    # Normalize phone for comparison (strip spaces, dashes, parens)
+    def _norm(p: str) -> str:
+        return p.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+
+    phone_norm = _norm(from_phone)
+
+    # Find most recent active booking for this phone number
+    matching = [
+        b for b in bookings_db.values()
+        if _norm(b.get("customer_phone", "")) == phone_norm
+        and b.get("status") not in ("completed", "cancelled", "dispatch_failed")
+    ]
+    matching.sort(key=lambda b: b.get("created_at", ""), reverse=True)
+    latest = matching[0] if matching else None
+
+    if body == "CANCEL":
+        if not latest:
+            return twiml(
+                "No active bookings found for your number. "
+                "Reply STATUS to check. Call (289) 555-1001 for help."
+            )
+        bid = latest["id"]
+        short_id = bid[:8].upper()
+        latest["status"] = "cancelled"
+        latest["cancelled_at"] = datetime.now(timezone.utc).isoformat()
+        latest["cancel_reason"] = "Customer SMS cancellation (CANCEL reply)"
+        await manager.broadcast("admin", {
+            "type": "booking_cancelled",
+            "booking_id": bid,
+            "reason": "Customer replied CANCEL via SMS",
+        })
+        logger.info(f"[SMS Inbound] Booking {bid} cancelled by SMS CANCEL from {from_phone}")
+        return twiml(
+            f"Your booking #{short_id} has been cancelled. "
+            "No charge applies. Safe travels! — Caledonia Taxi"
+        )
+
+    elif body == "STATUS":
+        if not latest:
+            return twiml(
+                "No active bookings found for your number. "
+                "To book a ride visit our website or call (289) 555-1001."
+            )
+        status_map = {
+            "pending":    "Pending — searching for a driver",
+            "dispatched": "Dispatched — waiting for driver to accept",
+            "accepted":   "Accepted — driver is on the way",
+            "in_progress":"In progress — you're on your way!",
+        }
+        status_str = status_map.get(latest.get("status", ""), latest.get("status", "unknown"))
+        short_id = latest["id"][:8].upper()
+        driver_part = ""
+        if latest.get("assigned_driver_id"):
+            drv = drivers_db.get(latest["assigned_driver_id"], {})
+            if drv.get("name"):
+                driver_part = f" | Driver: {drv['name']}"
+        return twiml(
+            f"Booking #{short_id}: {status_str}{driver_part}. "
+            "Reply CANCEL to cancel your ride."
+        )
+
+    else:
+        return twiml(
+            "Caledonia Taxi: Reply CANCEL to cancel your ride, "
+            "STATUS to check your booking. "
+            "For help call (289) 555-1001."
+        )
 
 
 # ============================================================
