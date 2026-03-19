@@ -414,3 +414,17 @@ async def test_sms_inbound_status_no_booking(client):
     })
     assert r.status_code == 200
     assert "<Response>" in r.text
+
+
+# ── WebSocket Envelope Schema ───────────────────────────────
+
+def test_ws_envelope_function():
+    """ws_envelope creates correctly structured WebSocket messages."""
+    import sys; sys.path.insert(0, "/Users/saqib/Downloads/caledonia-taxi/backend")
+    from main import ws_envelope
+    msg = ws_envelope("test_type", {"key": "value"})
+    assert msg["type"] == "test_type"
+    assert msg["payload"] == {"key": "value"}
+    assert "timestamp" in msg
+    assert "message_id" in msg
+    assert len(msg["message_id"]) == 36  # UUID format
